@@ -139,7 +139,7 @@ func (mg *MusicGenerator) generateMelody(progression ChordProgression, rng *rand
 	
 	var allSamples []*AudioSample
 	
-	for _, chord := range progression {
+	for range progression {
 		// Generate 8 melody notes per chord
 		for i := 0; i < 8; i++ {
 			// Choose note from scale
