@@ -1,3 +1,6 @@
+// Package world generates Metroidvania-style game worlds using graph theory
+// to ensure connected, playable level layouts with ability-gated progression,
+// biome variety, and procedurally placed rooms, platforms, and hazards.
 package world
 
 import (

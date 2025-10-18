@@ -1,3 +1,6 @@
+// Package entity generates procedural enemies, bosses, items, and player
+// abilities with stats scaled to danger levels, behavior patterns, attack
+// types, and Metroidvania-style ability progression systems.
 package entity
 
 import (

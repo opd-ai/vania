@@ -1,3 +1,6 @@
+// Package narrative generates procedural story elements including themes,
+// world lore, factions, character backgrounds, and item descriptions to
+// create cohesive narrative contexts that influence other generation systems.
 package narrative
 
 import (

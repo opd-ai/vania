@@ -1,3 +1,6 @@
+// Package audio implements procedural audio synthesis and music generation
+// using waveform generators, ADSR envelopes, and music theory to create
+// dynamic sound effects and biome-specific musical tracks at runtime.
 package audio
 
 import (

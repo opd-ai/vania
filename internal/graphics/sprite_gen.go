@@ -1,3 +1,6 @@
+// Package graphics provides procedural pixel art generation including sprites,
+// tilesets, and color palettes using cellular automata, symmetry transforms,
+// and HSV color theory to create coherent retro-style visual assets.
 package graphics
 
 import (
