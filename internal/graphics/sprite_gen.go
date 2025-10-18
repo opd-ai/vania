@@ -44,6 +44,14 @@ type SpriteGenerator struct {
 
 // NewSpriteGenerator creates a new sprite generator
 func NewSpriteGenerator(width, height int, symmetry SymmetryType) *SpriteGenerator {
+	// Validate inputs
+	if width <= 0 {
+		width = 32 // Default width
+	}
+	if height <= 0 {
+		height = 32 // Default height
+	}
+	
 	return &SpriteGenerator{
 		Width:    width,
 		Height:   height,

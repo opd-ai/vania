@@ -373,8 +373,20 @@ func (ng *NarrativeGenerator) GenerateItemDescription(itemType string, theme Sto
 		},
 	}
 	
-	adj := adjectives[theme][ng.rng.Intn(len(adjectives[theme]))]
-	tmpl := templates[itemType][ng.rng.Intn(len(templates[itemType]))]
+	// Use default if theme not found
+	adjList, ok := adjectives[theme]
+	if !ok || len(adjList) == 0 {
+		adjList = []string{"mysterious", "powerful", "rare", "valuable"}
+	}
+	
+	// Use default if item type not found
+	tmplList, ok := templates[itemType]
+	if !ok || len(tmplList) == 0 {
+		return "A remarkable item of unknown origin."
+	}
+	
+	adj := adjList[ng.rng.Intn(len(adjList))]
+	tmpl := tmplList[ng.rng.Intn(len(tmplList))]
 	
 	if strings.Contains(tmpl, "fires of the %s") {
 		locations := []string{"ancients", "fallen kingdom", "first age", "old world"}

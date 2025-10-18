@@ -41,6 +41,11 @@ type Synthesizer struct {
 
 // NewSynthesizer creates a new synthesizer
 func NewSynthesizer(sampleRate int) *Synthesizer {
+	// Validate sample rate
+	if sampleRate <= 0 {
+		sampleRate = 44100 // CD quality default
+	}
+	
 	return &Synthesizer{
 		SampleRate: sampleRate,
 	}
