@@ -37,6 +37,16 @@ type MusicGenerator struct {
 
 // NewMusicGenerator creates a new music generator
 func NewMusicGenerator(sampleRate, bpm, rootNote int, scale Scale) *MusicGenerator {
+	// Validate BPM to prevent division by zero
+	if bpm <= 0 {
+		bpm = 120 // Default BPM
+	}
+	
+	// Validate scale
+	if scale == nil || len(scale) == 0 {
+		scale = MinorScale // Default scale
+	}
+	
 	return &MusicGenerator{
 		Synth:    NewSynthesizer(sampleRate),
 		BPM:      bpm,

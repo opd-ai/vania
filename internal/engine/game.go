@@ -1,3 +1,6 @@
+// Package engine coordinates all procedural generation systems and manages
+// the main game state, integrating graphics, audio, world, entities, and
+// narrative into a cohesive game experience.
 package engine
 
 import (
@@ -327,8 +330,15 @@ func (gg *GameGenerator) validate(worldData *world.World, entities []*entity.Ene
 	return true
 }
 
-// Run starts the game loop (stub for now)
+// Run starts the game loop
+// Note: Full game engine with rendering is planned. Current implementation
+// validates generation and outputs statistics for debugging and demonstration.
 func (g *Game) Run() {
+	if !g.Running {
+		println("Game not initialized properly")
+		return
+	}
+	
 	println("Game starting with seed:", g.Seed)
 	println("Theme:", g.Narrative.Theme)
 	println("Player motivation:", g.Narrative.PlayerMotivation)
@@ -338,6 +348,7 @@ func (g *Game) Run() {
 	println("Items:", len(g.Items))
 	println("Abilities:", len(g.Abilities))
 	
-	// Game loop would go here
-	// For now, just print stats
+	// Full game loop with rendering, input handling, and physics
+	// will be implemented when Ebiten integration is complete.
+	// Current implementation serves as a generation test and demo.
 }

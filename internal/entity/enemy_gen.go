@@ -1,3 +1,6 @@
+// Package entity generates procedural enemies, bosses, items, and player
+// abilities with stats scaled to danger levels, behavior patterns, attack
+// types, and Metroidvania-style ability progression systems.
 package entity
 
 import (
@@ -170,7 +173,13 @@ func (eg *EnemyGenerator) generateName(biome string) string {
 		"Spawn", "Stalker", "Guardian", "Shade", "Terror",
 	}
 	
-	prefix := prefixes[biome][eg.rng.Intn(len(prefixes[biome]))]
+	// Use default if biome not found
+	prefixList, ok := prefixes[biome]
+	if !ok || len(prefixList) == 0 {
+		prefixList = []string{"Unknown", "Strange", "Mysterious", "Enigmatic"}
+	}
+	
+	prefix := prefixList[eg.rng.Intn(len(prefixList))]
 	suffix := suffixes[eg.rng.Intn(len(suffixes))]
 	
 	return prefix + " " + suffix
@@ -187,7 +196,12 @@ func (eg *EnemyGenerator) selectBehavior(biome string) BehaviorPattern {
 		"sky":     {FlyingBehavior, PatrolBehavior},
 	}
 	
-	options := behaviors[biome]
+	// Use default behavior if biome not found
+	options, ok := behaviors[biome]
+	if !ok || len(options) == 0 {
+		options = []BehaviorPattern{PatrolBehavior, ChaseBehavior}
+	}
+	
 	return options[eg.rng.Intn(len(options))]
 }
 
@@ -275,7 +289,14 @@ func (bg *BossGenerator) generateBossName(biome string) string {
 	}
 	
 	title := titles[bg.rng.Intn(len(titles))]
-	name := names[biome][bg.rng.Intn(len(names[biome]))]
+	
+	// Use default if biome not found
+	nameList, ok := names[biome]
+	if !ok || len(nameList) == 0 {
+		nameList = []string{"the Unknown", "Mystery", "Secrets", "the Beyond"}
+	}
+	
+	name := nameList[bg.rng.Intn(len(nameList))]
 	
 	return title + " of " + name
 }
@@ -304,7 +325,12 @@ func (bg *BossGenerator) generateUniqueAttack(biome string) string {
 		"sky":     {"lightning_strike", "tornado", "wind_blade"},
 	}
 	
-	options := attacks[biome]
+	// Use default if biome not found
+	options, ok := attacks[biome]
+	if !ok || len(options) == 0 {
+		options = []string{"energy_blast", "power_strike", "devastating_blow"}
+	}
+	
 	return options[bg.rng.Intn(len(options))]
 }
 

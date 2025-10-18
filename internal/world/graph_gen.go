@@ -1,3 +1,6 @@
+// Package world generates Metroidvania-style game worlds using graph theory
+// to ensure connected, playable level layouts with ability-gated progression,
+// biome variety, and procedurally placed rooms, platforms, and hazards.
 package world
 
 import (
@@ -91,6 +94,20 @@ type WorldGenerator struct {
 
 // NewWorldGenerator creates a new world generator
 func NewWorldGenerator(width, height, roomCount, biomeCount int) *WorldGenerator {
+	// Validate and apply defaults
+	if width <= 0 {
+		width = 15
+	}
+	if height <= 0 {
+		height = 10
+	}
+	if roomCount <= 0 {
+		roomCount = 80
+	}
+	if biomeCount <= 0 {
+		biomeCount = 5
+	}
+	
 	return &WorldGenerator{
 		Width:      width,
 		Height:     height,

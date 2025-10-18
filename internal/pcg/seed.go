@@ -1,3 +1,6 @@
+// Package pcg provides core procedural content generation framework including
+// seed management, caching, validation, and quality metrics for deterministic
+// generation across all game subsystems.
 package pcg
 
 import (
@@ -46,7 +49,11 @@ func NewPCGContext(seed int64) *PCGContext {
 // HashSeed derives a subsystem seed from a master seed and identifier
 func HashSeed(masterSeed int64, identifier string) int64 {
 	h := sha256.New()
-	binary.Write(h, binary.LittleEndian, masterSeed)
+	// binary.Write to hash.Hash never returns an error, but we check for robustness
+	if err := binary.Write(h, binary.LittleEndian, masterSeed); err != nil {
+		// This should never happen with hash.Hash, but handle gracefully
+		panic("binary.Write to hash failed: " + err.Error())
+	}
 	h.Write([]byte(identifier))
 	sum := h.Sum(nil)
 	return int64(binary.LittleEndian.Uint64(sum[:8]))
