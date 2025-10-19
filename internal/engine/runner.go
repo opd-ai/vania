@@ -366,11 +366,23 @@ func (gr *GameRunner) Update() error {
 				gr.particleSystem.AddEmitter(bloodEmitter)
 
 				gr.combatSystem.ApplyDamageToEnemy(enemy, gr.game.Player.Damage, gr.game.Player.X)
+				
+				// Track damage dealt for achievements
+				if gr.game.Achievements != nil {
+					gr.game.Achievements.RecordDamage(gr.game.Player.Damage, 0)
+				}
 
 				// Track defeated enemy (use position as ID for now)
 				if wasAlive && enemy.IsDead() {
 					enemyKey := int(enemy.X*1000 + enemy.Y)
 					gr.defeatedEnemies[enemyKey] = true
+					
+					// Record enemy kill for achievements
+					if gr.game.Achievements != nil {
+						// Check if it was a perfect kill (no damage taken in this room)
+						wasPerfect := gr.combatSystem.GetInvulnerableFrames() == 0
+						gr.game.Achievements.RecordEnemyKill(wasPerfect)
+					}
 
 					// Create explosion effect on death
 					explosionEmitter := gr.particlePresets.CreateExplosion(ex+16, ey+16, 1.0)
@@ -388,7 +400,18 @@ func (gr *GameRunner) Update() error {
 			if enemy.State == entity.AttackState {
 				damage = enemy.GetAttackDamage()
 			}
+			
+			// Record damage taken for achievements
+			if gr.game.Achievements != nil {
+				gr.game.Achievements.RecordDamage(0, damage)
+			}
+			
 			gr.combatSystem.ApplyDamageToPlayer(gr.game.Player, damage, enemy.X)
+			
+			// Check if player died
+			if gr.game.Player.Health <= 0 && gr.game.Achievements != nil {
+				gr.game.Achievements.RecordDeath()
+			}
 		}
 	}
 
@@ -409,7 +432,15 @@ func (gr *GameRunner) Update() error {
 
 	// Track current room as visited
 	if gr.game.CurrentRoom != nil {
+		wasVisited := gr.visitedRooms[gr.game.CurrentRoom.ID]
 		gr.visitedRooms[gr.game.CurrentRoom.ID] = true
+		
+		// Record room visit for achievements (only first visit)
+		if !wasVisited && gr.game.Achievements != nil {
+			// Check if this room was completed without taking damage
+			isPerfect := !gr.combatSystem.IsInvulnerable()
+			gr.game.Achievements.RecordRoomVisit(isPerfect)
+		}
 	}
 
 	return nil
@@ -606,22 +637,45 @@ func (gr *GameRunner) CreateSaveData() *save.SaveData {
 	if gr.game.CurrentRoom != nil {
 		currentRoomID = gr.game.CurrentRoom.ID
 	}
+	
+	// Build achievement statistics
+	var achievementStats *save.AchievementStatistics
+	if gr.game.Achievements != nil {
+		stats := gr.game.Achievements.GetStatistics()
+		achievementStats = &save.AchievementStatistics{
+			EnemiesDefeated:    stats.EnemiesDefeated,
+			BossesDefeated:     stats.BossesDefeated,
+			TotalDamageDealt:   stats.TotalDamageDealt,
+			DamageTaken:        stats.DamageTaken,
+			PerfectKills:       stats.PerfectKills,
+			RoomsVisited:       stats.RoomsVisited,
+			BiomesExplored:     stats.BiomesExplored,
+			SecretsFound:       stats.SecretsFound,
+			ItemsCollected:     stats.ItemsCollected,
+			AbilitiesUnlocked:  stats.AbilitiesUnlocked,
+			DeathCount:         stats.DeathCount,
+			PerfectRooms:       stats.PerfectRooms,
+			ConsecutiveKills:   stats.ConsecutiveKills,
+			LongestCombo:       stats.LongestCombo,
+		}
+	}
 
 	return &save.SaveData{
-		Seed:            gr.game.Seed,
-		PlayTime:        playTime,
-		PlayerX:         gr.game.Player.X,
-		PlayerY:         gr.game.Player.Y,
-		PlayerHealth:    gr.game.Player.Health,
-		PlayerMaxHealth: gr.game.Player.MaxHealth,
-		PlayerAbilities: gr.game.Player.Abilities,
-		CurrentRoomID:   currentRoomID,
-		VisitedRooms:    visitedRoomsList,
-		DefeatedEnemies: gr.defeatedEnemies,
-		CollectedItems:  gr.collectedItems,
-		UnlockedDoors:   gr.unlockedDoors,
-		BossesDefeated:  gr.getBossesDefeated(),
-		CheckpointID:    currentRoomID,
+		Seed:             gr.game.Seed,
+		PlayTime:         playTime,
+		PlayerX:          gr.game.Player.X,
+		PlayerY:          gr.game.Player.Y,
+		PlayerHealth:     gr.game.Player.Health,
+		PlayerMaxHealth:  gr.game.Player.MaxHealth,
+		PlayerAbilities:  gr.game.Player.Abilities,
+		CurrentRoomID:    currentRoomID,
+		VisitedRooms:     visitedRoomsList,
+		DefeatedEnemies:  gr.defeatedEnemies,
+		CollectedItems:   gr.collectedItems,
+		UnlockedDoors:    gr.unlockedDoors,
+		BossesDefeated:   gr.getBossesDefeated(),
+		CheckpointID:     currentRoomID,
+		AchievementStats: achievementStats,
 	}
 }
 
@@ -746,6 +800,11 @@ func (gr *GameRunner) collectItem(item *entity.ItemInstance) {
 	item.Collected = true
 	gr.collectedItems[item.ID] = true
 
+	// Record item collection for achievements
+	if gr.game.Achievements != nil {
+		gr.game.Achievements.RecordItemCollected()
+	}
+
 	// Show message
 	gr.itemMessage = fmt.Sprintf("Collected: %s", item.Item.Name)
 	gr.itemMessageTimer = 120 // Show for 2 seconds
@@ -764,6 +823,20 @@ func (gr *GameRunner) collectItem(item *entity.ItemInstance) {
 		}
 	case "increase_damage":
 		gr.game.Player.Damage += item.Item.Value / 10
+	}
+	
+	// Check if item grants an ability (for key items)
+	if item.Item.Type == entity.KeyItem {
+		// Key items grant abilities
+		abilityName := item.Item.Name // Use item name as ability identifier
+		if !gr.game.Player.Abilities[abilityName] {
+			gr.game.Player.Abilities[abilityName] = true
+			
+			// Record ability unlock for achievements
+			if gr.game.Achievements != nil {
+				gr.game.Achievements.RecordAbilityUnlocked()
+			}
+		}
 	}
 }
 
@@ -822,6 +895,27 @@ func (gr *GameRunner) RestoreFromSaveData(saveData *save.SaveData) error {
 	gr.unlockedDoors = saveData.UnlockedDoors
 	if gr.unlockedDoors == nil {
 		gr.unlockedDoors = make(map[string]bool)
+	}
+	
+	// Restore achievement statistics if available
+	if saveData.AchievementStats != nil && gr.game.Achievements != nil {
+		stats := gr.game.Achievements.GetStatistics()
+		stats.EnemiesDefeated = saveData.AchievementStats.EnemiesDefeated
+		stats.BossesDefeated = saveData.AchievementStats.BossesDefeated
+		stats.TotalDamageDealt = saveData.AchievementStats.TotalDamageDealt
+		stats.DamageTaken = saveData.AchievementStats.DamageTaken
+		stats.PerfectKills = saveData.AchievementStats.PerfectKills
+		stats.RoomsVisited = saveData.AchievementStats.RoomsVisited
+		stats.BiomesExplored = saveData.AchievementStats.BiomesExplored
+		stats.SecretsFound = saveData.AchievementStats.SecretsFound
+		stats.ItemsCollected = saveData.AchievementStats.ItemsCollected
+		stats.AbilitiesUnlocked = saveData.AchievementStats.AbilitiesUnlocked
+		stats.DeathCount = saveData.AchievementStats.DeathCount
+		stats.PerfectRooms = saveData.AchievementStats.PerfectRooms
+		stats.ConsecutiveKills = saveData.AchievementStats.ConsecutiveKills
+		stats.LongestCombo = saveData.AchievementStats.LongestCombo
+		stats.PlayTime = saveData.PlayTime
+		gr.game.Achievements.UpdateStatistics(stats)
 	}
 
 	// Find and set current room

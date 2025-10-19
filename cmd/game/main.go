@@ -61,6 +61,16 @@ func main() {
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println()
 
+	// Display achievement info
+	if game.Achievements != nil {
+		fmt.Println("🏆 ACHIEVEMENTS")
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Printf("  Total Achievements: %d\n", len(game.Achievements.GetAllAchievements()))
+		fmt.Printf("  Max Points:         %d\n", game.Achievements.GetMaxPoints())
+		fmt.Println("  Play the game to unlock achievements!")
+		fmt.Println()
+	}
+
 	// Run the game
 	if *playFlag {
 		// Launch with rendering
@@ -72,6 +82,11 @@ func main() {
 		if err := runner.Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error running game: %v\n", err)
 			os.Exit(1)
+		}
+		
+		// Display achievement progress after game ends
+		if game.Achievements != nil {
+			displayAchievementSummary(game)
 		}
 	} else {
 		// Just show stats (original behavior)
@@ -157,4 +172,66 @@ func displayGameStats(game *engine.Game) {
 		fmt.Printf("  %d. %s\n", i+1, faction.Name)
 		fmt.Printf("     %s (%s)\n", faction.Description, faction.Relationship)
 	}
+}
+
+func displayAchievementSummary(game *engine.Game) {
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println("🏆 ACHIEVEMENT SUMMARY")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	
+	unlocked := game.Achievements.GetUnlockedAchievements()
+	fmt.Printf("  Unlocked:           %d / %d (%.1f%%)\n", 
+		len(unlocked), 
+		len(game.Achievements.GetAllAchievements()),
+		game.Achievements.GetCompletionPercentage())
+	fmt.Printf("  Points Earned:      %d / %d\n", 
+		game.Achievements.GetTotalPoints(),
+		game.Achievements.GetMaxPoints())
+	fmt.Println()
+	
+	if len(unlocked) > 0 {
+		fmt.Println("  Unlocked Achievements:")
+		for i, u := range unlocked {
+			if i >= 5 {
+				fmt.Printf("    ... and %d more\n", len(unlocked)-5)
+				break
+			}
+			achievement := game.Achievements.GetAchievement(u.AchievementID)
+			if achievement != nil {
+				fmt.Printf("    ✓ %s - %s (%d pts)\n", 
+					achievement.Name, 
+					achievement.Description,
+					achievement.Points)
+			}
+		}
+		fmt.Println()
+	}
+	
+	// Show some progress on locked achievements
+	fmt.Println("  In Progress:")
+	shown := 0
+	for _, achievement := range game.Achievements.GetAllAchievements() {
+		if game.Achievements.IsUnlocked(achievement.ID) || achievement.Hidden {
+			continue
+		}
+		
+		progress := game.Achievements.GetProgress(achievement.ID)
+		if progress != nil && progress.Progress > 0 {
+			fmt.Printf("    ⋯ %s - %.0f%%\n", 
+				achievement.Name,
+				progress.Progress*100)
+			shown++
+			if shown >= 3 {
+				break
+			}
+		}
+	}
+	
+	if shown == 0 {
+		fmt.Println("    Keep playing to unlock more achievements!")
+	}
+	
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
