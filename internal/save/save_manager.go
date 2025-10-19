@@ -37,6 +37,27 @@ type SaveData struct {
 	// Progress tracking
 	BossesDefeated []int            `json:"bosses_defeated"`
 	CheckpointID   int              `json:"checkpoint_id"`
+	
+	// Achievement statistics (optional for backward compatibility)
+	AchievementStats *AchievementStatistics `json:"achievement_stats,omitempty"`
+}
+
+// AchievementStatistics tracks statistics for achievements
+type AchievementStatistics struct {
+	EnemiesDefeated    int `json:"enemies_defeated"`
+	BossesDefeated     int `json:"bosses_defeated"`
+	TotalDamageDealt   int `json:"total_damage_dealt"`
+	DamageTaken        int `json:"damage_taken"`
+	PerfectKills       int `json:"perfect_kills"`
+	RoomsVisited       int `json:"rooms_visited"`
+	BiomesExplored     int `json:"biomes_explored"`
+	SecretsFound       int `json:"secrets_found"`
+	ItemsCollected     int `json:"items_collected"`
+	AbilitiesUnlocked  int `json:"abilities_unlocked"`
+	DeathCount         int `json:"death_count"`
+	PerfectRooms       int `json:"perfect_rooms"`
+	ConsecutiveKills   int `json:"consecutive_kills"`
+	LongestCombo       int `json:"longest_combo"`
 }
 
 // SaveManager handles all save/load operations

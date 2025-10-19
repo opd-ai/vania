@@ -261,29 +261,26 @@ type QualityMetrics struct {
 - [x] **Animation system** ✨ 
 - [x] **Save/load system** ✨
 - [x] **Particle effects system** ✨
-- [x] **Door/Key ability-gating system** ✨ NEW
-- [x] **Advanced enemy animations** ✨ NEW
+- [x] **Door/Key ability-gating system** ✨
+- [x] **Advanced enemy animations** ✨
+- [x] **Adaptive music system** ✨
+- [x] **Achievement system** ✨ NEW
 
 ### In Progress 🚧
 - None
 
 ### Recently Completed ✨
-- [x] **Adaptive music system** - Dynamic multi-layer music that responds to gameplay (exploration, combat, boss fights) ✨ NEW
+- [x] **Achievement system** - 19 unique achievements across 6 categories with progress tracking and persistence ✨ NEW
+- [x] **Adaptive music system** - Dynamic multi-layer music that responds to gameplay (exploration, combat, boss fights)
 - [x] **Advanced enemy animations** - Procedural animation frames for enemies (idle, patrol, attack, death, hit)
 - [x] **Item collection system** - Visible items in treasure rooms with collection feedback
 - [x] **Door/Key system** - Ability-gated progression with locked doors and automatic unlocking
 - [x] **Particle effects system** - Visual feedback for combat and movement
 - [x] **Save/load system** - Multiple save slots with automatic checkpoints
-- [x] **Animation system** - Frame-based sprite animations for player (idle, walk, jump, attack)
-- [x] **Enemy AI system** - Patrol, chase, flee, flying, jumping behaviors
-- [x] **Combat system** - Player attacks, damage, knockback, invulnerability
-- [x] **Enemy rendering** - Visual enemies with health bars
-- [x] **Hit detection** - Player vs enemy collision and attack hits
 
 ### Planned 📋
 - [ ] Advanced enemy AI (learning behaviors, coordinated attacks)
 - [ ] Puzzle generation
-- [ ] Achievement system
 - [ ] Speedrun timer
 - [ ] Seed leaderboards
 
@@ -305,6 +302,7 @@ MIT License - See LICENSE file for details
 
 ### System Documentation
 Detailed documentation for each game system:
+- [Achievement System](docs/systems/ACHIEVEMENT_SYSTEM.md) - Comprehensive achievement tracking with 19 unique achievements
 - [Adaptive Music System](docs/systems/ADAPTIVE_MUSIC_SYSTEM.md) - Dynamic music that responds to gameplay
 - [Animation System](docs/systems/ANIMATION_SYSTEM.md) - Frame-based sprite animations
 - [Combat System](docs/systems/COMBAT_SYSTEM.md) - Player attacks, damage, AI behaviors

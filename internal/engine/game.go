@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"github.com/opd-ai/vania/internal/achievement"
 	"github.com/opd-ai/vania/internal/animation"
 	"github.com/opd-ai/vania/internal/audio"
 	"github.com/opd-ai/vania/internal/entity"
@@ -29,6 +30,7 @@ type Game struct {
 	Running        bool
 	Seed           int64
 	PCGContext     *pcg.PCGContext
+	Achievements   *achievement.AchievementTracker
 }
 
 // Player represents the player character
@@ -129,25 +131,34 @@ func (gg *GameGenerator) GenerateCompleteGame() (*Game, error) {
 	// Create player
 	player := gg.createPlayer(graphicsSystem)
 	
+	// Initialize achievement tracker
+	achievementTracker := achievement.NewAchievementTracker()
+	
+	// Set callback for achievement unlocks
+	achievementTracker.SetOnUnlock(func(ach *achievement.Achievement) {
+		println("🏆 Achievement Unlocked:", ach.Name, "-", ach.Description)
+	})
+	
 	// Validate generation
 	if !gg.validate(worldData, entities, narrative) {
 		// Could regenerate or return error
 	}
 	
 	game := &Game{
-		World:       worldData,
-		Entities:    entities,
-		Bosses:      bosses,
-		Items:       items,
-		Abilities:   abilities,
-		Graphics:    graphicsSystem,
-		Audio:       audioSystem,
-		Narrative:   narrative,
-		Player:      player,
-		CurrentRoom: worldData.StartRoom,
-		Running:     true,
-		Seed:        gg.MasterSeed,
-		PCGContext:  gg.PCGContext,
+		World:        worldData,
+		Entities:     entities,
+		Bosses:       bosses,
+		Items:        items,
+		Abilities:    abilities,
+		Graphics:     graphicsSystem,
+		Audio:        audioSystem,
+		Narrative:    narrative,
+		Player:       player,
+		CurrentRoom:  worldData.StartRoom,
+		Running:      true,
+		Seed:         gg.MasterSeed,
+		PCGContext:   gg.PCGContext,
+		Achievements: achievementTracker,
 	}
 	
 	generationTime := time.Since(startTime)
