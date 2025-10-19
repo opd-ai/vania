@@ -187,8 +187,11 @@ func TestRoomTransitionHandler_LockedDoor(t *testing.T) {
 
 	handler := NewRoomTransitionHandler(game)
 
+	// Create empty unlocked doors map
+	unlockedDoors := make(map[string]bool)
+
 	// Try to collide with locked door
-	door := handler.CheckDoorCollision(110, 210, 32, 32)
+	door := handler.CheckDoorCollision(110, 210, 32, 32, unlockedDoors)
 
 	// Should return nil because door is locked
 	if door != nil {
