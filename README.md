@@ -260,13 +260,16 @@ type QualityMetrics struct {
 - [x] **Room transitions** ✨
 - [x] **Animation system** ✨ 
 - [x] **Save/load system** ✨
-- [x] **Particle effects system** ✨ NEW
+- [x] **Particle effects system** ✨
+- [x] **Door/Key ability-gating system** ✨ NEW
 
 ### In Progress 🚧
 - [ ] Advanced enemy animations
+- [ ] Item collection system
 
 ### Recently Completed ✨
-- [x] **Particle effects system** - Visual feedback for combat and movement ✨ NEW
+- [x] **Door/Key system** - Ability-gated progression with locked doors and automatic unlocking ✨ NEW
+- [x] **Particle effects system** - Visual feedback for combat and movement
 - [x] **Save/load system** - Multiple save slots with automatic checkpoints
 - [x] **Animation system** - Frame-based sprite animations for player (idle, walk, jump, attack)
 - [x] **Enemy AI system** - Patrol, chase, flee, flying, jumping behaviors
