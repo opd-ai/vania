@@ -81,9 +81,14 @@ go build -o vania ./cmd/game
 # Generate a specific game from a seed
 ./vania --seed 42
 
+# Play the game with rendering (NEW!)
+./vania --seed 42 --play
+
 # Share seeds with friends to play the same generated game!
-./vania --seed 1337
+./vania --seed 1337 --play
 ```
+
+**Note**: The `--play` flag launches the full game with rendering, physics, and controls. See [RENDERING.md](RENDERING.md) for detailed setup instructions and system requirements.
 
 ## 📊 Example Output
 
@@ -127,6 +132,9 @@ Master Seed: 42
   ├── narrative/       - Story and text generation
   ├── world/           - Level and biome generation
   ├── entity/          - Enemy, boss, and item generation
+  ├── render/          - Ebiten rendering system (NEW!)
+  ├── input/           - Input handling (NEW!)
+  ├── physics/         - Collision detection and physics (NEW!)
   └── engine/          - Game engine and integration
 ```
 
@@ -241,15 +249,20 @@ type QualityMetrics struct {
 - [x] Item and ability generation
 - [x] Integration pipeline
 - [x] CLI interface
+- [x] **Ebiten-based rendering system** ✨ NEW
+- [x] **Player movement and physics** ✨ NEW
+- [x] **Collision detection and platforming** ✨ NEW
+- [x] **Input handling system** ✨ NEW
+- [x] **Camera system** ✨ NEW
+- [x] **UI/HUD rendering** ✨ NEW
 
 ### In Progress 🚧
-- [ ] Full game engine with Ebiten rendering
-- [ ] Player movement and physics
-- [ ] Combat system
-- [ ] Save/load system
+- [ ] Enemy rendering and AI behavior
+- [ ] Combat system implementation
+- [ ] Room transitions
 - [ ] Animation system
+- [ ] Save/load system
 - [ ] Particle effects
-- [ ] UI/HUD rendering
 
 ### Planned 📋
 - [ ] Adaptive music system (dynamic layers)
