@@ -30,9 +30,9 @@ echo ""
 echo "2️⃣  Running all tests..."
 TEST_OUTPUT=$($XVFB go test ./... 2>&1)
 PASS_COUNT=$(echo "$TEST_OUTPUT" | grep -c "^ok" || echo "0")
-FAIL_COUNT=$(echo "$TEST_OUTPUT" | grep -c "^FAIL" || echo "0")
+FAIL_COUNT=$(echo "$TEST_OUTPUT" | grep "^FAIL" | wc -l || echo "0")
 
-if [ $FAIL_COUNT -gt 0 ]; then
+if [ "$FAIL_COUNT" -gt 0 ]; then
     echo "   ❌ Tests failing: $FAIL_COUNT packages"
     echo "$TEST_OUTPUT"
     exit 1
@@ -94,7 +94,7 @@ fi
 echo ""
 
 echo "╔════════════════════════════════════════════════════════╗"
-if [ "$ALL_SEEDS_OK" = true ] && [ $FAIL_COUNT -eq 0 ]; then
+if [ "$ALL_SEEDS_OK" = "true" ] && [ "$FAIL_COUNT" -eq 0 ]; then
     echo "║     ✅ ALL CHECKS PASSED - PRODUCTION READY           ║"
     echo "╚════════════════════════════════════════════════════════╝"
     exit 0
