@@ -73,6 +73,9 @@ func (r *Renderer) RenderWorld(screen *ebiten.Image, currentRoom *world.Room, ti
 	
 	// Render hazards
 	r.renderHazards(screen, currentRoom)
+	
+	// Render doors
+	r.renderDoors(screen, currentRoom)
 }
 
 // renderRoomBackground draws the room's background tiles
@@ -169,6 +172,39 @@ func (r *Renderer) renderHazards(screen *ebiten.Image, room *world.Room) {
 		opts := &ebiten.DrawImageOptions{}
 		opts.GeoM.Translate(float64(hazard.X), float64(hazard.Y))
 		screen.DrawImage(hazardImg, opts)
+	}
+}
+
+// renderDoors draws doors/exits in the room
+func (r *Renderer) renderDoors(screen *ebiten.Image, room *world.Room) {
+	for _, door := range room.Doors {
+		// Choose door color based on whether it's locked
+		var doorColor color.Color
+		if door.Locked {
+			doorColor = color.RGBA{150, 50, 50, 255} // Dark red for locked
+		} else {
+			doorColor = color.RGBA{100, 150, 200, 255} // Blue for unlocked
+		}
+		
+		// Draw door frame
+		doorImg := ebiten.NewImage(door.Width, door.Height)
+		doorImg.Fill(doorColor)
+		
+		opts := &ebiten.DrawImageOptions{}
+		opts.GeoM.Translate(float64(door.X), float64(door.Y))
+		screen.DrawImage(doorImg, opts)
+		
+		// Draw inner part (lighter)
+		innerColor := color.RGBA{150, 200, 255, 200}
+		if door.Locked {
+			innerColor = color.RGBA{200, 100, 100, 200}
+		}
+		innerImg := ebiten.NewImage(door.Width-8, door.Height-8)
+		innerImg.Fill(innerColor)
+		
+		opts = &ebiten.DrawImageOptions{}
+		opts.GeoM.Translate(float64(door.X+4), float64(door.Y+4))
+		screen.DrawImage(innerImg, opts)
 	}
 }
 
@@ -328,4 +364,18 @@ func (r *Renderer) RenderAttackEffect(screen *ebiten.Image, x, y, width, height 
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(screenX, screenY)
 	screen.DrawImage(attackImg, opts)
+}
+
+// RenderTransitionEffect renders a fade transition effect
+func (r *Renderer) RenderTransitionEffect(screen *ebiten.Image, progress float64) {
+	if progress <= 0 {
+		return
+	}
+	
+	// Fade to black during transition
+	alpha := uint8(progress * 255)
+	fadeImg := ebiten.NewImage(ScreenWidth, ScreenHeight)
+	fadeImg.Fill(color.RGBA{0, 0, 0, alpha})
+	
+	screen.DrawImage(fadeImg, &ebiten.DrawImageOptions{})
 }

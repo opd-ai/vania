@@ -17,16 +17,17 @@ import (
 
 // GameRunner wraps the Game with Ebiten rendering
 type GameRunner struct {
-	game           *Game
-	renderer       *render.Renderer
-	inputHandler   *input.InputHandler
-	playerBody     *physics.Body
-	combatSystem   *CombatSystem
-	enemyInstances []*entity.EnemyInstance
-	doubleJumpUsed bool
-	dashCooldown   int
-	playerFacingDir float64
-	paused         bool
+	game              *Game
+	renderer          *render.Renderer
+	inputHandler      *input.InputHandler
+	playerBody        *physics.Body
+	combatSystem      *CombatSystem
+	transitionHandler *RoomTransitionHandler
+	enemyInstances    []*entity.EnemyInstance
+	doubleJumpUsed    bool
+	dashCooldown      int
+	playerFacingDir   float64
+	paused            bool
 }
 
 // NewGameRunner creates a new game runner
@@ -55,17 +56,20 @@ func NewGameRunner(game *Game) *GameRunner {
 		}
 	}
 	
+	transitionHandler := NewRoomTransitionHandler(game)
+	
 	return &GameRunner{
-		game:           game,
-		renderer:       render.NewRenderer(),
-		inputHandler:   input.NewInputHandler(),
-		playerBody:     physics.NewBody(playerX, playerY, physics.PlayerWidth, physics.PlayerHeight),
-		combatSystem:   NewCombatSystem(),
-		enemyInstances: enemyInstances,
-		doubleJumpUsed: false,
-		dashCooldown:   0,
-		playerFacingDir: 1.0,
-		paused:         false,
+		game:              game,
+		renderer:          render.NewRenderer(),
+		inputHandler:      input.NewInputHandler(),
+		playerBody:        physics.NewBody(playerX, playerY, physics.PlayerWidth, physics.PlayerHeight),
+		combatSystem:      NewCombatSystem(),
+		transitionHandler: transitionHandler,
+		enemyInstances:    enemyInstances,
+		doubleJumpUsed:    false,
+		dashCooldown:      0,
+		playerFacingDir:   1.0,
+		paused:            false,
 	}
 }
 
@@ -85,6 +89,30 @@ func (gr *GameRunner) Update() error {
 	}
 	
 	if gr.paused {
+		return nil
+	}
+	
+	// Update transition handler
+	if gr.transitionHandler.Update() {
+		// Transition completed - spawn new enemies
+		gr.enemyInstances = gr.transitionHandler.SpawnEnemiesForRoom(gr.game.CurrentRoom)
+	}
+	
+	// Don't update game logic during transition
+	if gr.transitionHandler.IsTransitioning() {
+		return nil
+	}
+	
+	// Check for door collision and transition
+	door := gr.transitionHandler.CheckDoorCollision(
+		gr.game.Player.X,
+		gr.game.Player.Y,
+		physics.PlayerWidth,
+		physics.PlayerHeight,
+	)
+	if door != nil {
+		// Player touched a door - start transition
+		gr.transitionHandler.StartTransition(door)
 		return nil
 	}
 	
@@ -265,6 +293,12 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	// Render UI
 	if gr.game.Player != nil {
 		gr.renderer.RenderUI(screen, gr.game.Player.Health, gr.game.Player.MaxHealth, gr.game.Player.Abilities)
+	}
+	
+	// Render transition effect if transitioning
+	if gr.transitionHandler.IsTransitioning() {
+		progress := gr.transitionHandler.GetTransitionProgress()
+		gr.renderer.RenderTransitionEffect(screen, progress)
 	}
 	
 	// Show debug info
