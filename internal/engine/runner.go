@@ -9,6 +9,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/opd-ai/vania/internal/entity"
 	"github.com/opd-ai/vania/internal/input"
 	"github.com/opd-ai/vania/internal/physics"
 	"github.com/opd-ai/vania/internal/render"
@@ -16,13 +17,16 @@ import (
 
 // GameRunner wraps the Game with Ebiten rendering
 type GameRunner struct {
-	game          *Game
-	renderer      *render.Renderer
-	inputHandler  *input.InputHandler
-	playerBody    *physics.Body
+	game           *Game
+	renderer       *render.Renderer
+	inputHandler   *input.InputHandler
+	playerBody     *physics.Body
+	combatSystem   *CombatSystem
+	enemyInstances []*entity.EnemyInstance
 	doubleJumpUsed bool
-	dashCooldown  int
-	paused        bool
+	dashCooldown   int
+	playerFacingDir float64
+	paused         bool
 }
 
 // NewGameRunner creates a new game runner
@@ -37,14 +41,31 @@ func NewGameRunner(game *Game) *GameRunner {
 		playerY = 500.0
 	}
 	
+	// Create enemy instances for current room
+	var enemyInstances []*entity.EnemyInstance
+	if game.CurrentRoom != nil && len(game.Entities) > 0 {
+		// Spawn enemies in room (3-5 enemies per combat room)
+		enemyCount := 3
+		for i := 0; i < enemyCount && i < len(game.Entities); i++ {
+			enemy := game.Entities[i]
+			// Position enemies across the room
+			enemyX := 300.0 + float64(i*150)
+			enemyY := 500.0
+			enemyInstances = append(enemyInstances, entity.NewEnemyInstance(enemy, enemyX, enemyY))
+		}
+	}
+	
 	return &GameRunner{
-		game:          game,
-		renderer:      render.NewRenderer(),
-		inputHandler:  input.NewInputHandler(),
-		playerBody:    physics.NewBody(playerX, playerY, physics.PlayerWidth, physics.PlayerHeight),
+		game:           game,
+		renderer:       render.NewRenderer(),
+		inputHandler:   input.NewInputHandler(),
+		playerBody:     physics.NewBody(playerX, playerY, physics.PlayerWidth, physics.PlayerHeight),
+		combatSystem:   NewCombatSystem(),
+		enemyInstances: enemyInstances,
 		doubleJumpUsed: false,
-		dashCooldown:  0,
-		paused:        false,
+		dashCooldown:   0,
+		playerFacingDir: 1.0,
+		paused:         false,
 	}
 }
 
@@ -70,13 +91,23 @@ func (gr *GameRunner) Update() error {
 	// Apply physics
 	gr.playerBody.ApplyGravity()
 	
+	// Update combat system
+	gr.combatSystem.Update()
+	
 	// Handle player movement
 	if inputState.MoveLeft {
 		gr.playerBody.MoveHorizontal(-1)
+		gr.playerFacingDir = -1.0
 	} else if inputState.MoveRight {
 		gr.playerBody.MoveHorizontal(1)
+		gr.playerFacingDir = 1.0
 	} else {
 		gr.playerBody.ApplyFriction()
+	}
+	
+	// Handle attack
+	if inputState.AttackPress {
+		gr.combatSystem.PlayerAttack()
 	}
 	
 	// Handle jump
@@ -101,6 +132,13 @@ func (gr *GameRunner) Update() error {
 	
 	if gr.dashCooldown > 0 {
 		gr.dashCooldown--
+	}
+	
+	// Apply knockback from damage
+	knockbackX, knockbackY := gr.combatSystem.GetKnockback()
+	if knockbackX != 0 || knockbackY != 0 {
+		gr.playerBody.Velocity.X += knockbackX
+		gr.playerBody.Velocity.Y += knockbackY
 	}
 	
 	// Update position

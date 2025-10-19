@@ -262,3 +262,74 @@ func (r *Renderer) UpdateCamera(targetX, targetY float64) {
 func (r *Renderer) GetCameraOffset() (float64, float64) {
 	return -r.camera.X, -r.camera.Y
 }
+
+// RenderEnemy draws an enemy to the screen
+func (r *Renderer) RenderEnemy(screen *ebiten.Image, x, y, width, height float64, health, maxHealth int, isInvulnerable bool) {
+	// Apply camera offset
+	screenX := x + r.camera.X
+	screenY := y + r.camera.Y
+	
+	// Don't render if off screen
+	if screenX+width < 0 || screenX > float64(ScreenWidth) ||
+		screenY+height < 0 || screenY > float64(ScreenHeight) {
+		return
+	}
+	
+	// Create enemy sprite image
+	enemyImg := ebiten.NewImage(int(width), int(height))
+	
+	// Enemy color (red with transparency when invulnerable)
+	enemyColor := color.RGBA{200, 50, 50, 255}
+	if isInvulnerable {
+		enemyColor = color.RGBA{200, 50, 50, 128} // Transparent when hit
+	}
+	enemyImg.Fill(enemyColor)
+	
+	// Draw enemy sprite
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(screenX, screenY)
+	screen.DrawImage(enemyImg, opts)
+	
+	// Draw health bar above enemy
+	if maxHealth > 0 {
+		barWidth := width
+		barHeight := 4.0
+		barY := screenY - 8
+		
+		// Background
+		bgImg := ebiten.NewImage(int(barWidth), int(barHeight))
+		bgImg.Fill(color.RGBA{50, 50, 50, 255})
+		opts = &ebiten.DrawImageOptions{}
+		opts.GeoM.Translate(screenX, barY)
+		screen.DrawImage(bgImg, opts)
+		
+		// Health fill
+		fillWidth := barWidth * float64(health) / float64(maxHealth)
+		if fillWidth > 0 {
+			fillImg := ebiten.NewImage(int(fillWidth), int(barHeight))
+			fillImg.Fill(color.RGBA{100, 200, 100, 255}) // Green
+			opts = &ebiten.DrawImageOptions{}
+			opts.GeoM.Translate(screenX, barY)
+			screen.DrawImage(fillImg, opts)
+		}
+	}
+}
+
+// RenderAttackEffect draws player attack visual effect
+func (r *Renderer) RenderAttackEffect(screen *ebiten.Image, x, y, width, height float64) {
+	if width <= 0 || height <= 0 {
+		return
+	}
+	
+	// Apply camera offset
+	screenX := x + r.camera.X
+	screenY := y + r.camera.Y
+	
+	// Create attack effect image (semi-transparent yellow)
+	attackImg := ebiten.NewImage(int(width), int(height))
+	attackImg.Fill(color.RGBA{255, 255, 100, 128})
+	
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(screenX, screenY)
+	screen.DrawImage(attackImg, opts)
+}
