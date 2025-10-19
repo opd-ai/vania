@@ -5,6 +5,8 @@ package entity
 
 import (
 	"math"
+
+	"github.com/opd-ai/vania/internal/animation"
 )
 
 // EnemyInstance represents a runtime instance of an enemy with position and state
