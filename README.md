@@ -88,7 +88,7 @@ go build -o vania ./cmd/game
 ./vania --seed 1337 --play
 ```
 
-**Note**: The `--play` flag launches the full game with rendering, physics, controls, enemies, and combat. See [RENDERING.md](RENDERING.md) for detailed setup instructions and [COMBAT_SYSTEM.md](COMBAT_SYSTEM.md) for combat mechanics.
+**Note**: The `--play` flag launches the full game with rendering, physics, controls, enemies, and combat. See [docs/RENDERING.md](docs/RENDERING.md) for detailed setup instructions and [docs/systems/COMBAT_SYSTEM.md](docs/systems/COMBAT_SYSTEM.md) for combat mechanics.
 
 ## 📊 Example Output
 
@@ -299,6 +299,22 @@ MIT License - See LICENSE file for details
 - PCG techniques from academic research in procedural content generation
 - Audio synthesis concepts from digital signal processing
 
+## 📚 Documentation
+
+### System Documentation
+Detailed documentation for each game system:
+- [Animation System](docs/systems/ANIMATION_SYSTEM.md) - Frame-based sprite animations
+- [Combat System](docs/systems/COMBAT_SYSTEM.md) - Player attacks, damage, AI behaviors
+- [Door System](docs/systems/DOOR_SYSTEM.md) - Ability-gated progression mechanics
+- [Item System](docs/systems/ITEM_SYSTEM.md) - Collectible items and inventory
+- [Particle System](docs/systems/PARTICLE_SYSTEM.md) - Visual effects for combat and movement
+- [Save System](docs/systems/SAVE_SYSTEM.md) - Persistent game state and save slots
+- [Room Transitions](docs/systems/ROOM_TRANSITIONS.md) - Seamless room-to-room movement
+
+### Additional Documentation
+- [Rendering System](docs/RENDERING.md) - Ebiten-based rendering and graphics
+- [Build Notes](docs/BUILD_NOTES.md) - Build and compilation information
+
 ## 📚 Technical References
 
 - Procedural Content Generation in Games (PCG Book)
@@ -309,4 +325,4 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Note**: This is a technical demonstration of procedural generation. The full game engine implementation is ongoing. Current version generates all content and displays statistics.
+**Note**: This is a technical demonstration of procedural generation with a fully playable game engine. Use `./vania --play` to launch the game.
