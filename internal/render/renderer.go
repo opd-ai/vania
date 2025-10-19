@@ -92,20 +92,20 @@ func (r *Renderer) renderRoomBackground(screen *ebiten.Image, room *world.Room, 
 	roomHeightTiles := ScreenHeight / TileSize
 	
 	// Render background tiles
+	// Get background tile
+	bgTile, ok := tileset.Tiles[graphics.BackgroundTile]
+	if !ok || bgTile == nil || bgTile.Image == nil {
+		return
+	}
+	
+	bgImage := ebiten.NewImageFromImage(bgTile.Image)
+	
 	for y := 0; y < roomHeightTiles; y++ {
 		for x := 0; x < roomWidthTiles; x++ {
-			// Select tile based on position (simple pattern for now)
-			tileIndex := ((x + y) % 4) // Vary between first 4 tiles
-			
-			if tileIndex < len(tileset.Tiles) && tileset.Tiles[tileIndex] != nil {
-				// Convert image.RGBA to ebiten.Image
-				tile := ebiten.NewImageFromImage(tileset.Tiles[tileIndex])
-				
-				// Draw tile
-				opts := &ebiten.DrawImageOptions{}
-				opts.GeoM.Translate(float64(x*TileSize), float64(y*TileSize))
-				screen.DrawImage(tile, opts)
-			}
+			// Draw tile
+			opts := &ebiten.DrawImageOptions{}
+			opts.GeoM.Translate(float64(x*TileSize), float64(y*TileSize))
+			screen.DrawImage(bgImage, opts)
 		}
 	}
 }
@@ -123,16 +123,12 @@ func (r *Renderer) renderPlatforms(screen *ebiten.Image, room *world.Room, tiles
 	}
 	
 	// Select platform tile (use solid tile if available)
-	platformTile := tileset.SolidTile
-	if platformTile == nil && len(tileset.Tiles) > 0 {
-		platformTile = tileset.Tiles[0]
-	}
-	
-	if platformTile == nil {
+	platformTile, ok := tileset.Tiles[graphics.SolidTile]
+	if !ok || platformTile == nil || platformTile.Image == nil {
 		return
 	}
 	
-	platformImg := ebiten.NewImageFromImage(platformTile)
+	platformImg := ebiten.NewImageFromImage(platformTile.Image)
 	
 	// Render each platform
 	for _, platform := range room.Platforms {
