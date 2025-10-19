@@ -262,11 +262,13 @@ type QualityMetrics struct {
 - [x] **Save/load system** ✨
 - [x] **Particle effects system** ✨
 - [x] **Door/Key ability-gating system** ✨ NEW
+- [x] **Advanced enemy animations** ✨ NEW
 
 ### In Progress 🚧
-- [ ] Advanced enemy animations
+- None
 
 ### Recently Completed ✨
+- [x] **Advanced enemy animations** - Procedural animation frames for enemies (idle, patrol, attack, death, hit) ✨ NEW
 - [x] **Item collection system** - Visible items in treasure rooms with collection feedback ✨ NEW
 - [x] **Door/Key system** - Ability-gated progression with locked doors and automatic unlocking
 - [x] **Particle effects system** - Visual feedback for combat and movement
@@ -306,6 +308,7 @@ Detailed documentation for each game system:
 - [Animation System](docs/systems/ANIMATION_SYSTEM.md) - Frame-based sprite animations
 - [Combat System](docs/systems/COMBAT_SYSTEM.md) - Player attacks, damage, AI behaviors
 - [Door System](docs/systems/DOOR_SYSTEM.md) - Ability-gated progression mechanics
+- [Enemy Animation System](docs/systems/ENEMY_ANIMATION_SYSTEM.md) - Procedural enemy animations
 - [Item System](docs/systems/ITEM_SYSTEM.md) - Collectible items and inventory
 - [Particle System](docs/systems/PARTICLE_SYSTEM.md) - Visual effects for combat and movement
 - [Save System](docs/systems/SAVE_SYSTEM.md) - Persistent game state and save slots

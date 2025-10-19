@@ -7,6 +7,7 @@ import (
 	"math"
 
 	"github.com/opd-ai/vania/internal/animation"
+	"github.com/opd-ai/vania/internal/graphics"
 )
 
 // EnemyInstance represents a runtime instance of an enemy with position and state
@@ -53,6 +54,12 @@ func NewEnemyInstance(enemy *Enemy, x, y float64) *EnemyInstance {
 		aggroRange = 250.0
 	}
 	
+	// Create animation controller if sprite data is available
+	var animController *animation.AnimationController
+	if sprite, ok := enemy.SpriteData.(*graphics.Sprite); ok && sprite != nil {
+		animController = CreateEnemyAnimController(sprite, enemy)
+	}
+	
 	return &EnemyInstance{
 		Enemy:          enemy,
 		X:              x,
@@ -68,6 +75,7 @@ func NewEnemyInstance(enemy *Enemy, x, y float64) *EnemyInstance {
 		OnGround:       true,
 		AggroRange:     aggroRange,
 		AttackRange:    attackRange,
+		AnimController: animController,
 	}
 }
 
@@ -75,6 +83,14 @@ func NewEnemyInstance(enemy *Enemy, x, y float64) *EnemyInstance {
 func (ei *EnemyInstance) Update(playerX, playerY float64) {
 	if ei.CurrentHealth <= 0 {
 		ei.State = DeadState
+		// Play death animation once
+		if ei.AnimController != nil {
+			currentAnim := ei.AnimController.GetCurrentAnimation()
+			if currentAnim != "death" {
+				ei.AnimController.Play("death", true)
+			}
+			ei.AnimController.Update()
+		}
 		return
 	}
 	
@@ -117,6 +133,29 @@ func (ei *EnemyInstance) Update(playerX, playerY float64) {
 		ei.VelY += 0.5 // Gravity
 		if ei.VelY > 10.0 {
 			ei.VelY = 10.0
+		}
+	}
+	
+	// Update animation controller
+	if ei.AnimController != nil {
+		ei.AnimController.Update()
+		
+		// Set animation based on state
+		currentAnim := ei.AnimController.GetCurrentAnimation()
+		
+		switch ei.State {
+		case AttackState:
+			if currentAnim != "attack" {
+				ei.AnimController.Play("attack", true)
+			}
+		case PatrolState, ChaseState, FleeState:
+			if currentAnim != "patrol" && currentAnim != "attack" {
+				ei.AnimController.Play("patrol", false)
+			}
+		case IdleState:
+			if currentAnim != "idle" && currentAnim != "attack" {
+				ei.AnimController.Play("idle", false)
+			}
 		}
 	}
 }
@@ -249,6 +288,12 @@ func (ei *EnemyInstance) chasePlayer(dx, dy float64) {
 // TakeDamage applies damage to enemy
 func (ei *EnemyInstance) TakeDamage(damage int) {
 	ei.CurrentHealth -= damage
+	
+	// Play hit animation
+	if ei.AnimController != nil && ei.CurrentHealth > 0 {
+		ei.AnimController.Play("hit", true)
+	}
+	
 	if ei.CurrentHealth < 0 {
 		ei.CurrentHealth = 0
 	}
@@ -284,4 +329,34 @@ func (ei *EnemyInstance) GetBounds() (x, y, width, height float64) {
 	}
 	
 	return ei.X, ei.Y, width, height
+}
+
+// CreateEnemyAnimController creates an animation controller for an enemy
+func CreateEnemyAnimController(baseSprite *graphics.Sprite, enemy *Enemy) *animation.AnimationController {
+	// Use enemy's biome and danger level as seed for animation generation
+	seed := int64(enemy.DangerLevel * 12345)
+	if enemy.BiomeType != "" {
+		for _, c := range enemy.BiomeType {
+			seed += int64(c)
+		}
+	}
+	
+	animGen := animation.NewAnimationGenerator(seed)
+	
+	// Generate animation frames
+	idleFrames := animGen.GenerateEnemyIdleFrames(baseSprite, 4)
+	patrolFrames := animGen.GenerateEnemyPatrolFrames(baseSprite, 4)
+	attackFrames := animGen.GenerateEnemyAttackFrames(baseSprite, 3)
+	deathFrames := animGen.GenerateEnemyDeathFrames(baseSprite, 4)
+	hitFrames := animGen.GenerateHitFrames(baseSprite, 2)
+	
+	// Create animation controller with idle as default
+	animController := animation.NewAnimationController("idle")
+	animController.AddAnimation(animation.NewAnimation("idle", idleFrames, 15, true))
+	animController.AddAnimation(animation.NewAnimation("patrol", patrolFrames, 8, true))
+	animController.AddAnimation(animation.NewAnimation("attack", attackFrames, 5, false))
+	animController.AddAnimation(animation.NewAnimation("death", deathFrames, 10, false))
+	animController.AddAnimation(animation.NewAnimation("hit", hitFrames, 3, false))
+	
+	return animController
 }

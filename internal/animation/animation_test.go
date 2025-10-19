@@ -512,3 +512,146 @@ func TestIsPlaying(t *testing.T) {
 		t.Error("Controller should be playing after play")
 	}
 }
+
+// Test GenerateEnemyIdleFrames
+func TestGenerateEnemyIdleFrames(t *testing.T) {
+	gen := NewAnimationGenerator(12345)
+	baseSprite := createTestSprite(1)
+	
+	frames := gen.GenerateEnemyIdleFrames(baseSprite, 4)
+	
+	if len(frames) != 4 {
+		t.Errorf("Expected 4 frames, got %d", len(frames))
+	}
+	
+	for i, frame := range frames {
+		if frame == nil {
+			t.Errorf("Frame %d is nil", i)
+		}
+		if frame.Width != baseSprite.Width {
+			t.Errorf("Frame %d width mismatch: expected %d, got %d", i, baseSprite.Width, frame.Width)
+		}
+		if frame.Height != baseSprite.Height {
+			t.Errorf("Frame %d height mismatch: expected %d, got %d", i, baseSprite.Height, frame.Height)
+		}
+	}
+}
+
+// Test GenerateEnemyPatrolFrames
+func TestGenerateEnemyPatrolFrames(t *testing.T) {
+	gen := NewAnimationGenerator(12345)
+	baseSprite := createTestSprite(1)
+	
+	frames := gen.GenerateEnemyPatrolFrames(baseSprite, 4)
+	
+	if len(frames) != 4 {
+		t.Errorf("Expected 4 frames, got %d", len(frames))
+	}
+	
+	for i, frame := range frames {
+		if frame == nil {
+			t.Errorf("Frame %d is nil", i)
+		}
+	}
+}
+
+// Test GenerateEnemyAttackFrames
+func TestGenerateEnemyAttackFrames(t *testing.T) {
+	gen := NewAnimationGenerator(12345)
+	baseSprite := createTestSprite(1)
+	
+	frames := gen.GenerateEnemyAttackFrames(baseSprite, 3)
+	
+	if len(frames) != 3 {
+		t.Errorf("Expected 3 frames, got %d", len(frames))
+	}
+	
+	for i, frame := range frames {
+		if frame == nil {
+			t.Errorf("Frame %d is nil", i)
+		}
+	}
+}
+
+// Test GenerateEnemyDeathFrames
+func TestGenerateEnemyDeathFrames(t *testing.T) {
+	gen := NewAnimationGenerator(12345)
+	baseSprite := createTestSprite(1)
+	
+	frames := gen.GenerateEnemyDeathFrames(baseSprite, 4)
+	
+	if len(frames) != 4 {
+		t.Errorf("Expected 4 frames, got %d", len(frames))
+	}
+	
+	for i, frame := range frames {
+		if frame == nil {
+			t.Errorf("Frame %d is nil", i)
+		}
+	}
+}
+
+// Test enemy animation with nil sprite
+func TestEnemyAnimationNilSprite(t *testing.T) {
+	gen := NewAnimationGenerator(12345)
+	
+	idleFrames := gen.GenerateEnemyIdleFrames(nil, 4)
+	if idleFrames != nil {
+		t.Error("Expected nil frames for nil sprite")
+	}
+	
+	patrolFrames := gen.GenerateEnemyPatrolFrames(nil, 4)
+	if patrolFrames != nil {
+		t.Error("Expected nil frames for nil sprite")
+	}
+	
+	attackFrames := gen.GenerateEnemyAttackFrames(nil, 3)
+	if attackFrames != nil {
+		t.Error("Expected nil frames for nil sprite")
+	}
+	
+	deathFrames := gen.GenerateEnemyDeathFrames(nil, 4)
+	if deathFrames != nil {
+		t.Error("Expected nil frames for nil sprite")
+	}
+}
+
+// Test enemy animation with zero frames
+func TestEnemyAnimationZeroFrames(t *testing.T) {
+	gen := NewAnimationGenerator(12345)
+	baseSprite := createTestSprite(1)
+	
+	idleFrames := gen.GenerateEnemyIdleFrames(baseSprite, 0)
+	if idleFrames != nil {
+		t.Error("Expected nil frames for 0 frame count")
+	}
+	
+	patrolFrames := gen.GenerateEnemyPatrolFrames(baseSprite, 0)
+	if patrolFrames != nil {
+		t.Error("Expected nil frames for 0 frame count")
+	}
+}
+
+// Test deterministic animation generation
+func TestEnemyAnimationDeterminism(t *testing.T) {
+	seed := int64(99999)
+	baseSprite := createTestSprite(1)
+	
+	gen1 := NewAnimationGenerator(seed)
+	frames1 := gen1.GenerateEnemyIdleFrames(baseSprite, 4)
+	
+	gen2 := NewAnimationGenerator(seed)
+	frames2 := gen2.GenerateEnemyIdleFrames(baseSprite, 4)
+	
+	if len(frames1) != len(frames2) {
+		t.Errorf("Frame counts differ: %d vs %d", len(frames1), len(frames2))
+	}
+	
+	// Both generators with same seed should produce same number of frames
+	for i := range frames1 {
+		if frames1[i].Width != frames2[i].Width || frames1[i].Height != frames2[i].Height {
+			t.Errorf("Frame %d dimensions differ", i)
+		}
+	}
+}
+
