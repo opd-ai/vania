@@ -268,8 +268,9 @@ type QualityMetrics struct {
 - None
 
 ### Recently Completed ✨
-- [x] **Advanced enemy animations** - Procedural animation frames for enemies (idle, patrol, attack, death, hit) ✨ NEW
-- [x] **Item collection system** - Visible items in treasure rooms with collection feedback ✨ NEW
+- [x] **Adaptive music system** - Dynamic multi-layer music that responds to gameplay (exploration, combat, boss fights) ✨ NEW
+- [x] **Advanced enemy animations** - Procedural animation frames for enemies (idle, patrol, attack, death, hit)
+- [x] **Item collection system** - Visible items in treasure rooms with collection feedback
 - [x] **Door/Key system** - Ability-gated progression with locked doors and automatic unlocking
 - [x] **Particle effects system** - Visual feedback for combat and movement
 - [x] **Save/load system** - Multiple save slots with automatic checkpoints
@@ -280,8 +281,7 @@ type QualityMetrics struct {
 - [x] **Hit detection** - Player vs enemy collision and attack hits
 
 ### Planned 📋
-- [ ] Adaptive music system (dynamic layers)
-- [ ] Advanced enemy AI
+- [ ] Advanced enemy AI (learning behaviors, coordinated attacks)
 - [ ] Puzzle generation
 - [ ] Achievement system
 - [ ] Speedrun timer
@@ -305,6 +305,7 @@ MIT License - See LICENSE file for details
 
 ### System Documentation
 Detailed documentation for each game system:
+- [Adaptive Music System](docs/systems/ADAPTIVE_MUSIC_SYSTEM.md) - Dynamic music that responds to gameplay
 - [Animation System](docs/systems/ANIMATION_SYSTEM.md) - Frame-based sprite animations
 - [Combat System](docs/systems/COMBAT_SYSTEM.md) - Player attacks, damage, AI behaviors
 - [Door System](docs/systems/DOOR_SYSTEM.md) - Ability-gated progression mechanics
