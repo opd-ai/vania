@@ -39,6 +39,9 @@ type GameRunner struct {
 	visitedRooms      map[int]bool
 	defeatedEnemies   map[int]bool
 	collectedItems    map[int]bool
+	unlockedDoors     map[string]bool
+	lockedDoorMessage string
+	lockedDoorTimer   int
 }
 
 // NewGameRunner creates a new game runner
@@ -46,13 +49,13 @@ func NewGameRunner(game *Game) *GameRunner {
 	// Initialize player at starting position
 	playerX := float64(render.ScreenWidth / 2)
 	playerY := float64(render.ScreenHeight / 2)
-	
+
 	if game.World != nil && game.World.StartRoom != nil {
 		// Position player in the start room
 		playerX = 100.0
 		playerY = 500.0
 	}
-	
+
 	// Create enemy instances for current room
 	var enemyInstances []*entity.EnemyInstance
 	if game.CurrentRoom != nil && len(game.Entities) > 0 {
@@ -66,21 +69,21 @@ func NewGameRunner(game *Game) *GameRunner {
 			enemyInstances = append(enemyInstances, entity.NewEnemyInstance(enemy, enemyX, enemyY))
 		}
 	}
-	
+
 	transitionHandler := NewRoomTransitionHandler(game)
-	
+
 	// Initialize save system
 	saveManager, err := save.NewSaveManager("")
 	if err != nil {
 		// Fall back to no save system if there's an error
 		saveManager = nil
 	}
-	
+
 	var checkpointManager *save.CheckpointManager
 	if saveManager != nil {
 		checkpointManager = save.NewCheckpointManager(saveManager)
 	}
-	
+
 	return &GameRunner{
 		game:              game,
 		renderer:          render.NewRenderer(),
@@ -101,6 +104,9 @@ func NewGameRunner(game *Game) *GameRunner {
 		visitedRooms:      make(map[int]bool),
 		defeatedEnemies:   make(map[int]bool),
 		collectedItems:    make(map[int]bool),
+		unlockedDoors:     make(map[string]bool),
+		lockedDoorMessage: "",
+		lockedDoorTimer:   0,
 	}
 }
 
@@ -110,55 +116,62 @@ func (gr *GameRunner) Update() error {
 	if gr.inputHandler.IsQuitRequested() {
 		return ebiten.Termination
 	}
-	
+
 	// Get input state
 	inputState := gr.inputHandler.Update()
-	
+
 	// Handle pause
 	if inputState.PausePress {
 		gr.paused = !gr.paused
 	}
-	
+
 	if gr.paused {
 		return nil
 	}
-	
+
 	// Update transition handler
 	if gr.transitionHandler.Update() {
 		// Transition completed - spawn new enemies
 		gr.enemyInstances = gr.transitionHandler.SpawnEnemiesForRoom(gr.game.CurrentRoom)
 	}
-	
+
 	// Don't update game logic during transition
 	if gr.transitionHandler.IsTransitioning() {
 		return nil
 	}
-	
+
 	// Check for door collision and transition
 	door := gr.transitionHandler.CheckDoorCollision(
 		gr.game.Player.X,
 		gr.game.Player.Y,
 		physics.PlayerWidth,
 		physics.PlayerHeight,
+		gr.unlockedDoors,
 	)
 	if door != nil {
 		// Player touched a door - start transition
 		gr.transitionHandler.StartTransition(door)
 		return nil
 	}
-	
+
+	// Check if player is near a locked door
+	if gr.lockedDoorTimer > 0 {
+		gr.lockedDoorTimer--
+	}
+	gr.checkLockedDoorInteraction()
+
 	// Apply physics
 	gr.playerBody.ApplyGravity()
-	
+
 	// Update combat system
 	gr.combatSystem.Update()
-	
+
 	// Update particle system
 	gr.particleSystem.Update()
-	
+
 	// Track previous ground state for landing particles
 	wasOnGround := gr.playerBody.OnGround
-	
+
 	// Handle player movement
 	if inputState.MoveLeft {
 		gr.playerBody.MoveHorizontal(-1)
@@ -169,12 +182,12 @@ func (gr *GameRunner) Update() error {
 	} else {
 		gr.playerBody.ApplyFriction()
 	}
-	
+
 	// Handle attack
 	if inputState.AttackPress {
 		gr.combatSystem.PlayerAttack()
 	}
-	
+
 	// Handle jump
 	if inputState.JumpPress {
 		hasDoubleJump := gr.game.Player.Abilities["double_jump"]
@@ -186,7 +199,7 @@ func (gr *GameRunner) Update() error {
 			gr.particleSystem.AddEmitter(emitter)
 		}
 	}
-	
+
 	// Handle dash
 	if inputState.DashPress && gr.dashCooldown <= 0 {
 		if gr.game.Player.Abilities["dash"] {
@@ -198,36 +211,36 @@ func (gr *GameRunner) Update() error {
 			}
 			gr.playerBody.Dash(direction)
 			gr.dashCooldown = 30 // 30 frames cooldown
-			
+
 			// Create dash trail particles
 			emitter := gr.particlePresets.CreateDashTrail(gr.game.Player.X+16, gr.game.Player.Y+16)
 			emitter.Start()
 			gr.particleSystem.AddEmitter(emitter)
-			
+
 			// Stop dash trail after dash duration (let it fade naturally)
 			// The emitter will be removed automatically as particles die
 		}
 	}
-	
+
 	if gr.dashCooldown > 0 {
 		gr.dashCooldown--
 	}
-	
+
 	// Apply knockback from damage
 	knockbackX, knockbackY := gr.combatSystem.GetKnockback()
 	if knockbackX != 0 || knockbackY != 0 {
 		gr.playerBody.Velocity.X += knockbackX
 		gr.playerBody.Velocity.Y += knockbackY
 	}
-	
+
 	// Update position
 	gr.playerBody.Update()
-	
+
 	// Resolve collisions with platforms
 	if gr.game.CurrentRoom != nil {
 		gr.playerBody.ResolveCollisionWithPlatforms(gr.game.CurrentRoom.Platforms)
 	}
-	
+
 	// Check for landing (player just touched ground)
 	if !wasOnGround && gr.playerBody.OnGround {
 		// Create landing dust particles
@@ -235,21 +248,21 @@ func (gr *GameRunner) Update() error {
 		emitter.Burst(12)
 		gr.particleSystem.AddEmitter(emitter)
 	}
-	
+
 	// Update player position in game
 	gr.game.Player.X = gr.playerBody.Position.X
 	gr.game.Player.Y = gr.playerBody.Position.Y
 	gr.game.Player.VelX = gr.playerBody.Velocity.X
 	gr.game.Player.VelY = gr.playerBody.Velocity.Y
-	
+
 	// Update player animation based on state
 	if gr.game.Player.AnimController != nil {
 		// Update animation
 		gr.game.Player.AnimController.Update()
-		
+
 		// Determine which animation to play
 		currentAnim := gr.game.Player.AnimController.GetCurrentAnimation()
-		
+
 		// Attack animation has priority
 		if gr.combatSystem.IsPlayerAttacking() {
 			if currentAnim != "attack" {
@@ -272,16 +285,16 @@ func (gr *GameRunner) Update() error {
 			}
 		}
 	}
-	
+
 	// Update enemies
 	for _, enemy := range gr.enemyInstances {
 		if enemy.IsDead() {
 			continue
 		}
-		
+
 		// Update enemy AI
 		enemy.Update(gr.game.Player.X, gr.game.Player.Y)
-		
+
 		// Apply gravity to ground-based enemies
 		if enemy.Enemy.Behavior != entity.FlyingBehavior {
 			if !enemy.OnGround {
@@ -291,11 +304,11 @@ func (gr *GameRunner) Update() error {
 				}
 			}
 		}
-		
+
 		// Update enemy position
 		enemy.X += enemy.VelX
 		enemy.Y += enemy.VelY
-		
+
 		// Check enemy collisions with platforms
 		if gr.game.CurrentRoom != nil {
 			enemy.OnGround = false
@@ -304,9 +317,9 @@ func (gr *GameRunner) Update() error {
 				py := float64(platform.Y)
 				pw := float64(platform.Width)
 				ph := float64(platform.Height)
-				
+
 				ex, ey, ew, eh := enemy.GetBounds()
-				
+
 				// Check collision with platform
 				if ex < px+pw && ex+ew > px && ey < py+ph && ey+eh > py {
 					// Resolve collision - simple top collision for now
@@ -318,7 +331,7 @@ func (gr *GameRunner) Update() error {
 				}
 			}
 		}
-		
+
 		// Check player attack hitting enemy
 		if gr.combatSystem.IsPlayerAttacking() {
 			attackX, attackY, attackW, attackH := gr.combatSystem.GetAttackHitbox(
@@ -331,19 +344,19 @@ func (gr *GameRunner) Update() error {
 				hitEmitter := gr.particlePresets.CreateHitEffect(ex+16, ey+16, gr.playerFacingDir)
 				hitEmitter.Burst(10)
 				gr.particleSystem.AddEmitter(hitEmitter)
-				
+
 				// Create blood splatter particles
 				bloodEmitter := gr.particlePresets.CreateBloodSplatter(ex+16, ey+16, gr.playerFacingDir)
 				bloodEmitter.Burst(6)
 				gr.particleSystem.AddEmitter(bloodEmitter)
-				
+
 				gr.combatSystem.ApplyDamageToEnemy(enemy, gr.game.Player.Damage, gr.game.Player.X)
-				
+
 				// Track defeated enemy (use position as ID for now)
 				if wasAlive && enemy.IsDead() {
 					enemyKey := int(enemy.X*1000 + enemy.Y)
 					gr.defeatedEnemies[enemyKey] = true
-					
+
 					// Create explosion effect on death
 					explosionEmitter := gr.particlePresets.CreateExplosion(ex+16, ey+16, 1.0)
 					explosionEmitter.Burst(20)
@@ -351,7 +364,7 @@ func (gr *GameRunner) Update() error {
 				}
 			}
 		}
-		
+
 		// Check enemy collision with player
 		if gr.combatSystem.CheckPlayerEnemyCollision(
 			gr.game.Player.X, gr.game.Player.Y, physics.PlayerWidth, physics.PlayerHeight, enemy,
@@ -363,18 +376,18 @@ func (gr *GameRunner) Update() error {
 			gr.combatSystem.ApplyDamageToPlayer(gr.game.Player, damage, enemy.X)
 		}
 	}
-	
+
 	// Update camera
 	gr.renderer.UpdateCamera(gr.game.Player.X, gr.game.Player.Y)
-	
+
 	// Check for auto-save
 	gr.CheckAutoSave()
-	
+
 	// Track current room as visited
 	if gr.game.CurrentRoom != nil {
 		gr.visitedRooms[gr.game.CurrentRoom.ID] = true
 	}
-	
+
 	return nil
 }
 
@@ -382,12 +395,12 @@ func (gr *GameRunner) Update() error {
 func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	// Clear screen
 	screen.Fill(color.RGBA{20, 20, 30, 255})
-	
+
 	// Render world
 	if gr.game.CurrentRoom != nil && gr.game.Graphics != nil {
 		gr.renderer.RenderWorld(screen, gr.game.CurrentRoom, gr.game.Graphics.Tilesets)
 	}
-	
+
 	// Render enemies
 	for _, enemy := range gr.enemyInstances {
 		if !enemy.IsDead() {
@@ -395,7 +408,7 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 			gr.renderer.RenderEnemy(screen, ex, ey, ew, eh, enemy.CurrentHealth, enemy.Enemy.Health, false)
 		}
 	}
-	
+
 	// Render attack effect
 	if gr.combatSystem.IsPlayerAttacking() {
 		attackX, attackY, attackW, attackH := gr.combatSystem.GetAttackHitbox(
@@ -405,11 +418,11 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 			gr.renderer.RenderAttackEffect(screen, attackX, attackY, attackW, attackH)
 		}
 	}
-	
+
 	// Render particles (before player so they appear behind)
 	allParticles := gr.particleSystem.GetAllParticles()
 	gr.renderer.RenderParticles(screen, allParticles)
-	
+
 	// Render player
 	if gr.game.Player != nil {
 		// Use animated sprite if available, otherwise fall back to base sprite
@@ -422,18 +435,35 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		}
 		gr.renderer.RenderPlayer(screen, gr.game.Player.X, gr.game.Player.Y, spriteToRender)
 	}
-	
+
 	// Render UI
 	if gr.game.Player != nil {
 		gr.renderer.RenderUI(screen, gr.game.Player.Health, gr.game.Player.MaxHealth, gr.game.Player.Abilities)
 	}
-	
+
 	// Render transition effect if transitioning
 	if gr.transitionHandler.IsTransitioning() {
 		progress := gr.transitionHandler.GetTransitionProgress()
 		gr.renderer.RenderTransitionEffect(screen, progress)
 	}
-	
+
+	// Show locked door message if active
+	if gr.lockedDoorTimer > 0 && gr.lockedDoorMessage != "" {
+		// Draw message in center of screen with background
+		messageX := render.ScreenWidth/2 - 100
+		messageY := render.ScreenHeight/2 - 20
+
+		// Draw semi-transparent background
+		messageImg := ebiten.NewImage(200, 40)
+		messageImg.Fill(color.RGBA{0, 0, 0, 180})
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(messageX), float64(messageY))
+		screen.DrawImage(messageImg, op)
+
+		// Draw text
+		ebitenutil.DebugPrintAt(screen, gr.lockedDoorMessage, messageX+10, messageY+12)
+	}
+
 	// Show debug info
 	aliveEnemies := 0
 	for _, enemy := range gr.enemyInstances {
@@ -441,7 +471,7 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 			aliveEnemies++
 		}
 	}
-	
+
 	debugInfo := fmt.Sprintf("Seed: %d | Room: %s | FPS: %.2f | Enemies: %d/%d\nPosition: (%.0f, %.0f) | Velocity: (%.1f, %.1f)\nHealth: %d/%d | OnGround: %v | Invuln: %v\nControls: WASD/Arrows=Move, Space=Jump, J=Attack, K=Dash, P=Pause, Ctrl+Q=Quit",
 		gr.game.Seed,
 		gr.getCurrentRoomName(),
@@ -457,11 +487,11 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		gr.playerBody.OnGround,
 		gr.combatSystem.IsInvulnerable(),
 	)
-	
+
 	if gr.paused {
 		debugInfo = "PAUSED\nPress P to resume\n\n" + debugInfo
 	}
-	
+
 	ebitenutil.DebugPrint(screen, debugInfo)
 }
 
@@ -475,11 +505,11 @@ func (gr *GameRunner) Run() error {
 	ebiten.SetWindowSize(render.ScreenWidth, render.ScreenHeight)
 	ebiten.SetWindowTitle("VANIA - Procedural Metroidvania")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	
+
 	if err := ebiten.RunGame(gr); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -488,11 +518,11 @@ func (gr *GameRunner) getCurrentRoomName() string {
 	if gr.game.CurrentRoom == nil {
 		return "None"
 	}
-	
+
 	if gr.game.CurrentRoom.Biome != nil {
 		return gr.game.CurrentRoom.Biome.Name
 	}
-	
+
 	return fmt.Sprintf("Room %d", gr.game.CurrentRoom.ID)
 }
 
@@ -503,16 +533,16 @@ func (gr *GameRunner) CreateSaveData() *save.SaveData {
 	for roomID := range gr.visitedRooms {
 		visitedRoomsList = append(visitedRoomsList, roomID)
 	}
-	
+
 	// Calculate play time
 	playTime := int64(time.Since(gr.startTime).Seconds())
-	
+
 	// Current room ID
 	currentRoomID := 0
 	if gr.game.CurrentRoom != nil {
 		currentRoomID = gr.game.CurrentRoom.ID
 	}
-	
+
 	return &save.SaveData{
 		Seed:            gr.game.Seed,
 		PlayTime:        playTime,
@@ -525,10 +555,90 @@ func (gr *GameRunner) CreateSaveData() *save.SaveData {
 		VisitedRooms:    visitedRoomsList,
 		DefeatedEnemies: gr.defeatedEnemies,
 		CollectedItems:  gr.collectedItems,
-		UnlockedDoors:   make(map[string]bool), // TODO: Track unlocked doors
-		BossesDefeated:  make([]int, 0),        // TODO: Track defeated bosses
+		UnlockedDoors:   gr.unlockedDoors,
+		BossesDefeated:  gr.getBossesDefeated(),
 		CheckpointID:    currentRoomID,
 	}
+}
+
+// getBossesDefeated returns a list of defeated boss IDs
+func (gr *GameRunner) getBossesDefeated() []int {
+	bossesDefeated := make([]int, 0)
+	// Check defeated enemies for bosses
+	for enemyID := range gr.defeatedEnemies {
+		// Boss enemies have IDs >= 1000 (convention in enemy generation)
+		if enemyID >= 1000 {
+			bossesDefeated = append(bossesDefeated, enemyID)
+		}
+	}
+	return bossesDefeated
+}
+
+// checkLockedDoorInteraction checks if player is trying to use a locked door
+func (gr *GameRunner) checkLockedDoorInteraction() {
+	if gr.game.CurrentRoom == nil {
+		return
+	}
+
+	playerX := gr.game.Player.X
+	playerY := gr.game.Player.Y
+
+	// Check collision with each door
+	for i := range gr.game.CurrentRoom.Doors {
+		door := &gr.game.CurrentRoom.Doors[i]
+
+		// Simple AABB collision check
+		doorX := float64(door.X)
+		doorY := float64(door.Y)
+		doorW := float64(door.Width)
+		doorH := float64(door.Height)
+
+		if playerX < doorX+doorW &&
+			playerX+physics.PlayerWidth > doorX &&
+			playerY < doorY+doorH &&
+			playerY+physics.PlayerHeight > doorY {
+
+			// Check if door is locked
+			doorKey := gr.transitionHandler.GetDoorKey(door)
+			if door.Locked && !gr.unlockedDoors[doorKey] {
+				// Check if player can unlock this door
+				if gr.transitionHandler.CanUnlockDoor(door, gr.game.Player.Abilities, gr.collectedItems) {
+					// Automatically unlock the door
+					gr.UnlockDoor(door)
+				} else {
+					// Show locked message
+					requirement := gr.transitionHandler.findEdgeRequirement(gr.game.CurrentRoom.ID, door.LeadsTo.ID)
+					if requirement != "" {
+						gr.lockedDoorMessage = fmt.Sprintf("Requires: %s", requirement)
+					} else {
+						gr.lockedDoorMessage = "Door is locked"
+					}
+					gr.lockedDoorTimer = 120 // Show for 2 seconds
+				}
+			}
+		}
+	}
+}
+
+// UnlockDoor unlocks a door and adds particle effect
+func (gr *GameRunner) UnlockDoor(door *world.Door) {
+	if door == nil {
+		return
+	}
+
+	doorKey := gr.transitionHandler.GetDoorKey(door)
+	gr.unlockedDoors[doorKey] = true
+
+	// Show unlock message
+	gr.lockedDoorMessage = "Door unlocked!"
+	gr.lockedDoorTimer = 120 // Show for 2 seconds
+
+	// Create sparkle particle effect at door position
+	doorCenterX := float64(door.X) + float64(door.Width)/2
+	doorCenterY := float64(door.Y) + float64(door.Height)/2
+	sparkleEmitter := gr.particlePresets.CreateSparkles(doorCenterX, doorCenterY, 1.0)
+	sparkleEmitter.Burst(15)
+	gr.particleSystem.AddEmitter(sparkleEmitter)
 }
 
 // SaveGame saves the current game state to a slot
@@ -536,7 +646,7 @@ func (gr *GameRunner) SaveGame(slotID int) error {
 	if gr.saveManager == nil {
 		return fmt.Errorf("save system not initialized")
 	}
-	
+
 	saveData := gr.CreateSaveData()
 	return gr.saveManager.SaveGame(saveData, slotID)
 }
@@ -546,12 +656,12 @@ func (gr *GameRunner) LoadGame(slotID int) error {
 	if gr.saveManager == nil {
 		return fmt.Errorf("save system not initialized")
 	}
-	
+
 	saveData, err := gr.saveManager.LoadGame(slotID)
 	if err != nil {
 		return err
 	}
-	
+
 	return gr.RestoreFromSaveData(saveData)
 }
 
@@ -561,18 +671,18 @@ func (gr *GameRunner) RestoreFromSaveData(saveData *save.SaveData) error {
 	if saveData.Seed != gr.game.Seed {
 		return fmt.Errorf("save file seed mismatch: expected %d, got %d", gr.game.Seed, saveData.Seed)
 	}
-	
+
 	// Restore player state
 	gr.game.Player.X = saveData.PlayerX
 	gr.game.Player.Y = saveData.PlayerY
 	gr.game.Player.Health = saveData.PlayerHealth
 	gr.game.Player.MaxHealth = saveData.PlayerMaxHealth
 	gr.game.Player.Abilities = saveData.PlayerAbilities
-	
+
 	// Update player body position
 	gr.playerBody.Position.X = saveData.PlayerX
 	gr.playerBody.Position.Y = saveData.PlayerY
-	
+
 	// Restore world state
 	gr.visitedRooms = make(map[int]bool)
 	for _, roomID := range saveData.VisitedRooms {
@@ -580,7 +690,11 @@ func (gr *GameRunner) RestoreFromSaveData(saveData *save.SaveData) error {
 	}
 	gr.defeatedEnemies = saveData.DefeatedEnemies
 	gr.collectedItems = saveData.CollectedItems
-	
+	gr.unlockedDoors = saveData.UnlockedDoors
+	if gr.unlockedDoors == nil {
+		gr.unlockedDoors = make(map[string]bool)
+	}
+
 	// Find and set current room
 	for _, room := range gr.game.World.Rooms {
 		if room.ID == saveData.CurrentRoomID {
@@ -589,10 +703,10 @@ func (gr *GameRunner) RestoreFromSaveData(saveData *save.SaveData) error {
 			break
 		}
 	}
-	
+
 	// Adjust start time to account for saved play time
 	gr.startTime = time.Now().Add(-time.Duration(saveData.PlayTime) * time.Second)
-	
+
 	return nil
 }
 
@@ -601,7 +715,7 @@ func (gr *GameRunner) CheckAutoSave() {
 	if gr.checkpointManager == nil {
 		return
 	}
-	
+
 	if gr.checkpointManager.ShouldCheckpoint() {
 		saveData := gr.CreateSaveData()
 		if err := gr.checkpointManager.CreateCheckpoint(saveData); err == nil {
