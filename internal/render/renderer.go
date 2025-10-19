@@ -9,6 +9,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/opd-ai/vania/internal/graphics"
+	"github.com/opd-ai/vania/internal/particle"
 	"github.com/opd-ai/vania/internal/world"
 )
 
@@ -378,4 +379,51 @@ func (r *Renderer) RenderTransitionEffect(screen *ebiten.Image, progress float64
 	fadeImg.Fill(color.RGBA{0, 0, 0, alpha})
 	
 	screen.DrawImage(fadeImg, &ebiten.DrawImageOptions{})
+}
+
+// RenderParticles draws all particles on the screen
+func (r *Renderer) RenderParticles(screen *ebiten.Image, particles []*particle.Particle) {
+	for _, p := range particles {
+		if p == nil || !p.IsAlive() {
+			continue
+		}
+		
+		// Calculate screen position relative to camera
+		screenX := p.X - r.camera.X
+		screenY := p.Y - r.camera.Y
+		
+		// Skip if particle is outside screen bounds
+		if screenX < -10 || screenX > float64(ScreenWidth)+10 ||
+			screenY < -10 || screenY > float64(ScreenHeight)+10 {
+			continue
+		}
+		
+		// Create a simple circle image for the particle
+		size := int(p.Size)
+		if size < 1 {
+			size = 1
+		}
+		
+		particleImg := ebiten.NewImage(size*2, size*2)
+		
+		// Apply alpha to color
+		col := p.Color
+		col.A = p.Alpha
+		
+		// Draw a simple filled circle (square for simplicity)
+		particleImg.Fill(col)
+		
+		// Draw the particle
+		opts := &ebiten.DrawImageOptions{}
+		opts.GeoM.Translate(screenX-float64(size), screenY-float64(size))
+		
+		// Apply rotation if any
+		if p.Rotation != 0 {
+			opts.GeoM.Translate(-float64(size), -float64(size))
+			opts.GeoM.Rotate(p.Rotation)
+			opts.GeoM.Translate(float64(size), float64(size))
+		}
+		
+		screen.DrawImage(particleImg, opts)
+	}
 }

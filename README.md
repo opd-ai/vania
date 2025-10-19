@@ -259,14 +259,15 @@ type QualityMetrics struct {
 - [x] **Combat system** ✨
 - [x] **Room transitions** ✨
 - [x] **Animation system** ✨ 
-- [x] **Save/load system** ✨ NEW
+- [x] **Save/load system** ✨
+- [x] **Particle effects system** ✨ NEW
 
 ### In Progress 🚧
-- [ ] Particle effects
 - [ ] Advanced enemy animations
 
 ### Recently Completed ✨
-- [x] **Save/load system** - Multiple save slots with automatic checkpoints ✨ NEW
+- [x] **Particle effects system** - Visual feedback for combat and movement ✨ NEW
+- [x] **Save/load system** - Multiple save slots with automatic checkpoints
 - [x] **Animation system** - Frame-based sprite animations for player (idle, walk, jump, attack)
 - [x] **Enemy AI system** - Patrol, chase, flee, flying, jumping behaviors
 - [x] **Combat system** - Player attacks, damage, knockback, invulnerability
