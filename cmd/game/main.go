@@ -12,6 +12,7 @@ import (
 func main() {
 	// Parse command line arguments
 	seedFlag := flag.Int64("seed", 0, "Master seed for generation (0 = use timestamp)")
+	playFlag := flag.Bool("play", false, "Launch the game with rendering (default: just generate and show stats)")
 	flag.Parse()
 
 	// Determine seed
@@ -57,12 +58,26 @@ func main() {
 	fmt.Println()
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println("Game ready to play!")
-	fmt.Println("(Full game engine implementation in progress)")
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println()
 
-	// Run the game (currently just prints stats)
-	game.Run()
+	// Run the game
+	if *playFlag {
+		// Launch with rendering
+		fmt.Println("Launching game with rendering...")
+		fmt.Println("Controls: WASD/Arrows=Move, Space=Jump, K=Dash, P=Pause, Ctrl+Q=Quit")
+		fmt.Println()
+		
+		runner := engine.NewGameRunner(game)
+		if err := runner.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error running game: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		// Just show stats (original behavior)
+		fmt.Println("(Use --play flag to launch the game with rendering)")
+		game.Run()
+	}
 }
 
 func displayGameStats(game *engine.Game) {
