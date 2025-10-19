@@ -670,9 +670,13 @@ func (gr *GameRunner) checkLockedDoorInteraction() {
 					gr.UnlockDoor(door)
 				} else {
 					// Show locked message
-					requirement := gr.transitionHandler.findEdgeRequirement(gr.game.CurrentRoom.ID, door.LeadsTo.ID)
-					if requirement != "" {
-						gr.lockedDoorMessage = fmt.Sprintf("Requires: %s", requirement)
+					if door.LeadsTo != nil {
+						requirement := gr.transitionHandler.findEdgeRequirement(gr.game.CurrentRoom.ID, door.LeadsTo.ID)
+						if requirement != "" {
+							gr.lockedDoorMessage = fmt.Sprintf("Requires: %s", requirement)
+						} else {
+							gr.lockedDoorMessage = "Door is locked"
+						}
 					} else {
 						gr.lockedDoorMessage = "Door is locked"
 					}
@@ -905,14 +909,17 @@ inCombat = true
 }
 }
 
-// Determine if this is a boss fight
-isBossFight := false
-if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Type == "boss" {
-isBossFight = true
-}
+	// Determine if this is a boss fight
+	isBossFight := false
+	if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Type == world.BossRoom {
+		isBossFight = true
+	}
 
-// Calculate player health percentage
-healthPct := float64(gr.game.Player.Health) / float64(gr.game.Player.MaxHealth)
+	// Calculate player health percentage
+	healthPct := 1.0 // Default to full health
+	if gr.game.Player.MaxHealth > 0 {
+		healthPct = float64(gr.game.Player.Health) / float64(gr.game.Player.MaxHealth)
+	}
 
 // Get room danger level
 dangerLevel := 0
