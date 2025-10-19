@@ -18,6 +18,7 @@ import (
 	"github.com/opd-ai/vania/internal/physics"
 	"github.com/opd-ai/vania/internal/render"
 	"github.com/opd-ai/vania/internal/save"
+	"github.com/opd-ai/vania/internal/world"
 )
 
 // GameRunner wraps the Game with Ebiten rendering
@@ -703,7 +704,7 @@ func (gr *GameRunner) UnlockDoor(door *world.Door) {
 	// Create sparkle particle effect at door position
 	doorCenterX := float64(door.X) + float64(door.Width)/2
 	doorCenterY := float64(door.Y) + float64(door.Height)/2
-	sparkleEmitter := gr.particlePresets.CreateSparkles(doorCenterX, doorCenterY, 1.0)
+	sparkleEmitter := gr.particlePresets.CreateSparkles(doorCenterX, doorCenterY)
 	sparkleEmitter.Burst(15)
 	gr.particleSystem.AddEmitter(sparkleEmitter)
 }
@@ -712,8 +713,8 @@ func (gr *GameRunner) UnlockDoor(door *world.Door) {
 func (gr *GameRunner) checkItemCollection() {
 	playerX := gr.game.Player.X
 	playerY := gr.game.Player.Y
-	playerW := physics.PlayerWidth
-	playerH := physics.PlayerHeight
+	playerW := float64(physics.PlayerWidth)
+	playerH := float64(physics.PlayerHeight)
 
 	for _, item := range gr.itemInstances {
 		// Skip already collected items
@@ -750,7 +751,7 @@ func (gr *GameRunner) collectItem(item *entity.ItemInstance) {
 	gr.itemMessageTimer = 120 // Show for 2 seconds
 
 	// Create sparkle particle effect at item position
-	sparkleEmitter := gr.particlePresets.CreateSparkles(item.X, item.Y, 1.0)
+	sparkleEmitter := gr.particlePresets.CreateSparkles(item.X, item.Y)
 	sparkleEmitter.Burst(20)
 	gr.particleSystem.AddEmitter(sparkleEmitter)
 
