@@ -427,3 +427,47 @@ func (r *Renderer) RenderParticles(screen *ebiten.Image, particles []*particle.P
 		screen.DrawImage(particleImg, opts)
 	}
 }
+
+// RenderItem draws a collectible item to the screen
+func (r *Renderer) RenderItem(screen *ebiten.Image, x, y, width, height float64, collected bool, sprite *graphics.Sprite) {
+	// Don't render if collected
+	if collected {
+		return
+	}
+	
+	// If sprite is available, use it
+	if sprite != nil && sprite.Image != nil {
+		itemImg := ebiten.NewImageFromImage(sprite.Image)
+		opts := &ebiten.DrawImageOptions{}
+		opts.GeoM.Translate(x, y)
+		screen.DrawImage(itemImg, opts)
+		return
+	}
+	
+	// Fallback: Draw a simple colored box with glow effect
+	// Create glow effect (larger, semi-transparent)
+	glowSize := int(width * 1.5)
+	glowImg := ebiten.NewImage(glowSize, glowSize)
+	glowImg.Fill(color.RGBA{255, 215, 0, 60}) // Golden glow
+	
+	glowOpts := &ebiten.DrawImageOptions{}
+	glowOpts.GeoM.Translate(x-float64(glowSize-int(width))/2, y-float64(glowSize-int(height))/2)
+	screen.DrawImage(glowImg, glowOpts)
+	
+	// Draw main item box
+	itemImg := ebiten.NewImage(int(width), int(height))
+	itemImg.Fill(color.RGBA{255, 215, 0, 255}) // Gold
+	
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(x, y)
+	screen.DrawImage(itemImg, opts)
+	
+	// Draw inner detail (smaller box)
+	innerSize := int(width * 0.6)
+	innerImg := ebiten.NewImage(innerSize, innerSize)
+	innerImg.Fill(color.RGBA{255, 255, 200, 255}) // Light yellow
+	
+	innerOpts := &ebiten.DrawImageOptions{}
+	innerOpts.GeoM.Translate(x+float64(int(width)-innerSize)/2, y+float64(int(height)-innerSize)/2)
+	screen.DrawImage(innerImg, innerOpts)
+}

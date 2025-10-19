@@ -451,3 +451,28 @@ func (ig *ItemGenerator) generateKeyName() string {
 	material := materials[ig.rng.Intn(len(materials))]
 	return material + " Key"
 }
+
+// ItemInstance represents a placed item in the game world
+type ItemInstance struct {
+	Item      *Item
+	ID        int     // Unique identifier for this item instance
+	X, Y      float64 // Position in the room
+	Collected bool    // Whether the item has been collected
+}
+
+// NewItemInstance creates a new item instance
+func NewItemInstance(item *Item, id int, x, y float64) *ItemInstance {
+	return &ItemInstance{
+		Item:      item,
+		ID:        id,
+		X:         x,
+		Y:         y,
+		Collected: false,
+	}
+}
+
+// GetBounds returns the bounding box for collision detection
+func (ii *ItemInstance) GetBounds() (x, y, width, height float64) {
+	// Items are 16x16 pixels
+	return ii.X, ii.Y, 16, 16
+}

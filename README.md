@@ -265,10 +265,10 @@ type QualityMetrics struct {
 
 ### In Progress 🚧
 - [ ] Advanced enemy animations
-- [ ] Item collection system
 
 ### Recently Completed ✨
-- [x] **Door/Key system** - Ability-gated progression with locked doors and automatic unlocking ✨ NEW
+- [x] **Item collection system** - Visible items in treasure rooms with collection feedback ✨ NEW
+- [x] **Door/Key system** - Ability-gated progression with locked doors and automatic unlocking
 - [x] **Particle effects system** - Visual feedback for combat and movement
 - [x] **Save/load system** - Multiple save slots with automatic checkpoints
 - [x] **Animation system** - Frame-based sprite animations for player (idle, walk, jump, attack)
