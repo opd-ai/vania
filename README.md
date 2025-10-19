@@ -249,15 +249,17 @@ type QualityMetrics struct {
 - [x] Item and ability generation
 - [x] Integration pipeline
 - [x] CLI interface
-- [x] **Ebiten-based rendering system** ✨ NEW
-- [x] **Player movement and physics** ✨ NEW
-- [x] **Collision detection and platforming** ✨ NEW
-- [x] **Input handling system** ✨ NEW
-- [x] **Camera system** ✨ NEW
-- [x] **UI/HUD rendering** ✨ NEW
+- [x] **Ebiten-based rendering system** ✨
+- [x] **Player movement and physics** ✨
+- [x] **Collision detection and platforming** ✨
+- [x] **Input handling system** ✨
+- [x] **Camera system** ✨
+- [x] **UI/HUD rendering** ✨
+- [x] **Enemy AI system** ✨
+- [x] **Combat system** ✨
+- [x] **Room transitions** ✨ NEW
 
 ### In Progress 🚧
-- [ ] Room transitions
 - [ ] Animation system
 - [ ] Save/load system
 - [ ] Particle effects
