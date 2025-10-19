@@ -183,6 +183,37 @@ func (gr *GameRunner) Update() error {
 	gr.game.Player.VelX = gr.playerBody.Velocity.X
 	gr.game.Player.VelY = gr.playerBody.Velocity.Y
 	
+	// Update player animation based on state
+	if gr.game.Player.AnimController != nil {
+		// Update animation
+		gr.game.Player.AnimController.Update()
+		
+		// Determine which animation to play
+		currentAnim := gr.game.Player.AnimController.GetCurrentAnimation()
+		
+		// Attack animation has priority
+		if gr.combatSystem.IsPlayerAttacking() {
+			if currentAnim != "attack" {
+				gr.game.Player.AnimController.Play("attack", true)
+			}
+		} else if !gr.playerBody.OnGround {
+			// In air - jump animation
+			if currentAnim != "jump" {
+				gr.game.Player.AnimController.Play("jump", true)
+			}
+		} else if inputState.MoveLeft || inputState.MoveRight {
+			// Moving - walk animation
+			if currentAnim != "walk" {
+				gr.game.Player.AnimController.Play("walk", false)
+			}
+		} else {
+			// Standing still - idle animation
+			if currentAnim != "idle" {
+				gr.game.Player.AnimController.Play("idle", false)
+			}
+		}
+	}
+	
 	// Update enemies
 	for _, enemy := range gr.enemyInstances {
 		if enemy.IsDead() {
@@ -287,7 +318,15 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	
 	// Render player
 	if gr.game.Player != nil {
-		gr.renderer.RenderPlayer(screen, gr.game.Player.X, gr.game.Player.Y, gr.game.Player.Sprite)
+		// Use animated sprite if available, otherwise fall back to base sprite
+		spriteToRender := gr.game.Player.Sprite
+		if gr.game.Player.AnimController != nil {
+			animFrame := gr.game.Player.AnimController.GetCurrentFrame()
+			if animFrame != nil {
+				spriteToRender = animFrame
+			}
+		}
+		gr.renderer.RenderPlayer(screen, gr.game.Player.X, gr.game.Player.Y, spriteToRender)
 	}
 	
 	// Render UI
