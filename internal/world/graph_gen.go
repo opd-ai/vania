@@ -251,6 +251,9 @@ func (wg *WorldGenerator) generateGraph(world *World) {
 
 // createRooms instantiates rooms based on graph
 func (wg *WorldGenerator) createRooms(world *World) {
+	// Create a map to lookup rooms by ID (map iteration order is random!)
+	roomByID := make(map[int]*Room)
+	
 	for id, node := range world.Graph.Nodes {
 		room := &Room{
 			ID:          id,
@@ -264,6 +267,7 @@ func (wg *WorldGenerator) createRooms(world *World) {
 		}
 		
 		world.Rooms = append(world.Rooms, room)
+		roomByID[id] = room // Store for lookup by ID
 		
 		if room.Type == StartRoom {
 			world.StartRoom = room
@@ -272,11 +276,13 @@ func (wg *WorldGenerator) createRooms(world *World) {
 		}
 	}
 	
-	// Connect rooms based on edges
+	// Connect rooms based on edges using ID lookup
 	for _, edge := range world.Graph.Edges {
-		fromRoom := world.Rooms[edge.From]
-		toRoom := world.Rooms[edge.To]
-		fromRoom.Connections = append(fromRoom.Connections, toRoom)
+		fromRoom := roomByID[edge.From]
+		toRoom := roomByID[edge.To]
+		if fromRoom != nil && toRoom != nil {
+			fromRoom.Connections = append(fromRoom.Connections, toRoom)
+		}
 	}
 }
 
@@ -439,16 +445,22 @@ func (wg *WorldGenerator) addShortcuts(world *World) {
 			continue
 		}
 		
+		// Pick random rooms by index
 		fromIdx := len(world.Rooms)/2 + wg.rng.Intn(len(world.Rooms)/2)
 		toIdx := wg.rng.Intn(len(world.Rooms) / 4)
 		
+		// Get the actual room IDs (not indices!)
+		fromRoomID := world.Rooms[fromIdx].ID
+		toRoomID := world.Rooms[toIdx].ID
+		
 		world.Graph.Edges = append(world.Graph.Edges, GraphEdge{
-			From:        fromIdx,
-			To:          toIdx,
+			From:        fromRoomID,  // Use room ID, not index
+			To:          toRoomID,    // Use room ID, not index
 			Requirement: "",
 			IsShortcut:  true,
 		})
 		
+		// Directly connect the rooms
 		world.Rooms[fromIdx].Connections = append(
 			world.Rooms[fromIdx].Connections,
 			world.Rooms[toIdx],
