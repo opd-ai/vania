@@ -20,6 +20,7 @@ type Room struct {
 	Items       []interface{} // Will be populated with item data
 	Platforms   []Platform
 	Hazards     []Hazard
+	Doors       []Door // Exits to other rooms
 }
 
 // RoomType defines room archetypes
@@ -49,6 +50,15 @@ type Hazard struct {
 	Damage     int
 	Width      int
 	Height     int
+}
+
+// Door represents an exit/entrance to another room
+type Door struct {
+	X, Y          int    // Position in the room
+	Width, Height int    // Size of the door
+	Direction     string // "north", "south", "east", "west"
+	LeadsTo       *Room  // Connected room
+	Locked        bool   // Whether door requires ability/key
 }
 
 // World represents the complete game world
@@ -362,6 +372,60 @@ func (wg *WorldGenerator) populateRoom(room *Room) {
 	case BossRoom:
 		// One boss enemy
 		room.Enemies = make([]interface{}, 1)
+	}
+	
+	// Generate doors based on connections
+	wg.generateDoors(room)
+}
+
+// generateDoors creates doors for each room connection
+func (wg *WorldGenerator) generateDoors(room *Room) {
+	room.Doors = make([]Door, 0, len(room.Connections))
+	
+	// Standard room dimensions in pixels (assuming 960x640 screen)
+	roomWidthPixels := 960
+	roomHeightPixels := 640
+	doorWidth := 64
+	doorHeight := 96
+	
+	for i, connectedRoom := range room.Connections {
+		if connectedRoom == nil {
+			continue
+		}
+		
+		var door Door
+		door.LeadsTo = connectedRoom
+		door.Width = doorWidth
+		door.Height = doorHeight
+		door.Locked = false // Will be set based on requirements later
+		
+		// Determine door direction based on relative position
+		// For now, place doors evenly around the room perimeter
+		direction := i % 4 // Cycle through: east, west, north, south
+		
+		switch direction {
+		case 0: // East (right side)
+			door.Direction = "east"
+			door.X = roomWidthPixels - doorWidth - 10
+			door.Y = roomHeightPixels/2 - doorHeight/2
+			
+		case 1: // West (left side)
+			door.Direction = "west"
+			door.X = 10
+			door.Y = roomHeightPixels/2 - doorHeight/2
+			
+		case 2: // North (top) - for vertical movement
+			door.Direction = "north"
+			door.X = roomWidthPixels/2 - doorWidth/2
+			door.Y = 10
+			
+		case 3: // South (bottom)
+			door.Direction = "south"
+			door.X = roomWidthPixels/2 - doorWidth/2
+			door.Y = roomHeightPixels - doorHeight - 10
+		}
+		
+		room.Doors = append(room.Doors, door)
 	}
 }
 
