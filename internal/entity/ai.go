@@ -25,6 +25,15 @@ type EnemyInstance struct {
 	AggroRange     float64
 	AttackRange    float64
 	AnimController *animation.AnimationController
+	
+	// Advanced AI fields
+	Memory         *AIMemory      // Learning and pattern recognition
+	TacticalState  TacticalState  // Current tactical decision state
+	Group          *EnemyGroup    // Group coordination (nil if solo)
+	FormationX     float64        // Target X position in formation
+	FormationY     float64        // Target Y position in formation
+	LastPlayerX    float64        // Track player position for learning
+	LastPlayerY    float64
 }
 
 // EnemyState represents current enemy state
@@ -76,6 +85,13 @@ func NewEnemyInstance(enemy *Enemy, x, y float64) *EnemyInstance {
 		AggroRange:     aggroRange,
 		AttackRange:    attackRange,
 		AnimController: animController,
+		Memory:         NewAIMemory(),
+		TacticalState:  TacticalNormal,
+		Group:          nil,
+		FormationX:     x,
+		FormationY:     y,
+		LastPlayerX:    0,
+		LastPlayerY:    0,
 	}
 }
 
@@ -94,6 +110,16 @@ func (ei *EnemyInstance) Update(playerX, playerY float64) {
 		return
 	}
 	
+	// Update AI memory with player observations
+	// Detect if player did actions (simplified detection for now)
+	playerDidJump := math.Abs(playerY-ei.LastPlayerY) > 5.0 && playerY < ei.LastPlayerY
+	playerDidAttack := false // Would need actual attack detection from game state
+	playerDidDash := math.Abs(playerX-ei.LastPlayerX) > 10.0
+	
+	ei.Memory.UpdateMemory(playerX, playerY, playerDidJump, playerDidAttack, playerDidDash)
+	ei.LastPlayerX = playerX
+	ei.LastPlayerY = playerY
+	
 	// Decrease attack cooldown
 	if ei.AttackCooldown > 0 {
 		ei.AttackCooldown--
@@ -103,6 +129,14 @@ func (ei *EnemyInstance) Update(playerX, playerY float64) {
 	dx := playerX - ei.X
 	dy := playerY - ei.Y
 	distToPlayer := math.Sqrt(dx*dx + dy*dy)
+	
+	// Determine tactical state based on AI memory
+	healthPercent := float64(ei.CurrentHealth) / float64(ei.Enemy.Health)
+	hasAllies := ei.Group != nil && len(ei.Group.Members) > 1
+	ei.TacticalState = ei.Memory.GetTacticalState(healthPercent, hasAllies, distToPlayer)
+	
+	// Apply tactical state modifications to behavior
+	ei.applyTacticalBehavior(distToPlayer, dx, dy, playerX, playerY)
 	
 	// Update behavior based on pattern
 	switch ei.Enemy.Behavior {
@@ -118,6 +152,11 @@ func (ei *EnemyInstance) Update(playerX, playerY float64) {
 		ei.updateFlyingBehavior(distToPlayer, dx, dy)
 	case JumpingBehavior:
 		ei.updateJumpingBehavior(distToPlayer, dx, dy)
+	}
+	
+	// Apply formation movement if in a group
+	if ei.Group != nil && ei.Group.Formation != NoFormation {
+		ei.applyFormationMovement()
 	}
 	
 	// Apply velocity limits
@@ -289,6 +328,11 @@ func (ei *EnemyInstance) chasePlayer(dx, dy float64) {
 func (ei *EnemyInstance) TakeDamage(damage int) {
 	ei.CurrentHealth -= damage
 	
+	// Record combat event in memory
+	if ei.Memory != nil {
+		ei.Memory.RecordCombatEvent(false, true, damage, 0)
+	}
+	
 	// Play hit animation
 	if ei.AnimController != nil && ei.CurrentHealth > 0 {
 		ei.AnimController.Play("hit", true)
@@ -296,6 +340,134 @@ func (ei *EnemyInstance) TakeDamage(damage int) {
 	
 	if ei.CurrentHealth < 0 {
 		ei.CurrentHealth = 0
+	}
+}
+
+// applyTacticalBehavior modifies enemy behavior based on tactical state
+func (ei *EnemyInstance) applyTacticalBehavior(distToPlayer, dx, dy, playerX, playerY float64) {
+	switch ei.TacticalState {
+	case TacticalAggressive:
+		// Increase aggro range and move faster when aggressive
+		ei.AggroRange *= 1.2
+		if distToPlayer < ei.AggroRange {
+			ei.State = ChaseState
+		}
+		
+	case TacticalDefensive:
+		// Increase attack range, reduce aggro range when defensive
+		ei.AggroRange *= 0.8
+		ei.AttackRange *= 1.3
+		
+	case TacticalFlanking:
+		// Try to get behind or beside player
+		if ei.Group != nil && len(ei.Group.Members) > 1 {
+			// Let group handle flanking through formation
+			return
+		}
+		// Solo flanking: try to circle around
+		angle := math.Atan2(dy, dx) + math.Pi/2 // 90 degrees offset
+		targetX := playerX + math.Cos(angle)*100
+		targetY := playerY + math.Sin(angle)*100
+		
+		fdx := targetX - ei.X
+		_ = targetY - ei.Y // fdy unused for ground-based flanking
+		if math.Abs(fdx) > 10 {
+			if fdx > 0 {
+				ei.VelX = ei.Enemy.Speed
+			} else {
+				ei.VelX = -ei.Enemy.Speed
+			}
+		}
+		
+	case TacticalKiting:
+		// Hit and run: attack then retreat
+		if distToPlayer < ei.AttackRange && ei.AttackCooldown <= 0 {
+			ei.State = AttackState
+			ei.AttackCooldown = 45
+		} else if distToPlayer < ei.AttackRange*1.5 {
+			// Retreat after attacking
+			if dx > 0 {
+				ei.VelX = -ei.Enemy.Speed
+			} else {
+				ei.VelX = ei.Enemy.Speed
+			}
+		}
+		
+	case TacticalRetreating:
+		// Move away from player
+		ei.State = FleeState
+		if dx > 0 {
+			ei.VelX = -ei.Enemy.Speed * 1.2
+		} else {
+			ei.VelX = ei.Enemy.Speed * 1.2
+		}
+		
+	case TacticalRegrouping:
+		// Move toward group center if we have a group
+		if ei.Group != nil && len(ei.Group.Members) > 1 {
+			centerX, centerY := 0.0, 0.0
+			count := 0
+			for _, member := range ei.Group.Members {
+				if member.State != DeadState {
+					centerX += member.X
+					centerY += member.Y
+					count++
+				}
+			}
+			if count > 0 {
+				centerX /= float64(count)
+				centerY /= float64(count)
+				
+				gdx := centerX - ei.X
+				_ = centerY - ei.Y // gdy unused for horizontal regrouping
+				
+				if math.Abs(gdx) > 10 {
+					if gdx > 0 {
+						ei.VelX = ei.Enemy.Speed
+					} else {
+						ei.VelX = -ei.Enemy.Speed
+					}
+				}
+			}
+		}
+	}
+}
+
+// applyFormationMovement moves enemy toward formation position
+func (ei *EnemyInstance) applyFormationMovement() {
+	// Calculate distance to formation position
+	dx := ei.FormationX - ei.X
+	dy := ei.FormationY - ei.Y
+	dist := math.Sqrt(dx*dx + dy*dy)
+	
+	// Only apply formation movement if we're far from position
+	if dist > 30.0 {
+		// Blend formation movement with current velocity
+		formationInfluence := 0.3
+		
+		targetVelX := (dx / dist) * ei.Enemy.Speed
+		targetVelY := (dy / dist) * ei.Enemy.Speed
+		
+		ei.VelX = ei.VelX*(1.0-formationInfluence) + targetVelX*formationInfluence
+		
+		// Only apply Y velocity for flying enemies
+		if ei.Enemy.Behavior == FlyingBehavior {
+			ei.VelY = ei.VelY*(1.0-formationInfluence) + targetVelY*formationInfluence
+		}
+	}
+}
+
+// RecordSuccessfulHit records when this enemy successfully hit the player
+func (ei *EnemyInstance) RecordSuccessfulHit(distance float64) {
+	if ei.Memory != nil {
+		ei.Memory.RecordCombatEvent(true, false, 0, distance)
+	}
+}
+
+// RecordEvasion records when this enemy successfully evaded an attack
+func (ei *EnemyInstance) RecordEvasion() {
+	if ei.Memory != nil {
+		ei.Memory.RecordEvasion()
 	}
 }
 
