@@ -5,22 +5,25 @@ package entity
 
 import (
 	"math"
+
+	"github.com/opd-ai/vania/internal/animation"
 )
 
 // EnemyInstance represents a runtime instance of an enemy with position and state
 type EnemyInstance struct {
-	Enemy         *Enemy
-	X, Y          float64
-	VelX, VelY    float64
-	CurrentHealth int
-	State         EnemyState
-	PatrolMinX    float64
-	PatrolMaxX    float64
-	PatrolDir     float64
+	Enemy          *Enemy
+	X, Y           float64
+	VelX, VelY     float64
+	CurrentHealth  int
+	State          EnemyState
+	PatrolMinX     float64
+	PatrolMaxX     float64
+	PatrolDir      float64
 	AttackCooldown int
-	OnGround      bool
-	AggroRange    float64
-	AttackRange   float64
+	OnGround       bool
+	AggroRange     float64
+	AttackRange    float64
+	AnimController *animation.AnimationController
 }
 
 // EnemyState represents current enemy state

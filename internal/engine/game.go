@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"github.com/opd-ai/vania/internal/animation"
 	"github.com/opd-ai/vania/internal/audio"
 	"github.com/opd-ai/vania/internal/entity"
 	"github.com/opd-ai/vania/internal/graphics"
@@ -41,6 +42,7 @@ type Player struct {
 	Abilities      map[string]bool
 	Inventory      []*entity.Item
 	Sprite         *graphics.Sprite
+	AnimController *animation.AnimationController
 }
 
 // GraphicsSystem manages all graphics
@@ -296,16 +298,36 @@ func (gg *GameGenerator) generateEntities(worldData *world.World, narrative *nar
 
 // createPlayer creates the player character
 func (gg *GameGenerator) createPlayer(gfx *GraphicsSystem) *Player {
+	// Create animation generator
+	animGen := animation.NewAnimationGenerator(gg.MasterSeed + 9999)
+	
+	// Get base player sprite
+	baseSprite := gfx.Sprites["player"]
+	
+	// Generate animation frames
+	idleFrames := animGen.GenerateIdleFrames(baseSprite, 4)
+	walkFrames := animGen.GenerateWalkFrames(baseSprite, 4)
+	jumpFrames := animGen.GenerateJumpFrames(baseSprite, 3)
+	attackFrames := animGen.GenerateAttackFrames(baseSprite, 3)
+	
+	// Create animation controller
+	animController := animation.NewAnimationController("idle")
+	animController.AddAnimation(animation.NewAnimation("idle", idleFrames, 15, true))
+	animController.AddAnimation(animation.NewAnimation("walk", walkFrames, 8, true))
+	animController.AddAnimation(animation.NewAnimation("jump", jumpFrames, 8, false))
+	animController.AddAnimation(animation.NewAnimation("attack", attackFrames, 5, false))
+	
 	return &Player{
-		X:         100,
-		Y:         100,
-		Health:    100,
-		MaxHealth: 100,
-		Damage:    10,
-		Speed:     5.0,
-		Abilities: make(map[string]bool),
-		Inventory: make([]*entity.Item, 0),
-		Sprite:    gfx.Sprites["player"],
+		X:              100,
+		Y:              100,
+		Health:         100,
+		MaxHealth:      100,
+		Damage:         10,
+		Speed:          5.0,
+		Abilities:      make(map[string]bool),
+		Inventory:      make([]*entity.Item, 0),
+		Sprite:         baseSprite,
+		AnimController: animController,
 	}
 }
 

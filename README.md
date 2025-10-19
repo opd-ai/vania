@@ -257,14 +257,16 @@ type QualityMetrics struct {
 - [x] **UI/HUD rendering** ✨
 - [x] **Enemy AI system** ✨
 - [x] **Combat system** ✨
-- [x] **Room transitions** ✨ NEW
+- [x] **Room transitions** ✨
+- [x] **Animation system** ✨ NEW
 
 ### In Progress 🚧
-- [ ] Animation system
 - [ ] Save/load system
 - [ ] Particle effects
+- [ ] Advanced enemy animations
 
 ### Recently Completed ✨
+- [x] **Animation system** - Frame-based sprite animations for player (idle, walk, jump, attack)
 - [x] **Enemy AI system** - Patrol, chase, flee, flying, jumping behaviors
 - [x] **Combat system** - Player attacks, damage, knockback, invulnerability
 - [x] **Enemy rendering** - Visual enemies with health bars
