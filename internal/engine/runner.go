@@ -531,7 +531,7 @@ func (gr *GameRunner) RestoreFromSaveData(saveData *save.SaveData) error {
 	for _, room := range gr.game.World.Rooms {
 		if room.ID == saveData.CurrentRoomID {
 			gr.game.CurrentRoom = room
-			gr.transitionHandler.SetCurrentRoom(room)
+			// No need to call SetCurrentRoom - the game already has CurrentRoom set
 			break
 		}
 	}
