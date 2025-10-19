@@ -251,10 +251,26 @@ func (wg *WorldGenerator) generateGraph(world *World) {
 
 // createRooms instantiates rooms based on graph
 func (wg *WorldGenerator) createRooms(world *World) {
-	// Create a map to lookup rooms by ID (map iteration order is random!)
+	// Create a map to lookup rooms by ID
 	roomByID := make(map[int]*Room)
 	
-	for id, node := range world.Graph.Nodes {
+	// Get sorted list of node IDs for deterministic iteration
+	nodeIDs := make([]int, 0, len(world.Graph.Nodes))
+	for id := range world.Graph.Nodes {
+		nodeIDs = append(nodeIDs, id)
+	}
+	// Sort to ensure deterministic order
+	for i := 0; i < len(nodeIDs)-1; i++ {
+		for j := i + 1; j < len(nodeIDs); j++ {
+			if nodeIDs[i] > nodeIDs[j] {
+				nodeIDs[i], nodeIDs[j] = nodeIDs[j], nodeIDs[i]
+			}
+		}
+	}
+	
+	// Iterate in sorted order for deterministic generation
+	for _, id := range nodeIDs {
+		node := world.Graph.Nodes[id]
 		room := &Room{
 			ID:          id,
 			Type:        wg.determineRoomType(node),
