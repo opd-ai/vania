@@ -10,6 +10,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/opd-ai/vania/internal/audio"
 	"github.com/opd-ai/vania/internal/entity"
 	"github.com/opd-ai/vania/internal/graphics"
 	"github.com/opd-ai/vania/internal/input"
@@ -46,6 +47,7 @@ type GameRunner struct {
 	lockedDoorTimer   int
 	itemMessage       string
 	itemMessageTimer  int
+	musicContext      *audio.MusicContext
 }
 
 // NewGameRunner creates a new game runner
@@ -117,6 +119,7 @@ func NewGameRunner(game *Game) *GameRunner {
 		lockedDoorTimer:   0,
 		itemMessage:       "",
 		itemMessageTimer:  0,
+		musicContext:      audio.NewMusicContext(),
 	}
 }
 
@@ -387,6 +390,9 @@ func (gr *GameRunner) Update() error {
 			gr.combatSystem.ApplyDamageToPlayer(gr.game.Player, damage, enemy.X)
 		}
 	}
+
+	// Update music context based on game state
+	gr.updateMusicContext()
 
 	// Check for item collection
 	if gr.itemMessageTimer > 0 {
@@ -869,4 +875,66 @@ func createItemInstancesForRoom(room *world.Room, allItems []*entity.Item) []*en
 	}
 	
 	return instances
+}
+
+
+// updateMusicContext updates the music context based on current game state
+func (gr *GameRunner) updateMusicContext() {
+// Count nearby enemies (alive enemies within aggro range)
+nearbyCount := 0
+inCombat := false
+
+for _, enemy := range gr.enemyInstances {
+if enemy.IsDead() {
+continue
+}
+
+// Calculate distance to player
+dx := gr.game.Player.X - enemy.X
+dy := gr.game.Player.Y - enemy.Y
+distance := dx*dx + dy*dy
+
+// Check if enemy is nearby (within ~300 pixels)
+if distance < 90000 { // 300^2
+nearbyCount++
+}
+
+// Check if any enemy is actively chasing or attacking
+if enemy.State == entity.ChaseState || enemy.State == entity.AttackState {
+inCombat = true
+}
+}
+
+// Determine if this is a boss fight
+isBossFight := false
+if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Type == "boss" {
+isBossFight = true
+}
+
+// Calculate player health percentage
+healthPct := float64(gr.game.Player.Health) / float64(gr.game.Player.MaxHealth)
+
+// Get room danger level
+dangerLevel := 0
+if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Biome != nil {
+dangerLevel = gr.game.CurrentRoom.Biome.DangerLevel
+}
+
+// Update music context
+gr.musicContext.InCombat = inCombat
+gr.musicContext.IsBossFight = isBossFight
+gr.musicContext.NearbyEnemyCount = nearbyCount
+gr.musicContext.PlayerHealthPct = healthPct
+gr.musicContext.RoomDangerLevel = dangerLevel
+
+// Calculate intensity and update adaptive music track
+intensity := gr.musicContext.CalculateIntensity()
+
+// Get current biome's adaptive track and update it
+if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Biome != nil {
+if track, exists := gr.game.Audio.AdaptiveTracks[gr.game.CurrentRoom.Biome.Name]; exists {
+track.SetIntensity(intensity)
+track.Update()
+}
+}
 }
