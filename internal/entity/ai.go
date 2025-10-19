@@ -83,6 +83,14 @@ func NewEnemyInstance(enemy *Enemy, x, y float64) *EnemyInstance {
 func (ei *EnemyInstance) Update(playerX, playerY float64) {
 	if ei.CurrentHealth <= 0 {
 		ei.State = DeadState
+		// Play death animation once
+		if ei.AnimController != nil {
+			currentAnim := ei.AnimController.GetCurrentAnimation()
+			if currentAnim != "death" {
+				ei.AnimController.Play("death", true)
+			}
+			ei.AnimController.Update()
+		}
 		return
 	}
 	
