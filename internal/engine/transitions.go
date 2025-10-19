@@ -219,3 +219,8 @@ func (rth *RoomTransitionHandler) SpawnEnemiesForRoom(room *world.Room) []*entit
 
 	return enemyInstances
 }
+
+// SpawnItemsForRoom creates item instances for the current room
+func (rth *RoomTransitionHandler) SpawnItemsForRoom(room *world.Room) []*entity.ItemInstance {
+	return createItemInstancesForRoom(room, rth.game.Items)
+}

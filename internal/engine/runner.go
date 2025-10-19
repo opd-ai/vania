@@ -27,6 +27,7 @@ type GameRunner struct {
 	combatSystem      *CombatSystem
 	transitionHandler *RoomTransitionHandler
 	enemyInstances    []*entity.EnemyInstance
+	itemInstances     []*entity.ItemInstance
 	particleSystem    *particle.ParticleSystem
 	particlePresets   *particle.ParticlePresets
 	doubleJumpUsed    bool
@@ -42,6 +43,8 @@ type GameRunner struct {
 	unlockedDoors     map[string]bool
 	lockedDoorMessage string
 	lockedDoorTimer   int
+	itemMessage       string
+	itemMessageTimer  int
 }
 
 // NewGameRunner creates a new game runner
@@ -84,6 +87,9 @@ func NewGameRunner(game *Game) *GameRunner {
 		checkpointManager = save.NewCheckpointManager(saveManager)
 	}
 
+	// Create item instances for current room
+	itemInstances := createItemInstancesForRoom(game.CurrentRoom, game.Items)
+
 	return &GameRunner{
 		game:              game,
 		renderer:          render.NewRenderer(),
@@ -92,6 +98,7 @@ func NewGameRunner(game *Game) *GameRunner {
 		combatSystem:      NewCombatSystem(),
 		transitionHandler: transitionHandler,
 		enemyInstances:    enemyInstances,
+		itemInstances:     itemInstances,
 		particleSystem:    particle.NewParticleSystem(1000), // Max 1000 particles
 		particlePresets:   &particle.ParticlePresets{},
 		doubleJumpUsed:    false,
@@ -107,6 +114,8 @@ func NewGameRunner(game *Game) *GameRunner {
 		unlockedDoors:     make(map[string]bool),
 		lockedDoorMessage: "",
 		lockedDoorTimer:   0,
+		itemMessage:       "",
+		itemMessageTimer:  0,
 	}
 }
 
@@ -131,8 +140,9 @@ func (gr *GameRunner) Update() error {
 
 	// Update transition handler
 	if gr.transitionHandler.Update() {
-		// Transition completed - spawn new enemies
+		// Transition completed - spawn new enemies and items
 		gr.enemyInstances = gr.transitionHandler.SpawnEnemiesForRoom(gr.game.CurrentRoom)
+		gr.itemInstances = gr.transitionHandler.SpawnItemsForRoom(gr.game.CurrentRoom)
 	}
 
 	// Don't update game logic during transition
@@ -377,6 +387,12 @@ func (gr *GameRunner) Update() error {
 		}
 	}
 
+	// Check for item collection
+	if gr.itemMessageTimer > 0 {
+		gr.itemMessageTimer--
+	}
+	gr.checkItemCollection()
+
 	// Update camera
 	gr.renderer.UpdateCamera(gr.game.Player.X, gr.game.Player.Y)
 
@@ -399,6 +415,14 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	// Render world
 	if gr.game.CurrentRoom != nil && gr.game.Graphics != nil {
 		gr.renderer.RenderWorld(screen, gr.game.CurrentRoom, gr.game.Graphics.Tilesets)
+	}
+
+	// Render items
+	for _, item := range gr.itemInstances {
+		if !item.Collected && !gr.collectedItems[item.ID] {
+			itemX, itemY, itemW, itemH := item.GetBounds()
+			gr.renderer.RenderItem(screen, itemX, itemY, itemW, itemH, item.Collected, nil)
+		}
 	}
 
 	// Render enemies
@@ -464,6 +488,23 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		ebitenutil.DebugPrintAt(screen, gr.lockedDoorMessage, messageX+10, messageY+12)
 	}
 
+	// Show item collection message if active
+	if gr.itemMessageTimer > 0 && gr.itemMessage != "" {
+		// Draw message in center-top of screen with background
+		messageX := render.ScreenWidth/2 - 100
+		messageY := 80
+
+		// Draw semi-transparent background
+		messageImg := ebiten.NewImage(200, 40)
+		messageImg.Fill(color.RGBA{255, 215, 0, 200}) // Golden background
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(messageX), float64(messageY))
+		screen.DrawImage(messageImg, op)
+
+		// Draw text
+		ebitenutil.DebugPrintAt(screen, gr.itemMessage, messageX+10, messageY+12)
+	}
+
 	// Show debug info
 	aliveEnemies := 0
 	for _, enemy := range gr.enemyInstances {
@@ -472,12 +513,14 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	debugInfo := fmt.Sprintf("Seed: %d | Room: %s | FPS: %.2f | Enemies: %d/%d\nPosition: (%.0f, %.0f) | Velocity: (%.1f, %.1f)\nHealth: %d/%d | OnGround: %v | Invuln: %v\nControls: WASD/Arrows=Move, Space=Jump, J=Attack, K=Dash, P=Pause, Ctrl+Q=Quit",
+	debugInfo := fmt.Sprintf("Seed: %d | Room: %s | FPS: %.2f | Enemies: %d/%d | Items: %d/%d\nPosition: (%.0f, %.0f) | Velocity: (%.1f, %.1f)\nHealth: %d/%d | OnGround: %v | Invuln: %v\nControls: WASD/Arrows=Move, Space=Jump, J=Attack, K=Dash, P=Pause, Ctrl+Q=Quit",
 		gr.game.Seed,
 		gr.getCurrentRoomName(),
 		ebiten.ActualTPS(),
 		aliveEnemies,
 		len(gr.enemyInstances),
+		len(gr.collectedItems),
+		len(gr.game.Items),
 		gr.game.Player.X,
 		gr.game.Player.Y,
 		gr.game.Player.VelX,
@@ -641,6 +684,64 @@ func (gr *GameRunner) UnlockDoor(door *world.Door) {
 	gr.particleSystem.AddEmitter(sparkleEmitter)
 }
 
+// checkItemCollection checks for item collision and collection
+func (gr *GameRunner) checkItemCollection() {
+	playerX := gr.game.Player.X
+	playerY := gr.game.Player.Y
+	playerW := physics.PlayerWidth
+	playerH := physics.PlayerHeight
+
+	for _, item := range gr.itemInstances {
+		// Skip already collected items
+		if item.Collected || gr.collectedItems[item.ID] {
+			continue
+		}
+
+		// Check collision with player
+		itemX, itemY, itemW, itemH := item.GetBounds()
+		
+		if playerX < itemX+itemW &&
+			playerX+playerW > itemX &&
+			playerY < itemY+itemH &&
+			playerY+playerH > itemY {
+			
+			// Collect the item!
+			gr.collectItem(item)
+		}
+	}
+}
+
+// collectItem handles item collection
+func (gr *GameRunner) collectItem(item *entity.ItemInstance) {
+	if item == nil || item.Collected {
+		return
+	}
+
+	// Mark as collected
+	item.Collected = true
+	gr.collectedItems[item.ID] = true
+
+	// Show message
+	gr.itemMessage = fmt.Sprintf("Collected: %s", item.Item.Name)
+	gr.itemMessageTimer = 120 // Show for 2 seconds
+
+	// Create sparkle particle effect at item position
+	sparkleEmitter := gr.particlePresets.CreateSparkles(item.X, item.Y, 1.0)
+	sparkleEmitter.Burst(20)
+	gr.particleSystem.AddEmitter(sparkleEmitter)
+
+	// Apply item effect if needed
+	switch item.Item.Effect {
+	case "heal":
+		gr.game.Player.Health += item.Item.Value
+		if gr.game.Player.Health > gr.game.Player.MaxHealth {
+			gr.game.Player.Health = gr.game.Player.MaxHealth
+		}
+	case "increase_damage":
+		gr.game.Player.Damage += item.Item.Value / 10
+	}
+}
+
 // SaveGame saves the current game state to a slot
 func (gr *GameRunner) SaveGame(slotID int) error {
 	if gr.saveManager == nil {
@@ -690,6 +791,9 @@ func (gr *GameRunner) RestoreFromSaveData(saveData *save.SaveData) error {
 	}
 	gr.defeatedEnemies = saveData.DefeatedEnemies
 	gr.collectedItems = saveData.CollectedItems
+	if gr.collectedItems == nil {
+		gr.collectedItems = make(map[int]bool)
+	}
 	gr.unlockedDoors = saveData.UnlockedDoors
 	if gr.unlockedDoors == nil {
 		gr.unlockedDoors = make(map[string]bool)
@@ -722,4 +826,33 @@ func (gr *GameRunner) CheckAutoSave() {
 			// Successfully auto-saved (could show notification to player)
 		}
 	}
+}
+
+// createItemInstancesForRoom creates item instances for a room
+func createItemInstancesForRoom(room *world.Room, allItems []*entity.Item) []*entity.ItemInstance {
+	var instances []*entity.ItemInstance
+	
+	if room == nil || room.Type != world.TreasureRoom {
+		return instances
+	}
+	
+	// Place 2-4 items in treasure rooms
+	itemCount := 2 + (room.ID % 3) // 2-4 items based on room ID
+	if itemCount > len(allItems) {
+		itemCount = len(allItems)
+	}
+	
+	for i := 0; i < itemCount && i < len(allItems); i++ {
+		// Generate unique item ID based on room and position
+		itemID := room.ID*1000 + i
+		
+		// Position items across the room (spread horizontally)
+		itemX := 200.0 + float64(i*150)
+		itemY := 500.0 // Ground level
+		
+		instance := entity.NewItemInstance(allItems[i%len(allItems)], itemID, itemX, itemY)
+		instances = append(instances, instance)
+	}
+	
+	return instances
 }
