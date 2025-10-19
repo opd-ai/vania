@@ -88,7 +88,7 @@ go build -o vania ./cmd/game
 ./vania --seed 1337 --play
 ```
 
-**Note**: The `--play` flag launches the full game with rendering, physics, and controls. See [RENDERING.md](RENDERING.md) for detailed setup instructions and system requirements.
+**Note**: The `--play` flag launches the full game with rendering, physics, controls, enemies, and combat. See [RENDERING.md](RENDERING.md) for detailed setup instructions and [COMBAT_SYSTEM.md](COMBAT_SYSTEM.md) for combat mechanics.
 
 ## 📊 Example Output
 
@@ -131,11 +131,11 @@ Master Seed: 42
   ├── audio/           - Sound synthesis and music generation
   ├── narrative/       - Story and text generation
   ├── world/           - Level and biome generation
-  ├── entity/          - Enemy, boss, and item generation
-  ├── render/          - Ebiten rendering system (NEW!)
-  ├── input/           - Input handling (NEW!)
-  ├── physics/         - Collision detection and physics (NEW!)
-  └── engine/          - Game engine and integration
+  ├── entity/          - Enemy, boss, and item generation + AI behaviors
+  ├── render/          - Ebiten rendering system
+  ├── input/           - Input handling
+  ├── physics/         - Collision detection and physics
+  └── engine/          - Game engine, integration, and combat system
 ```
 
 ## 🎯 Key Technical Achievements
@@ -257,12 +257,16 @@ type QualityMetrics struct {
 - [x] **UI/HUD rendering** ✨ NEW
 
 ### In Progress 🚧
-- [ ] Enemy rendering and AI behavior
-- [ ] Combat system implementation
 - [ ] Room transitions
 - [ ] Animation system
 - [ ] Save/load system
 - [ ] Particle effects
+
+### Recently Completed ✨
+- [x] **Enemy AI system** - Patrol, chase, flee, flying, jumping behaviors
+- [x] **Combat system** - Player attacks, damage, knockback, invulnerability
+- [x] **Enemy rendering** - Visual enemies with health bars
+- [x] **Hit detection** - Player vs enemy collision and attack hits
 
 ### Planned 📋
 - [ ] Adaptive music system (dynamic layers)

@@ -155,6 +155,74 @@ func (gr *GameRunner) Update() error {
 	gr.game.Player.VelX = gr.playerBody.Velocity.X
 	gr.game.Player.VelY = gr.playerBody.Velocity.Y
 	
+	// Update enemies
+	for _, enemy := range gr.enemyInstances {
+		if enemy.IsDead() {
+			continue
+		}
+		
+		// Update enemy AI
+		enemy.Update(gr.game.Player.X, gr.game.Player.Y)
+		
+		// Apply gravity to ground-based enemies
+		if enemy.Enemy.Behavior != entity.FlyingBehavior {
+			if !enemy.OnGround {
+				enemy.VelY += 0.5
+				if enemy.VelY > 10.0 {
+					enemy.VelY = 10.0
+				}
+			}
+		}
+		
+		// Update enemy position
+		enemy.X += enemy.VelX
+		enemy.Y += enemy.VelY
+		
+		// Check enemy collisions with platforms
+		if gr.game.CurrentRoom != nil {
+			enemy.OnGround = false
+			for _, platform := range gr.game.CurrentRoom.Platforms {
+				px := float64(platform.X)
+				py := float64(platform.Y)
+				pw := float64(platform.Width)
+				ph := float64(platform.Height)
+				
+				ex, ey, ew, eh := enemy.GetBounds()
+				
+				// Check collision with platform
+				if ex < px+pw && ex+ew > px && ey < py+ph && ey+eh > py {
+					// Resolve collision - simple top collision for now
+					if enemy.VelY > 0 && ey+eh-ph < py {
+						enemy.Y = py - eh
+						enemy.VelY = 0
+						enemy.OnGround = true
+					}
+				}
+			}
+		}
+		
+		// Check player attack hitting enemy
+		if gr.combatSystem.IsPlayerAttacking() {
+			attackX, attackY, attackW, attackH := gr.combatSystem.GetAttackHitbox(
+				gr.game.Player.X, gr.game.Player.Y, gr.playerFacingDir,
+			)
+			if gr.combatSystem.CheckEnemyHit(attackX, attackY, attackW, attackH, enemy) {
+				gr.combatSystem.ApplyDamageToEnemy(enemy, gr.game.Player.Damage, gr.game.Player.X)
+			}
+		}
+		
+		// Check enemy collision with player
+		if gr.combatSystem.CheckPlayerEnemyCollision(
+			gr.game.Player.X, gr.game.Player.Y, physics.PlayerWidth, physics.PlayerHeight, enemy,
+		) {
+			damage := enemy.Enemy.Damage
+			if enemy.State == entity.AttackState {
+				damage = enemy.GetAttackDamage()
+			}
+			gr.combatSystem.ApplyDamageToPlayer(gr.game.Player, damage, enemy.X)
+		}
+	}
+	
 	// Update camera
 	gr.renderer.UpdateCamera(gr.game.Player.X, gr.game.Player.Y)
 	
@@ -171,6 +239,24 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		gr.renderer.RenderWorld(screen, gr.game.CurrentRoom, gr.game.Graphics.Tilesets)
 	}
 	
+	// Render enemies
+	for _, enemy := range gr.enemyInstances {
+		if !enemy.IsDead() {
+			ex, ey, ew, eh := enemy.GetBounds()
+			gr.renderer.RenderEnemy(screen, ex, ey, ew, eh, enemy.CurrentHealth, enemy.Enemy.Health, false)
+		}
+	}
+	
+	// Render attack effect
+	if gr.combatSystem.IsPlayerAttacking() {
+		attackX, attackY, attackW, attackH := gr.combatSystem.GetAttackHitbox(
+			gr.game.Player.X, gr.game.Player.Y, gr.playerFacingDir,
+		)
+		if attackW > 0 && attackH > 0 {
+			gr.renderer.RenderAttackEffect(screen, attackX, attackY, attackW, attackH)
+		}
+	}
+	
 	// Render player
 	if gr.game.Player != nil {
 		gr.renderer.RenderPlayer(screen, gr.game.Player.X, gr.game.Player.Y, gr.game.Player.Sprite)
@@ -182,15 +268,27 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	}
 	
 	// Show debug info
-	debugInfo := fmt.Sprintf("Seed: %d | Room: %s | FPS: %.2f\nPosition: (%.0f, %.0f) | Velocity: (%.1f, %.1f)\nOnGround: %v | Controls: WASD/Arrows=Move, Space=Jump, K=Dash, P=Pause, Ctrl+Q=Quit",
+	aliveEnemies := 0
+	for _, enemy := range gr.enemyInstances {
+		if !enemy.IsDead() {
+			aliveEnemies++
+		}
+	}
+	
+	debugInfo := fmt.Sprintf("Seed: %d | Room: %s | FPS: %.2f | Enemies: %d/%d\nPosition: (%.0f, %.0f) | Velocity: (%.1f, %.1f)\nHealth: %d/%d | OnGround: %v | Invuln: %v\nControls: WASD/Arrows=Move, Space=Jump, J=Attack, K=Dash, P=Pause, Ctrl+Q=Quit",
 		gr.game.Seed,
 		gr.getCurrentRoomName(),
 		ebiten.ActualTPS(),
+		aliveEnemies,
+		len(gr.enemyInstances),
 		gr.game.Player.X,
 		gr.game.Player.Y,
 		gr.game.Player.VelX,
 		gr.game.Player.VelY,
+		gr.game.Player.Health,
+		gr.game.Player.MaxHealth,
 		gr.playerBody.OnGround,
+		gr.combatSystem.IsInvulnerable(),
 	)
 	
 	if gr.paused {
