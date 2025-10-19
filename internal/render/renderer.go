@@ -297,7 +297,7 @@ func (r *Renderer) GetCameraOffset() (float64, float64) {
 }
 
 // RenderEnemy draws an enemy to the screen
-func (r *Renderer) RenderEnemy(screen *ebiten.Image, x, y, width, height float64, health, maxHealth int, isInvulnerable bool) {
+func (r *Renderer) RenderEnemy(screen *ebiten.Image, x, y, width, height float64, health, maxHealth int, isInvulnerable bool, sprite *graphics.Sprite) {
 	// Apply camera offset
 	screenX := x + r.camera.X
 	screenY := y + r.camera.Y
@@ -308,20 +308,34 @@ func (r *Renderer) RenderEnemy(screen *ebiten.Image, x, y, width, height float64
 		return
 	}
 	
-	// Create enemy sprite image
-	enemyImg := ebiten.NewImage(int(width), int(height))
-	
-	// Enemy color (red with transparency when invulnerable)
-	enemyColor := color.RGBA{200, 50, 50, 255}
-	if isInvulnerable {
-		enemyColor = color.RGBA{200, 50, 50, 128} // Transparent when hit
-	}
-	enemyImg.Fill(enemyColor)
-	
 	// Draw enemy sprite
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(screenX, screenY)
-	screen.DrawImage(enemyImg, opts)
+	if sprite != nil && sprite.Image != nil {
+		// Use the animated sprite
+		enemyImg := ebiten.NewImageFromImage(sprite.Image)
+		
+		// Apply transparency when invulnerable
+		opts := &ebiten.DrawImageOptions{}
+		if isInvulnerable {
+			opts.ColorM.Scale(1, 1, 1, 0.5) // Half transparency
+		}
+		opts.GeoM.Translate(screenX, screenY)
+		screen.DrawImage(enemyImg, opts)
+	} else {
+		// Fallback to colored rectangle if no sprite
+		enemyImg := ebiten.NewImage(int(width), int(height))
+		
+		// Enemy color (red with transparency when invulnerable)
+		enemyColor := color.RGBA{200, 50, 50, 255}
+		if isInvulnerable {
+			enemyColor = color.RGBA{200, 50, 50, 128} // Transparent when hit
+		}
+		enemyImg.Fill(enemyColor)
+		
+		// Draw enemy sprite
+		opts := &ebiten.DrawImageOptions{}
+		opts.GeoM.Translate(screenX, screenY)
+		screen.DrawImage(enemyImg, opts)
+	}
 	
 	// Draw health bar above enemy
 	if maxHealth > 0 {
@@ -332,7 +346,7 @@ func (r *Renderer) RenderEnemy(screen *ebiten.Image, x, y, width, height float64
 		// Background
 		bgImg := ebiten.NewImage(int(barWidth), int(barHeight))
 		bgImg.Fill(color.RGBA{50, 50, 50, 255})
-		opts = &ebiten.DrawImageOptions{}
+		opts := &ebiten.DrawImageOptions{}
 		opts.GeoM.Translate(screenX, barY)
 		screen.DrawImage(bgImg, opts)
 		

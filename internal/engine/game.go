@@ -120,7 +120,7 @@ func (gg *GameGenerator) GenerateCompleteGame() (*Game, error) {
 	)
 	
 	// Generate entities that fit world biomes
-	entities, bosses, items, abilities := gg.generateEntities(worldData, narrative)
+	entities, bosses, items, abilities := gg.generateEntities(worldData, narrative, graphicsSystem)
 	
 	// Generate audio matching narrative tone
 	audioSystem := gg.generateAudio(narrative, worldData)
@@ -248,7 +248,7 @@ func (gg *GameGenerator) selectMusicGenerator(biome *world.Biome) *audio.MusicGe
 }
 
 // generateEntities creates all enemies, bosses, items, and abilities
-func (gg *GameGenerator) generateEntities(worldData *world.World, narrative *narrative.WorldContext) ([]*entity.Enemy, []*entity.Boss, []*entity.Item, []entity.Ability) {
+func (gg *GameGenerator) generateEntities(worldData *world.World, narrative *narrative.WorldContext, gfx *GraphicsSystem) ([]*entity.Enemy, []*entity.Boss, []*entity.Item, []entity.Ability) {
 	enemyGen := entity.NewEnemyGenerator(gg.EntityGen.Seed)
 	bossGen := entity.NewBossGenerator(gg.EntityGen.Seed + 1000)
 	itemGen := entity.NewItemGenerator(gg.EntityGen.Seed + 2000)
@@ -267,6 +267,19 @@ func (gg *GameGenerator) generateEntities(worldData *world.World, narrative *nar
 					room.Biome.DangerLevel,
 					gg.EntityGen.Seed+int64(i*1000+j),
 				)
+				
+				// Generate sprite for this enemy
+				enemySize := 32
+				if enemy.Size == entity.SmallEnemy {
+					enemySize = 16
+				} else if enemy.Size == entity.LargeEnemy {
+					enemySize = 48
+				} else if enemy.Size == entity.BossEnemy {
+					enemySize = 64
+				}
+				enemySpriteGen := graphics.NewSpriteGenerator(enemySize, enemySize, graphics.VerticalSymmetry)
+				enemy.SpriteData = enemySpriteGen.Generate(gg.EntityGen.Seed + int64(i*1000+j+5000))
+				
 				enemies = append(enemies, enemy)
 			}
 		} else if room.Type == world.BossRoom {
@@ -274,6 +287,11 @@ func (gg *GameGenerator) generateEntities(worldData *world.World, narrative *nar
 				room.Biome.Name,
 				gg.EntityGen.Seed+int64(i*1000),
 			)
+			
+			// Generate boss sprite (larger)
+			bossSpriteGen := graphics.NewSpriteGenerator(64, 64, graphics.VerticalSymmetry)
+			boss.SpriteData = bossSpriteGen.Generate(gg.EntityGen.Seed + int64(i*1000+10000))
+			
 			bosses = append(bosses, boss)
 		}
 		

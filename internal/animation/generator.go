@@ -278,3 +278,110 @@ func (ag *AnimationGenerator) tintSprite(sprite *graphics.Sprite, tint color.RGB
 		}
 	}
 }
+
+// GenerateEnemyIdleFrames creates idle animation frames for enemies
+func (ag *AnimationGenerator) GenerateEnemyIdleFrames(baseSprite *graphics.Sprite, numFrames int) []*graphics.Sprite {
+	if baseSprite == nil || numFrames <= 0 {
+		return nil
+	}
+	
+	frames := make([]*graphics.Sprite, numFrames)
+	
+	for i := 0; i < numFrames; i++ {
+		frames[i] = ag.createIdleFrame(baseSprite, i, numFrames)
+	}
+	
+	return frames
+}
+
+// GenerateEnemyPatrolFrames creates patrol/walk animation frames for enemies
+func (ag *AnimationGenerator) GenerateEnemyPatrolFrames(baseSprite *graphics.Sprite, numFrames int) []*graphics.Sprite {
+	if baseSprite == nil || numFrames <= 0 {
+		return nil
+	}
+	
+	frames := make([]*graphics.Sprite, numFrames)
+	
+	for i := 0; i < numFrames; i++ {
+		frames[i] = ag.createWalkFrame(baseSprite, i, numFrames)
+	}
+	
+	return frames
+}
+
+// GenerateEnemyAttackFrames creates attack animation frames for enemies
+func (ag *AnimationGenerator) GenerateEnemyAttackFrames(baseSprite *graphics.Sprite, numFrames int) []*graphics.Sprite {
+	if baseSprite == nil || numFrames <= 0 {
+		return nil
+	}
+	
+	frames := make([]*graphics.Sprite, numFrames)
+	
+	for i := 0; i < numFrames; i++ {
+		frames[i] = ag.createAttackFrame(baseSprite, i, numFrames)
+	}
+	
+	return frames
+}
+
+// GenerateEnemyDeathFrames creates death animation frames for enemies (fade out)
+func (ag *AnimationGenerator) GenerateEnemyDeathFrames(baseSprite *graphics.Sprite, numFrames int) []*graphics.Sprite {
+	if baseSprite == nil || numFrames <= 0 {
+		return nil
+	}
+	
+	frames := make([]*graphics.Sprite, numFrames)
+	
+	for i := 0; i < numFrames; i++ {
+		frames[i] = ag.createDeathFrame(baseSprite, i, numFrames)
+	}
+	
+	return frames
+}
+
+// createDeathFrame creates a death frame with fade out effect
+func (ag *AnimationGenerator) createDeathFrame(baseSprite *graphics.Sprite, frameIndex, totalFrames int) *graphics.Sprite {
+	newSprite := ag.copySprite(baseSprite)
+	
+	if newSprite.Image == nil {
+		return newSprite
+	}
+	
+	// Fade out over time
+	progress := float64(frameIndex) / float64(totalFrames)
+	alpha := uint8((1.0 - progress) * 255.0)
+	
+	ag.fadeSprite(newSprite, alpha)
+	
+	// Also rotate/fall effect
+	if frameIndex > 0 {
+		ag.shiftSpriteVertical(newSprite, frameIndex/2)
+	}
+	
+	return newSprite
+}
+
+// fadeSprite applies alpha transparency to sprite
+func (ag *AnimationGenerator) fadeSprite(sprite *graphics.Sprite, alpha uint8) {
+	if sprite == nil || sprite.Image == nil {
+		return
+	}
+	
+	bounds := sprite.Image.Bounds()
+	
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			c := sprite.Image.At(x, y)
+			r, g, b, a := c.RGBA()
+			
+			// Skip already transparent pixels
+			if a == 0 {
+				continue
+			}
+			
+			// Apply fade
+			newAlpha := uint8((uint32(a>>8) * uint32(alpha)) / 255)
+			sprite.Image.Set(x, y, color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), newAlpha})
+		}
+	}
+}

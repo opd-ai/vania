@@ -11,6 +11,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/opd-ai/vania/internal/entity"
+	"github.com/opd-ai/vania/internal/graphics"
 	"github.com/opd-ai/vania/internal/input"
 	"github.com/opd-ai/vania/internal/particle"
 	"github.com/opd-ai/vania/internal/physics"
@@ -429,7 +430,20 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	for _, enemy := range gr.enemyInstances {
 		if !enemy.IsDead() {
 			ex, ey, ew, eh := enemy.GetBounds()
-			gr.renderer.RenderEnemy(screen, ex, ey, ew, eh, enemy.CurrentHealth, enemy.Enemy.Health, false)
+			
+			// Get current animation frame if available
+			var spriteToRender *graphics.Sprite
+			if enemy.AnimController != nil {
+				spriteToRender = enemy.AnimController.GetCurrentFrame()
+			}
+			// Fallback to base sprite if no animation frame
+			if spriteToRender == nil {
+				if sprite, ok := enemy.Enemy.SpriteData.(*graphics.Sprite); ok {
+					spriteToRender = sprite
+				}
+			}
+			
+			gr.renderer.RenderEnemy(screen, ex, ey, ew, eh, enemy.CurrentHealth, enemy.Enemy.Health, false, spriteToRender)
 		}
 	}
 
