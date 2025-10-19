@@ -56,10 +56,11 @@ type GraphicsSystem struct {
 
 // AudioSystem manages all audio
 type AudioSystem struct {
-	SFXGen   *audio.SFXGenerator
-	MusicGen *audio.MusicGenerator
-	Sounds   map[string]*audio.AudioSample
-	Music    map[string]*audio.AudioSample
+	SFXGen         *audio.SFXGenerator
+	MusicGen       *audio.MusicGenerator
+	Sounds         map[string]*audio.AudioSample
+	Music          map[string]*audio.AudioSample
+	AdaptiveTracks map[string]*audio.AdaptiveMusicTrack
 }
 
 // GameGenerator orchestrates all generation
@@ -182,10 +183,11 @@ func (gg *GameGenerator) generateGraphics(narrative *narrative.WorldContext) *Gr
 // generateAudio creates all audio
 func (gg *GameGenerator) generateAudio(narrative *narrative.WorldContext, worldData *world.World) *AudioSystem {
 	system := &AudioSystem{
-		SFXGen:   audio.NewSFXGenerator(44100),
-		MusicGen: audio.NewMusicGenerator(44100, 90, 60, audio.MinorScale),
-		Sounds:   make(map[string]*audio.AudioSample),
-		Music:    make(map[string]*audio.AudioSample),
+		SFXGen:         audio.NewSFXGenerator(44100),
+		MusicGen:       audio.NewMusicGenerator(44100, 90, 60, audio.MinorScale),
+		Sounds:         make(map[string]*audio.AudioSample),
+		Music:          make(map[string]*audio.AudioSample),
+		AdaptiveTracks: make(map[string]*audio.AdaptiveMusicTrack),
 	}
 	
 	// Generate sound effects
@@ -204,12 +206,21 @@ func (gg *GameGenerator) generateAudio(narrative *narrative.WorldContext, worldD
 		system.Sounds[key] = system.SFXGen.Generate(sfxType, gg.AudioGen.Seed+int64(i))
 	}
 	
-	// Generate music for each biome
+	// Generate adaptive music tracks for each biome
 	for i, biome := range worldData.Biomes {
 		musicGen := gg.selectMusicGenerator(biome)
-		system.Music[biome.Name] = musicGen.GenerateTrack(
+		
+		// Generate adaptive track with multiple layers
+		adaptiveTrack := musicGen.GenerateAdaptiveMusicTrack(
 			gg.AudioGen.Seed+int64(i*100),
 			60.0, // 60 seconds
+		)
+		system.AdaptiveTracks[biome.Name] = adaptiveTrack
+		
+		// Also generate legacy static track for backward compatibility
+		system.Music[biome.Name] = musicGen.GenerateTrack(
+			gg.AudioGen.Seed+int64(i*100),
+			60.0,
 		)
 	}
 	
