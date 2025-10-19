@@ -270,16 +270,17 @@ type QualityMetrics struct {
 - None
 
 ### Recently Completed ✨
-- [x] **Achievement system** - 19 unique achievements across 6 categories with progress tracking and persistence ✨ NEW
+- [x] **Advanced enemy AI** - Learning behaviors, group coordination (5 formations), tactical states, adaptive difficulty ✨ NEW
+- [x] **Achievement system** - 19 unique achievements across 6 categories with progress tracking and persistence
 - [x] **Adaptive music system** - Dynamic multi-layer music that responds to gameplay (exploration, combat, boss fights)
 - [x] **Advanced enemy animations** - Procedural animation frames for enemies (idle, patrol, attack, death, hit)
+- [x] **Advanced enemy AI** - Learning behaviors, coordinated group tactics, and adaptive difficulty ✨ NEW
 - [x] **Item collection system** - Visible items in treasure rooms with collection feedback
 - [x] **Door/Key system** - Ability-gated progression with locked doors and automatic unlocking
 - [x] **Particle effects system** - Visual feedback for combat and movement
 - [x] **Save/load system** - Multiple save slots with automatic checkpoints
 
 ### Planned 📋
-- [ ] Advanced enemy AI (learning behaviors, coordinated attacks)
 - [ ] Puzzle generation
 - [ ] Speedrun timer
 - [ ] Seed leaderboards
@@ -302,6 +303,7 @@ MIT License - See LICENSE file for details
 
 ### System Documentation
 Detailed documentation for each game system:
+- [Advanced AI System](docs/systems/ADVANCED_AI_SYSTEM.md) - Learning behaviors, group coordination, and tactical AI
 - [Achievement System](docs/systems/ACHIEVEMENT_SYSTEM.md) - Comprehensive achievement tracking with 19 unique achievements
 - [Adaptive Music System](docs/systems/ADAPTIVE_MUSIC_SYSTEM.md) - Dynamic music that responds to gameplay
 - [Animation System](docs/systems/ANIMATION_SYSTEM.md) - Frame-based sprite animations
