@@ -14,12 +14,12 @@ func TestRoomTransitionHandler_CheckDoorCollision(t *testing.T) {
 			Type: world.CombatRoom,
 			Doors: []world.Door{
 				{
-					X:      100,
-					Y:      200,
-					Width:  64,
-					Height: 96,
+					X:         100,
+					Y:         200,
+					Width:     64,
+					Height:    96,
 					Direction: "east",
-					Locked: false,
+					Locked:    false,
 				},
 			},
 		},
@@ -71,7 +71,8 @@ func TestRoomTransitionHandler_CheckDoorCollision(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			door := handler.CheckDoorCollision(tt.playerX, tt.playerY, tt.playerW, tt.playerH)
+			unlockedDoors := make(map[string]bool)
+			door := handler.CheckDoorCollision(tt.playerX, tt.playerY, tt.playerW, tt.playerH, unlockedDoors)
 			if (door != nil) != tt.wantDoor {
 				t.Errorf("CheckDoorCollision() returned door = %v, want door = %v", door != nil, tt.wantDoor)
 			}
@@ -123,10 +124,10 @@ func TestRoomTransitionHandler_Update(t *testing.T) {
 	game := &Game{
 		CurrentRoom: room1,
 		Player: &Player{
-			X:     100,
-			Y:     200,
-			VelX:  5.0,
-			VelY:  3.0,
+			X:    100,
+			Y:    200,
+			VelX: 5.0,
+			VelY: 3.0,
 		},
 	}
 
@@ -234,23 +235,23 @@ func TestRoomTransitionHandler_SpawnEnemiesForRoom(t *testing.T) {
 	handler := NewRoomTransitionHandler(game)
 
 	tests := []struct {
-		name       string
-		roomType   world.RoomType
+		name        string
+		roomType    world.RoomType
 		shouldSpawn bool
 	}{
 		{
-			name:       "Combat room logic",
-			roomType:   world.CombatRoom,
+			name:        "Combat room logic",
+			roomType:    world.CombatRoom,
 			shouldSpawn: true,
 		},
 		{
-			name:       "Boss room logic",
-			roomType:   world.BossRoom,
+			name:        "Boss room logic",
+			roomType:    world.BossRoom,
 			shouldSpawn: true,
 		},
 		{
-			name:       "Corridor room spawns nothing",
-			roomType:   world.CorridorRoom,
+			name:        "Corridor room spawns nothing",
+			roomType:    world.CorridorRoom,
 			shouldSpawn: false,
 		},
 	}
@@ -263,7 +264,7 @@ func TestRoomTransitionHandler_SpawnEnemiesForRoom(t *testing.T) {
 			}
 
 			enemies := handler.SpawnEnemiesForRoom(room)
-			
+
 			// With no entities in game, should return empty list
 			if len(enemies) != 0 {
 				t.Errorf("Expected 0 enemies with nil entity list, got %d", len(enemies))
@@ -272,3 +273,205 @@ func TestRoomTransitionHandler_SpawnEnemiesForRoom(t *testing.T) {
 	}
 }
 
+func TestRoomTransitionHandler_CheckDoorCollision_Locked(t *testing.T) {
+	// Create a game with a locked door
+	room1 := &world.Room{
+		ID:   1,
+		Type: world.CombatRoom,
+		Doors: []world.Door{
+			{
+				X:         100,
+				Y:         200,
+				Width:     64,
+				Height:    96,
+				Direction: "east",
+				Locked:    true,
+			},
+		},
+	}
+
+	game := &Game{
+		CurrentRoom: room1,
+	}
+
+	handler := NewRoomTransitionHandler(game)
+
+	tests := []struct {
+		name          string
+		unlockedDoors map[string]bool
+		wantDoor      bool
+	}{
+		{
+			name:          "Locked door without unlock",
+			unlockedDoors: make(map[string]bool),
+			wantDoor:      false,
+		},
+		{
+			name: "Locked door with unlock",
+			unlockedDoors: map[string]bool{
+				"room_1_door_100_200_east": true,
+			},
+			wantDoor: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			door := handler.CheckDoorCollision(110, 210, 32, 32, tt.unlockedDoors)
+			if (door != nil) != tt.wantDoor {
+				t.Errorf("CheckDoorCollision() returned door = %v, want door = %v", door != nil, tt.wantDoor)
+			}
+		})
+	}
+}
+
+func TestRoomTransitionHandler_GetDoorKey(t *testing.T) {
+	game := &Game{
+		CurrentRoom: &world.Room{
+			ID: 42,
+		},
+	}
+
+	handler := NewRoomTransitionHandler(game)
+
+	door := &world.Door{
+		X:         100,
+		Y:         200,
+		Direction: "east",
+	}
+
+	key := handler.GetDoorKey(door)
+	expected := "room_42_door_100_200_east"
+
+	if key != expected {
+		t.Errorf("GetDoorKey() = %q, want %q", key, expected)
+	}
+}
+
+func TestRoomTransitionHandler_CanUnlockDoor(t *testing.T) {
+	room1 := &world.Room{ID: 1}
+	room2 := &world.Room{ID: 2}
+
+	game := &Game{
+		CurrentRoom: room1,
+		World: &world.World{
+			Graph: &world.WorldGraph{
+				Edges: []world.GraphEdge{
+					{
+						From:        1,
+						To:          2,
+						Requirement: "double_jump",
+					},
+				},
+			},
+		},
+	}
+
+	handler := NewRoomTransitionHandler(game)
+
+	door := &world.Door{
+		LeadsTo: room2,
+		Locked:  true,
+	}
+
+	tests := []struct {
+		name            string
+		playerAbilities map[string]bool
+		collectedItems  map[int]bool
+		door            *world.Door
+		wantCanUnlock   bool
+	}{
+		{
+			name: "Can unlock with required ability",
+			playerAbilities: map[string]bool{
+				"double_jump": true,
+			},
+			collectedItems: make(map[int]bool),
+			door:           door,
+			wantCanUnlock:  true,
+		},
+		{
+			name:            "Cannot unlock without required ability",
+			playerAbilities: map[string]bool{},
+			collectedItems:  make(map[int]bool),
+			door:            door,
+			wantCanUnlock:   false,
+		},
+		{
+			name:            "Can unlock unlocked door",
+			playerAbilities: map[string]bool{},
+			collectedItems:  make(map[int]bool),
+			door: &world.Door{
+				LeadsTo: room2,
+				Locked:  false,
+			},
+			wantCanUnlock: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			canUnlock := handler.CanUnlockDoor(tt.door, tt.playerAbilities, tt.collectedItems)
+			if canUnlock != tt.wantCanUnlock {
+				t.Errorf("CanUnlockDoor() = %v, want %v", canUnlock, tt.wantCanUnlock)
+			}
+		})
+	}
+}
+
+func TestRoomTransitionHandler_findEdgeRequirement(t *testing.T) {
+	game := &Game{
+		World: &world.World{
+			Graph: &world.WorldGraph{
+				Edges: []world.GraphEdge{
+					{From: 1, To: 2, Requirement: "double_jump"},
+					{From: 2, To: 3, Requirement: "dash"},
+					{From: 3, To: 4, Requirement: ""},
+				},
+			},
+		},
+	}
+
+	handler := NewRoomTransitionHandler(game)
+
+	tests := []struct {
+		name            string
+		fromRoomID      int
+		toRoomID        int
+		wantRequirement string
+	}{
+		{
+			name:            "Forward edge with requirement",
+			fromRoomID:      1,
+			toRoomID:        2,
+			wantRequirement: "double_jump",
+		},
+		{
+			name:            "Reverse edge with requirement",
+			fromRoomID:      2,
+			toRoomID:        1,
+			wantRequirement: "double_jump",
+		},
+		{
+			name:            "Edge with no requirement",
+			fromRoomID:      3,
+			toRoomID:        4,
+			wantRequirement: "",
+		},
+		{
+			name:            "Non-existent edge",
+			fromRoomID:      1,
+			toRoomID:        99,
+			wantRequirement: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requirement := handler.findEdgeRequirement(tt.fromRoomID, tt.toRoomID)
+			if requirement != tt.wantRequirement {
+				t.Errorf("findEdgeRequirement() = %q, want %q", requirement, tt.wantRequirement)
+			}
+		})
+	}
+}
