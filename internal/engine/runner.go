@@ -12,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/opd-ai/vania/internal/entity"
 	"github.com/opd-ai/vania/internal/input"
+	"github.com/opd-ai/vania/internal/particle"
 	"github.com/opd-ai/vania/internal/physics"
 	"github.com/opd-ai/vania/internal/render"
 	"github.com/opd-ai/vania/internal/save"
@@ -26,6 +27,8 @@ type GameRunner struct {
 	combatSystem      *CombatSystem
 	transitionHandler *RoomTransitionHandler
 	enemyInstances    []*entity.EnemyInstance
+	particleSystem    *particle.ParticleSystem
+	particlePresets   *particle.ParticlePresets
 	doubleJumpUsed    bool
 	dashCooldown      int
 	playerFacingDir   float64
@@ -86,6 +89,8 @@ func NewGameRunner(game *Game) *GameRunner {
 		combatSystem:      NewCombatSystem(),
 		transitionHandler: transitionHandler,
 		enemyInstances:    enemyInstances,
+		particleSystem:    particle.NewParticleSystem(1000), // Max 1000 particles
+		particlePresets:   &particle.ParticlePresets{},
 		doubleJumpUsed:    false,
 		dashCooldown:      0,
 		playerFacingDir:   1.0,
@@ -148,6 +153,12 @@ func (gr *GameRunner) Update() error {
 	// Update combat system
 	gr.combatSystem.Update()
 	
+	// Update particle system
+	gr.particleSystem.Update()
+	
+	// Track previous ground state for landing particles
+	wasOnGround := gr.playerBody.OnGround
+	
 	// Handle player movement
 	if inputState.MoveLeft {
 		gr.playerBody.MoveHorizontal(-1)
@@ -167,7 +178,13 @@ func (gr *GameRunner) Update() error {
 	// Handle jump
 	if inputState.JumpPress {
 		hasDoubleJump := gr.game.Player.Abilities["double_jump"]
-		gr.playerBody.Jump(hasDoubleJump, &gr.doubleJumpUsed)
+		jumped := gr.playerBody.Jump(hasDoubleJump, &gr.doubleJumpUsed)
+		if jumped {
+			// Create jump dust particles
+			emitter := gr.particlePresets.CreateJumpDust(gr.game.Player.X+16, gr.game.Player.Y+32)
+			emitter.Burst(8)
+			gr.particleSystem.AddEmitter(emitter)
+		}
 	}
 	
 	// Handle dash
@@ -181,6 +198,14 @@ func (gr *GameRunner) Update() error {
 			}
 			gr.playerBody.Dash(direction)
 			gr.dashCooldown = 30 // 30 frames cooldown
+			
+			// Create dash trail particles
+			emitter := gr.particlePresets.CreateDashTrail(gr.game.Player.X+16, gr.game.Player.Y+16)
+			emitter.Start()
+			gr.particleSystem.AddEmitter(emitter)
+			
+			// Stop dash trail after dash duration (let it fade naturally)
+			// The emitter will be removed automatically as particles die
 		}
 	}
 	
@@ -201,6 +226,14 @@ func (gr *GameRunner) Update() error {
 	// Resolve collisions with platforms
 	if gr.game.CurrentRoom != nil {
 		gr.playerBody.ResolveCollisionWithPlatforms(gr.game.CurrentRoom.Platforms)
+	}
+	
+	// Check for landing (player just touched ground)
+	if !wasOnGround && gr.playerBody.OnGround {
+		// Create landing dust particles
+		emitter := gr.particlePresets.CreateLandDust(gr.game.Player.X+16, gr.game.Player.Y+32)
+		emitter.Burst(12)
+		gr.particleSystem.AddEmitter(emitter)
 	}
 	
 	// Update player position in game
@@ -293,11 +326,28 @@ func (gr *GameRunner) Update() error {
 			)
 			wasAlive := !enemy.IsDead()
 			if gr.combatSystem.CheckEnemyHit(attackX, attackY, attackW, attackH, enemy) {
+				// Create hit effect particles
+				ex, ey, _, _ := enemy.GetBounds()
+				hitEmitter := gr.particlePresets.CreateHitEffect(ex+16, ey+16, gr.playerFacingDir)
+				hitEmitter.Burst(10)
+				gr.particleSystem.AddEmitter(hitEmitter)
+				
+				// Create blood splatter particles
+				bloodEmitter := gr.particlePresets.CreateBloodSplatter(ex+16, ey+16, gr.playerFacingDir)
+				bloodEmitter.Burst(6)
+				gr.particleSystem.AddEmitter(bloodEmitter)
+				
 				gr.combatSystem.ApplyDamageToEnemy(enemy, gr.game.Player.Damage, gr.game.Player.X)
+				
 				// Track defeated enemy (use position as ID for now)
 				if wasAlive && enemy.IsDead() {
 					enemyKey := int(enemy.X*1000 + enemy.Y)
 					gr.defeatedEnemies[enemyKey] = true
+					
+					// Create explosion effect on death
+					explosionEmitter := gr.particlePresets.CreateExplosion(ex+16, ey+16, 1.0)
+					explosionEmitter.Burst(20)
+					gr.particleSystem.AddEmitter(explosionEmitter)
 				}
 			}
 		}
@@ -355,6 +405,10 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 			gr.renderer.RenderAttackEffect(screen, attackX, attackY, attackW, attackH)
 		}
 	}
+	
+	// Render particles (before player so they appear behind)
+	allParticles := gr.particleSystem.GetAllParticles()
+	gr.renderer.RenderParticles(screen, allParticles)
 	
 	// Render player
 	if gr.game.Player != nil {
