@@ -6,6 +6,7 @@ package engine
 import (
 	"fmt"
 	"image/color"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -13,6 +14,7 @@ import (
 	"github.com/opd-ai/vania/internal/input"
 	"github.com/opd-ai/vania/internal/physics"
 	"github.com/opd-ai/vania/internal/render"
+	"github.com/opd-ai/vania/internal/save"
 )
 
 // GameRunner wraps the Game with Ebiten rendering
@@ -28,6 +30,12 @@ type GameRunner struct {
 	dashCooldown      int
 	playerFacingDir   float64
 	paused            bool
+	saveManager       *save.SaveManager
+	checkpointManager *save.CheckpointManager
+	startTime         time.Time
+	visitedRooms      map[int]bool
+	defeatedEnemies   map[int]bool
+	collectedItems    map[int]bool
 }
 
 // NewGameRunner creates a new game runner
@@ -58,6 +66,18 @@ func NewGameRunner(game *Game) *GameRunner {
 	
 	transitionHandler := NewRoomTransitionHandler(game)
 	
+	// Initialize save system
+	saveManager, err := save.NewSaveManager("")
+	if err != nil {
+		// Fall back to no save system if there's an error
+		saveManager = nil
+	}
+	
+	var checkpointManager *save.CheckpointManager
+	if saveManager != nil {
+		checkpointManager = save.NewCheckpointManager(saveManager)
+	}
+	
 	return &GameRunner{
 		game:              game,
 		renderer:          render.NewRenderer(),
@@ -70,6 +90,12 @@ func NewGameRunner(game *Game) *GameRunner {
 		dashCooldown:      0,
 		playerFacingDir:   1.0,
 		paused:            false,
+		saveManager:       saveManager,
+		checkpointManager: checkpointManager,
+		startTime:         time.Now(),
+		visitedRooms:      make(map[int]bool),
+		defeatedEnemies:   make(map[int]bool),
+		collectedItems:    make(map[int]bool),
 	}
 }
 
@@ -265,8 +291,14 @@ func (gr *GameRunner) Update() error {
 			attackX, attackY, attackW, attackH := gr.combatSystem.GetAttackHitbox(
 				gr.game.Player.X, gr.game.Player.Y, gr.playerFacingDir,
 			)
+			wasAlive := !enemy.IsDead()
 			if gr.combatSystem.CheckEnemyHit(attackX, attackY, attackW, attackH, enemy) {
 				gr.combatSystem.ApplyDamageToEnemy(enemy, gr.game.Player.Damage, gr.game.Player.X)
+				// Track defeated enemy (use position as ID for now)
+				if wasAlive && enemy.IsDead() {
+					enemyKey := int(enemy.X*1000 + enemy.Y)
+					gr.defeatedEnemies[enemyKey] = true
+				}
 			}
 		}
 		
@@ -284,6 +316,14 @@ func (gr *GameRunner) Update() error {
 	
 	// Update camera
 	gr.renderer.UpdateCamera(gr.game.Player.X, gr.game.Player.Y)
+	
+	// Check for auto-save
+	gr.CheckAutoSave()
+	
+	// Track current room as visited
+	if gr.game.CurrentRoom != nil {
+		gr.visitedRooms[gr.game.CurrentRoom.ID] = true
+	}
 	
 	return nil
 }
@@ -400,4 +440,118 @@ func (gr *GameRunner) getCurrentRoomName() string {
 	}
 	
 	return fmt.Sprintf("Room %d", gr.game.CurrentRoom.ID)
+}
+
+// CreateSaveData generates a SaveData struct from current game state
+func (gr *GameRunner) CreateSaveData() *save.SaveData {
+	// Build visited rooms list
+	visitedRoomsList := make([]int, 0, len(gr.visitedRooms))
+	for roomID := range gr.visitedRooms {
+		visitedRoomsList = append(visitedRoomsList, roomID)
+	}
+	
+	// Calculate play time
+	playTime := int64(time.Since(gr.startTime).Seconds())
+	
+	// Current room ID
+	currentRoomID := 0
+	if gr.game.CurrentRoom != nil {
+		currentRoomID = gr.game.CurrentRoom.ID
+	}
+	
+	return &save.SaveData{
+		Seed:            gr.game.Seed,
+		PlayTime:        playTime,
+		PlayerX:         gr.game.Player.X,
+		PlayerY:         gr.game.Player.Y,
+		PlayerHealth:    gr.game.Player.Health,
+		PlayerMaxHealth: gr.game.Player.MaxHealth,
+		PlayerAbilities: gr.game.Player.Abilities,
+		CurrentRoomID:   currentRoomID,
+		VisitedRooms:    visitedRoomsList,
+		DefeatedEnemies: gr.defeatedEnemies,
+		CollectedItems:  gr.collectedItems,
+		UnlockedDoors:   make(map[string]bool), // TODO: Track unlocked doors
+		BossesDefeated:  make([]int, 0),        // TODO: Track defeated bosses
+		CheckpointID:    currentRoomID,
+	}
+}
+
+// SaveGame saves the current game state to a slot
+func (gr *GameRunner) SaveGame(slotID int) error {
+	if gr.saveManager == nil {
+		return fmt.Errorf("save system not initialized")
+	}
+	
+	saveData := gr.CreateSaveData()
+	return gr.saveManager.SaveGame(saveData, slotID)
+}
+
+// LoadGame loads game state from a slot
+func (gr *GameRunner) LoadGame(slotID int) error {
+	if gr.saveManager == nil {
+		return fmt.Errorf("save system not initialized")
+	}
+	
+	saveData, err := gr.saveManager.LoadGame(slotID)
+	if err != nil {
+		return err
+	}
+	
+	return gr.RestoreFromSaveData(saveData)
+}
+
+// RestoreFromSaveData restores game state from save data
+func (gr *GameRunner) RestoreFromSaveData(saveData *save.SaveData) error {
+	// Verify seed matches
+	if saveData.Seed != gr.game.Seed {
+		return fmt.Errorf("save file seed mismatch: expected %d, got %d", gr.game.Seed, saveData.Seed)
+	}
+	
+	// Restore player state
+	gr.game.Player.X = saveData.PlayerX
+	gr.game.Player.Y = saveData.PlayerY
+	gr.game.Player.Health = saveData.PlayerHealth
+	gr.game.Player.MaxHealth = saveData.PlayerMaxHealth
+	gr.game.Player.Abilities = saveData.PlayerAbilities
+	
+	// Update player body position
+	gr.playerBody.Position.X = saveData.PlayerX
+	gr.playerBody.Position.Y = saveData.PlayerY
+	
+	// Restore world state
+	gr.visitedRooms = make(map[int]bool)
+	for _, roomID := range saveData.VisitedRooms {
+		gr.visitedRooms[roomID] = true
+	}
+	gr.defeatedEnemies = saveData.DefeatedEnemies
+	gr.collectedItems = saveData.CollectedItems
+	
+	// Find and set current room
+	for _, room := range gr.game.World.Rooms {
+		if room.ID == saveData.CurrentRoomID {
+			gr.game.CurrentRoom = room
+			gr.transitionHandler.SetCurrentRoom(room)
+			break
+		}
+	}
+	
+	// Adjust start time to account for saved play time
+	gr.startTime = time.Now().Add(-time.Duration(saveData.PlayTime) * time.Second)
+	
+	return nil
+}
+
+// CheckAutoSave checks if an auto-save should be triggered
+func (gr *GameRunner) CheckAutoSave() {
+	if gr.checkpointManager == nil {
+		return
+	}
+	
+	if gr.checkpointManager.ShouldCheckpoint() {
+		saveData := gr.CreateSaveData()
+		if err := gr.checkpointManager.CreateCheckpoint(saveData); err == nil {
+			// Successfully auto-saved (could show notification to player)
+		}
+	}
 }
