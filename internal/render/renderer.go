@@ -23,6 +23,30 @@ const (
 	
 	// Camera settings
 	CameraSpeed = 4.0
+	
+	// UI Layout Constants
+	UIMargin = 10
+	
+	// Health bar layout
+	HealthBarWidth    = 200
+	HealthBarHeight   = 20
+	HealthBarX        = UIMargin
+	HealthBarY        = UIMargin
+	HealthBarBorder   = 2
+	
+	// Ability icons layout
+	AbilityIconSize    = 30
+	AbilityIconSpacing = 5
+	AbilityIconY       = HealthBarY + HealthBarHeight + UIMargin
+	
+	// Enemy health bar layout
+	EnemyHealthBarHeight = 4
+	EnemyHealthBarOffset = 8
+	
+	// Message layout
+	MessageWidth  = 200
+	MessageHeight = 40
+	ProgressBarHeight = 3
 )
 
 // Camera represents the game camera
@@ -238,12 +262,12 @@ func (r *Renderer) RenderUI(screen *ebiten.Image, health, maxHealth int, abiliti
 
 // renderEnhancedHealthBar draws an improved health bar with segments and color coding
 func (r *Renderer) renderEnhancedHealthBar(screen *ebiten.Image, health, maxHealth int) (int, int, int) {
-	// Health bar dimensions and position
-	barWidth := 200
-	barHeight := 20
-	barX := 10
-	barY := 10
-	borderWidth := 2
+	// Use layout constants
+	barWidth := HealthBarWidth
+	barHeight := HealthBarHeight
+	barX := HealthBarX
+	barY := HealthBarY
+	borderWidth := HealthBarBorder
 	
 	// Validate health bounds
 	if health < 0 {
@@ -319,8 +343,8 @@ func (r *Renderer) renderEnhancedHealthBar(screen *ebiten.Image, health, maxHeal
 
 // renderAbilityIcons draws ability indicators with procedural icons
 func (r *Renderer) renderAbilityIcons(screen *ebiten.Image, abilities map[string]bool, startX, startY int) {
-	abilitySize := 30
-	abilitySpacing := 5
+	abilitySize := AbilityIconSize
+	abilitySpacing := AbilityIconSpacing
 	
 	abilityNames := []string{"double_jump", "dash", "wall_jump", "glide"}
 	for i, abilityName := range abilityNames {
@@ -581,8 +605,8 @@ func (r *Renderer) RenderEnemy(screen *ebiten.Image, x, y, width, height float64
 	// Draw health bar above enemy
 	if maxHealth > 0 {
 		barWidth := width
-		barHeight := 4.0
-		barY := screenY - 8
+		barHeight := float64(EnemyHealthBarHeight)
+		barY := screenY - EnemyHealthBarOffset
 		
 		// Background
 		bgImg := ebiten.NewImage(int(barWidth), int(barHeight))

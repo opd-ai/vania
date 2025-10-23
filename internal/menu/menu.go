@@ -15,6 +15,22 @@ import (
 	settingspkg "github.com/opd-ai/vania/internal/settings"
 )
 
+const (
+	// Menu Layout Constants
+	ScreenWidth  = 960
+	ScreenHeight = 640
+	
+	// Font constants
+	CharWidth  = 8
+	CharHeight = 12
+	
+	// Menu positioning
+	MenuTitleY      = 100
+	MenuStartY      = 200
+	MenuItemSpacing = 40
+	InstructionsY   = 500
+)
+
 // MenuType represents different menu types
 type MenuType int
 
@@ -221,15 +237,15 @@ func (mm *MenuManager) Draw(screen *ebiten.Image) {
 
 	// Draw menu title with proper centering
 	title := mm.getMenuTitle()
-	titleWidth := len(title) * 8 // 8 pixels per character in our bitmap font
-	titleX := (960 - titleWidth) / 2 // Center on 960px screen width
-	titleY := 100
+	titleWidth := len(title) * CharWidth
+	titleX := (ScreenWidth - titleWidth) / 2
+	titleY := MenuTitleY
 	mm.drawColoredText(screen, title, titleX, titleY, mm.textColor)
 
 	// Draw menu items
-	startY := 200
+	startY := MenuStartY
 	for i, item := range mm.items {
-		y := startY + i*40
+		y := startY + i*MenuItemSpacing
 
 		// Choose color based on state
 		itemColor := mm.textColor
@@ -250,20 +266,17 @@ func (mm *MenuManager) Draw(screen *ebiten.Image) {
 
 	// Draw instructions with proper centering
 	instructions := "Use W/S or Arrow Keys to navigate, Enter to select, Esc to back"
-	instructWidth := len(instructions) * 8 // 8 pixels per character in our bitmap font
-	instructX := (960 - instructWidth) / 2 // Center on 960px screen width
-	instructY := 500
+	instructWidth := len(instructions) * CharWidth
+	instructX := (ScreenWidth - instructWidth) / 2
+	instructY := InstructionsY
 	mm.drawColoredText(screen, instructions, instructX, instructY, mm.disabledColor)
 }
 
 // drawColoredText draws text with specified color using procedural bitmap font
 func (mm *MenuManager) drawColoredText(screen *ebiten.Image, text string, x, y int, col color.Color) {
-	charWidth := 8
-	charHeight := 12
-	
 	for i, char := range text {
-		charX := x + i*charWidth
-		mm.drawChar(screen, char, charX, y, charWidth, charHeight, col)
+		charX := x + i*CharWidth
+		mm.drawChar(screen, char, charX, y, CharWidth, CharHeight, col)
 	}
 }
 
