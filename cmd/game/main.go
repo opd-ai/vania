@@ -6,21 +6,225 @@ import (
 	"os"
 	"time"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/opd-ai/vania/internal/engine"
+	"github.com/opd-ai/vania/internal/menu"
 )
 
-func main() {
-	// Parse command line arguments
-	seedFlag := flag.Int64("seed", 0, "Master seed for generation (0 = use timestamp)")
-	playFlag := flag.Bool("play", false, "Launch the game with rendering (default: just generate and show stats)")
-	flag.Parse()
+// GameApp represents the main application with menu integration
+type GameApp struct {
+	menuManager *menu.MenuManager
+	gameRunner  *engine.GameRunner
+	currentGame *engine.Game
+	inMenu      bool
+	
+	// Command line options
+	directPlay bool
+	fixedSeed  int64
+}
 
-	// Determine seed
+// NewGameApp creates a new game application
+func NewGameApp(directPlay bool, fixedSeed int64) *GameApp {
+	app := &GameApp{
+		menuManager: menu.NewMenuManager(),
+		inMenu:      !directPlay,
+		directPlay:  directPlay,
+		fixedSeed:   fixedSeed,
+	}
+	
+	// Set up menu callbacks
+	app.menuManager.SetCallbacks(
+		app.onNewGame,    // New game
+		app.onLoadGame,   // Load game
+		app.onSettings,   // Settings
+		app.onQuitGame,   // Quit
+		app.onResumeGame, // Resume
+	)
+	
+	// If direct play mode, start game immediately
+	if directPlay {
+		seed := fixedSeed
+		if seed == 0 {
+			seed = time.Now().UnixNano()
+		}
+		if err := app.startGame(seed); err != nil {
+			fmt.Fprintf(os.Stderr, "Error starting game: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		// Show main menu
+		app.menuManager.ShowMainMenu()
+	}
+	
+	return app
+}
+
+// Update implements ebiten.Game interface
+func (app *GameApp) Update() error {
+	if app.inMenu {
+		return app.menuManager.Update()
+	} else if app.gameRunner != nil {
+		err := app.gameRunner.Update()
+		
+		// Check if player died (health <= 0)
+		if app.currentGame != nil && app.currentGame.Player.Health <= 0 {
+			app.showGameOver()
+			return nil
+		}
+		
+		return err
+	}
+	return nil
+}
+
+// Draw implements ebiten.Game interface  
+func (app *GameApp) Draw(screen *ebiten.Image) {
+	if app.inMenu {
+		app.menuManager.Draw(screen)
+	} else if app.gameRunner != nil {
+		app.gameRunner.Draw(screen)
+	}
+}
+
+// Layout implements ebiten.Game interface
+func (app *GameApp) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return 960, 640
+}
+
+// onNewGame handles new game creation
+func (app *GameApp) onNewGame(seed int64) error {
+	if seed == 0 {
+		seed = time.Now().UnixNano()
+	}
+	
+	return app.startGame(seed)
+}
+
+// onLoadGame handles game loading
+func (app *GameApp) onLoadGame(slot int) error {
+	if app.gameRunner == nil {
+		// Need to create a dummy game first for save system to work
+		if err := app.startGame(42); err != nil {
+			return err
+		}
+	}
+	
+	// Load the game from save slot
+	if err := app.gameRunner.LoadGame(slot); err != nil {
+		return fmt.Errorf("failed to load game: %v", err)
+	}
+	
+	app.inMenu = false
+	app.menuManager.Hide()
+	return nil
+}
+
+// onSettings handles settings menu
+func (app *GameApp) onSettings() error {
+	app.menuManager.ShowSettingsMenu()
+	return nil
+}
+
+// onQuitGame handles game quit
+func (app *GameApp) onQuitGame() error {
+	return ebiten.Termination
+}
+
+// onResumeGame handles game resume from pause
+func (app *GameApp) onResumeGame() error {
+	app.inMenu = false
+	app.menuManager.Hide()
+	return nil
+}
+
+// startGame creates and starts a new game
+func (app *GameApp) startGame(seed int64) error {
+	fmt.Println("╔════════════════════════════════════════════════════════╗")
+	fmt.Println("║                                                        ║")
+	fmt.Println("║         VANIA - Procedural Metroidvania                ║")
+	fmt.Println("║         Pure Go Procedural Generation Demo             ║")
+	fmt.Println("║                                                        ║")
+	fmt.Println("╚════════════════════════════════════════════════════════╝")
+	fmt.Println()
+	fmt.Printf("Master Seed: %d\n", seed)
+	fmt.Println("Generating game world...")
+	
+	// Create game generator
+	generator := engine.NewGameGenerator(seed)
+	
+	// Generate complete game
+	game, err := generator.GenerateCompleteGame()
+	if err != nil {
+		return fmt.Errorf("error generating game: %v", err)
+	}
+	
+	fmt.Println("Generation complete! Starting game...")
+	
+	// Create game runner
+	app.currentGame = game
+	app.gameRunner = engine.NewGameRunner(game)
+	
+	// Switch to game mode
+	app.inMenu = false
+	app.menuManager.Hide()
+	
+	return nil
+}
+
+// showGameOver displays game over screen
+func (app *GameApp) showGameOver() {
+	app.inMenu = true
+	app.menuManager.ShowGameOverMenu()
+}
+
+// showPauseMenu displays pause menu
+func (app *GameApp) showPauseMenu() {
+	app.inMenu = true
+	app.menuManager.ShowPauseMenu()
+}
+
+// Run starts the application
+func (app *GameApp) Run() error {
+	ebiten.SetWindowSize(960, 640)
+	ebiten.SetWindowTitle("VANIA - Procedural Metroidvania")
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+	
+	return ebiten.RunGame(app)
+}
+
+func main() {
+	// Parse command line arguments  
+	seedFlag := flag.Int64("seed", 0, "Master seed for generation (0 = use timestamp)")
+	playFlag := flag.Bool("play", false, "Launch the game with rendering (default: show main menu)")
+	noMenuFlag := flag.Bool("no-menu", false, "Skip menu and go directly to gameplay")
+	statsOnlyFlag := flag.Bool("stats-only", false, "Generate and show stats only (original behavior)")
+	flag.Parse()
+	
+	// Handle legacy stats-only mode
+	if *statsOnlyFlag {
+		runStatsOnlyMode(*seedFlag)
+		return
+	}
+	
+	// Determine if we should skip menus
+	directPlay := *playFlag && *noMenuFlag
+	
+	// Create and run the application
+	app := NewGameApp(directPlay, *seedFlag)
+	
+	if err := app.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Game error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// runStatsOnlyMode provides the original stats-only behavior
+func runStatsOnlyMode(seedFlag int64) {
 	var masterSeed int64
-	if *seedFlag == 0 {
+	if seedFlag == 0 {
 		masterSeed = time.Now().UnixNano()
 	} else {
-		masterSeed = *seedFlag
+		masterSeed = seedFlag
 	}
 
 	fmt.Println("╔════════════════════════════════════════════════════════╗")
@@ -71,28 +275,8 @@ func main() {
 		fmt.Println()
 	}
 
-	// Run the game
-	if *playFlag {
-		// Launch with rendering
-		fmt.Println("Launching game with rendering...")
-		fmt.Println("Controls: WASD/Arrows=Move, Space=Jump, K=Dash, P=Pause, Ctrl+Q=Quit")
-		fmt.Println()
-		
-		runner := engine.NewGameRunner(game)
-		if err := runner.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error running game: %v\n", err)
-			os.Exit(1)
-		}
-		
-		// Display achievement progress after game ends
-		if game.Achievements != nil {
-			displayAchievementSummary(game)
-		}
-	} else {
-		// Just show stats (original behavior)
-		fmt.Println("(Use --play flag to launch the game with rendering)")
-		game.Run()
-	}
+	fmt.Println("(Use --play flag to launch the game with rendering)")
+	game.Run()
 }
 
 func displayGameStats(game *engine.Game) {
