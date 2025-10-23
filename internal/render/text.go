@@ -133,26 +133,42 @@ func (btr *BitmapTextRenderer) GetLineHeight() int {
 	return btr.charHeight
 }
 
-// drawChar draws a single character using the same bitmap patterns as menu system
+// drawChar draws a single character using optimized batch pixel rendering
 func (btr *BitmapTextRenderer) drawChar(screen *ebiten.Image, char rune, x, y, width, height int, col color.Color) {
-	// Create character bitmap based on simple patterns
+	// Create character image and set all pixels at once for performance
 	charImg := ebiten.NewImage(width, height)
-	pixels := btr.getCharPattern(char, width, height)
-
-	// Draw character pixels
+	pixels := make([]byte, width*height*4) // RGBA format
+	
+	pattern := btr.getCharPattern(char, width, height)
+	r, g, b, a := col.RGBA()
+	
+	// Convert to 8-bit values
+	r8, g8, b8, a8 := byte(r>>8), byte(g>>8), byte(b>>8), byte(a>>8)
+	
+	// Batch set all pixels for the character
 	for py := 0; py < height; py++ {
 		for px := 0; px < width; px++ {
-			if py < len(pixels) && px < len(pixels[py]) && pixels[py][px] {
-				pixelImg := ebiten.NewImage(1, 1)
-				pixelImg.Fill(col)
-				opts := &ebiten.DrawImageOptions{}
-				opts.GeoM.Translate(float64(px), float64(py))
-				charImg.DrawImage(pixelImg, opts)
+			offset := (py*width + px) * 4
+			if py < len(pattern) && px < len(pattern[py]) && pattern[py][px] {
+				// Set pixel to character color
+				pixels[offset] = r8     // Red
+				pixels[offset+1] = g8   // Green
+				pixels[offset+2] = b8   // Blue
+				pixels[offset+3] = a8   // Alpha
+			} else {
+				// Set pixel to transparent
+				pixels[offset] = 0
+				pixels[offset+1] = 0
+				pixels[offset+2] = 0
+				pixels[offset+3] = 0
 			}
 		}
 	}
-
-	// Draw character to screen
+	
+	// Apply all pixels in a single operation
+	charImg.WritePixels(pixels)
+	
+	// Single draw call per character
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(x), float64(y))
 	screen.DrawImage(charImg, opts)
