@@ -232,56 +232,297 @@ func (r *Renderer) RenderPlayer(screen *ebiten.Image, x, y float64, sprite *grap
 
 // RenderUI draws the user interface (health, abilities, etc.)
 func (r *Renderer) RenderUI(screen *ebiten.Image, health, maxHealth int, abilities map[string]bool) {
-	// Draw health bar
+	barX, barY, barHeight := r.renderEnhancedHealthBar(screen, health, maxHealth)
+	r.renderAbilityIcons(screen, abilities, barX, barY+barHeight+10)
+}
+
+// renderEnhancedHealthBar draws an improved health bar with segments and color coding
+func (r *Renderer) renderEnhancedHealthBar(screen *ebiten.Image, health, maxHealth int) (int, int, int) {
+	// Health bar dimensions and position
 	barWidth := 200
 	barHeight := 20
 	barX := 10
 	barY := 10
+	borderWidth := 2
 	
-	// Background
-	bgImg := ebiten.NewImage(barWidth, barHeight)
-	bgImg.Fill(color.RGBA{50, 50, 50, 255})
+	// Validate health bounds
+	if health < 0 {
+		health = 0
+	}
+	if health > maxHealth {
+		health = maxHealth
+	}
+	
+	// Draw border (white outline)
+	borderImg := ebiten.NewImage(barWidth+borderWidth*2, barHeight+borderWidth*2)
+	borderImg.Fill(color.RGBA{255, 255, 255, 255})
 	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(barX-borderWidth), float64(barY-borderWidth))
+	screen.DrawImage(borderImg, opts)
+	
+	// Draw background (dark gray)
+	bgImg := ebiten.NewImage(barWidth, barHeight)
+	bgImg.Fill(color.RGBA{40, 40, 40, 255})
+	opts = &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(barX), float64(barY))
 	screen.DrawImage(bgImg, opts)
 	
-	// Health fill
+	// Calculate health percentage and color
+	healthPercent := 0.0
 	if maxHealth > 0 {
-		fillWidth := int(float64(barWidth) * float64(health) / float64(maxHealth))
+		healthPercent = float64(health) / float64(maxHealth)
+	}
+	
+	var healthColor color.Color
+	if healthPercent > 0.66 {
+		// Green for healthy (>66%)
+		healthColor = color.RGBA{100, 200, 100, 255}
+	} else if healthPercent > 0.33 {
+		// Yellow for wounded (33-66%)
+		healthColor = color.RGBA{200, 200, 100, 255}
+	} else {
+		// Red for critical (<33%)
+		healthColor = color.RGBA{200, 50, 50, 255}
+	}
+	
+	// Draw health fill with calculated color
+	if maxHealth > 0 && health > 0 {
+		fillWidth := int(float64(barWidth) * healthPercent)
 		if fillWidth > 0 {
 			fillImg := ebiten.NewImage(fillWidth, barHeight)
-			fillImg.Fill(color.RGBA{200, 50, 50, 255}) // Red
+			fillImg.Fill(healthColor)
 			opts = &ebiten.DrawImageOptions{}
 			opts.GeoM.Translate(float64(barX), float64(barY))
 			screen.DrawImage(fillImg, opts)
 		}
 	}
 	
-	// Draw ability indicators
-	abilityY := barY + barHeight + 10
+	// Draw health segments (dividers every 10 HP or maxHealth/10, whichever is smaller)
+	segmentCount := maxHealth / 10
+	if segmentCount > 10 {
+		segmentCount = 10 // Max 10 segments for readability
+	}
+	if segmentCount > 0 {
+		segmentWidth := float64(barWidth) / float64(segmentCount)
+		for i := 1; i < segmentCount; i++ {
+			segmentX := barX + int(float64(i)*segmentWidth)
+			segmentImg := ebiten.NewImage(1, barHeight)
+			segmentImg.Fill(color.RGBA{60, 60, 60, 255}) // Dark divider
+			opts = &ebiten.DrawImageOptions{}
+			opts.GeoM.Translate(float64(segmentX), float64(barY))
+			screen.DrawImage(segmentImg, opts)
+		}
+	}
+	
+	return barX, barY, barHeight
+}
+
+// renderAbilityIcons draws ability indicators with procedural icons
+func (r *Renderer) renderAbilityIcons(screen *ebiten.Image, abilities map[string]bool, startX, startY int) {
 	abilitySize := 30
 	abilitySpacing := 5
-	abilityX := barX
 	
 	abilityNames := []string{"double_jump", "dash", "wall_jump", "glide"}
 	for i, abilityName := range abilityNames {
 		hasAbility := abilities[abilityName]
-		
-		// Draw ability icon
-		var abilityColor color.Color
-		if hasAbility {
-			abilityColor = color.RGBA{100, 150, 255, 255} // Blue when unlocked
-		} else {
-			abilityColor = color.RGBA{30, 30, 30, 255} // Dark when locked
-		}
-		
-		abilityImg := ebiten.NewImage(abilitySize, abilitySize)
-		abilityImg.Fill(abilityColor)
-		
-		opts = &ebiten.DrawImageOptions{}
-		opts.GeoM.Translate(float64(abilityX+i*(abilitySize+abilitySpacing)), float64(abilityY))
-		screen.DrawImage(abilityImg, opts)
+		x := startX + i*(abilitySize+abilitySpacing)
+		r.renderAbilityIcon(screen, abilityName, x, startY, abilitySize, hasAbility)
 	}
+}
+
+// renderAbilityIcon draws a single ability icon with symbolic representation
+func (r *Renderer) renderAbilityIcon(screen *ebiten.Image, ability string, x, y, size int, unlocked bool) {
+	// Create icon background
+	iconImg := ebiten.NewImage(size, size)
+	
+	// Choose colors based on unlock status
+	var bgColor, iconColor color.Color
+	if unlocked {
+		bgColor = color.RGBA{50, 100, 150, 255}   // Blue background when unlocked
+		iconColor = color.RGBA{200, 220, 255, 255} // Light blue icon
+	} else {
+		bgColor = color.RGBA{30, 30, 30, 255}      // Dark background when locked
+		iconColor = color.RGBA{80, 80, 80, 255}    // Dark gray icon
+	}
+	
+	// Fill background
+	iconImg.Fill(bgColor)
+	
+	// Draw procedural icon based on ability type
+	switch ability {
+	case "double_jump":
+		r.drawJumpIcon(iconImg, iconColor, size)
+	case "dash":
+		r.drawDashIcon(iconImg, iconColor, size)
+	case "wall_jump":
+		r.drawWallJumpIcon(iconImg, iconColor, size)
+	case "glide":
+		r.drawGlideIcon(iconImg, iconColor, size)
+	}
+	
+	// Draw border for unlocked abilities
+	if unlocked {
+		r.drawIconBorder(iconImg, size, color.RGBA{255, 255, 255, 150})
+	}
+	
+	// Draw to screen
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(x), float64(y))
+	screen.DrawImage(iconImg, opts)
+}
+
+// drawJumpIcon draws upward arrows to represent double jump
+func (r *Renderer) drawJumpIcon(img *ebiten.Image, col color.Color, size int) {
+	// Draw two upward arrows
+	mid := size / 2
+	
+	// First arrow (bottom)
+	r.drawArrowUp(img, mid, size-8, 6, col)
+	
+	// Second arrow (top)  
+	r.drawArrowUp(img, mid, size-16, 4, col)
+}
+
+// drawDashIcon draws horizontal lines to represent dash/speed
+func (r *Renderer) drawDashIcon(img *ebiten.Image, col color.Color, size int) {
+	mid := size / 2
+	lineHeight := 2
+	
+	// Draw horizontal speed lines
+	for i := 0; i < 3; i++ {
+		y := mid - 4 + i*4
+		lineImg := ebiten.NewImage(size-8, lineHeight)
+		lineImg.Fill(col)
+		opts := &ebiten.DrawImageOptions{}
+		opts.GeoM.Translate(4, float64(y))
+		img.DrawImage(lineImg, opts)
+	}
+}
+
+// drawWallJumpIcon draws a wall and figure to represent wall jump
+func (r *Renderer) drawWallJumpIcon(img *ebiten.Image, col color.Color, size int) {
+	// Draw wall on left side
+	wallImg := ebiten.NewImage(3, size-6)
+	wallImg.Fill(col)
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(3, 3)
+	img.DrawImage(wallImg, opts)
+	
+	// Draw figure jumping away from wall
+	figureImg := ebiten.NewImage(6, 8)
+	figureImg.Fill(col)
+	opts = &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(size-12), float64(size/2-4))
+	img.DrawImage(figureImg, opts)
+	
+	// Draw jump arc
+	r.drawArrowUp(img, size-6, size/2+2, 3, col)
+}
+
+// drawGlideIcon draws wing-like shape to represent glide
+func (r *Renderer) drawGlideIcon(img *ebiten.Image, col color.Color, size int) {
+	mid := size / 2
+	
+	// Draw wing shape (triangle-like)
+	wingPoints := []struct{ x, y int }{
+		{mid, 6},           // Top center
+		{6, mid + 4},       // Bottom left
+		{size - 6, mid + 4}, // Bottom right
+	}
+	
+	// Draw wing outline
+	for i := 0; i < len(wingPoints); i++ {
+		start := wingPoints[i]
+		end := wingPoints[(i+1)%len(wingPoints)]
+		r.drawLine(img, start.x, start.y, end.x, end.y, col)
+	}
+	
+	// Add wing details (inner lines)
+	r.drawLine(img, mid, 6, 8, mid, col)
+	r.drawLine(img, mid, 6, size-8, mid, col)
+}
+
+// drawArrowUp draws an upward pointing arrow
+func (r *Renderer) drawArrowUp(img *ebiten.Image, x, y, size int, col color.Color) {
+	// Arrow head
+	for i := 0; i < size; i++ {
+		for j := 0; j <= i; j++ {
+			if x-j >= 0 && x+j < img.Bounds().Dx() && y-i >= 0 {
+				pixelImg := ebiten.NewImage(1, 1)
+				pixelImg.Fill(col)
+				opts := &ebiten.DrawImageOptions{}
+				opts.GeoM.Translate(float64(x-j), float64(y-i))
+				img.DrawImage(pixelImg, opts)
+				if j > 0 {
+					opts = &ebiten.DrawImageOptions{}
+					opts.GeoM.Translate(float64(x+j), float64(y-i))
+					img.DrawImage(pixelImg, opts)
+				}
+			}
+		}
+	}
+}
+
+// drawLine draws a line between two points
+func (r *Renderer) drawLine(img *ebiten.Image, x1, y1, x2, y2 int, col color.Color) {
+	dx := x2 - x1
+	dy := y2 - y1
+	steps := dx
+	if dy > dx {
+		steps = dy
+	}
+	if steps < 0 {
+		steps = -steps
+	}
+	
+	xInc := float64(dx) / float64(steps)
+	yInc := float64(dy) / float64(steps)
+	
+	x := float64(x1)
+	y := float64(y1)
+	
+	for i := 0; i <= steps; i++ {
+		if int(x) >= 0 && int(x) < img.Bounds().Dx() && int(y) >= 0 && int(y) < img.Bounds().Dy() {
+			pixelImg := ebiten.NewImage(1, 1)
+			pixelImg.Fill(col)
+			opts := &ebiten.DrawImageOptions{}
+			opts.GeoM.Translate(x, y)
+			img.DrawImage(pixelImg, opts)
+		}
+		x += xInc
+		y += yInc
+	}
+}
+
+// drawIconBorder draws a border around an icon
+func (r *Renderer) drawIconBorder(img *ebiten.Image, size int, col color.Color) {
+	// Top and bottom borders
+	topImg := ebiten.NewImage(size, 1)
+	topImg.Fill(col)
+	bottomImg := ebiten.NewImage(size, 1)
+	bottomImg.Fill(col)
+	
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(0, 0)
+	img.DrawImage(topImg, opts)
+	
+	opts = &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(0, float64(size-1))
+	img.DrawImage(bottomImg, opts)
+	
+	// Left and right borders
+	leftImg := ebiten.NewImage(1, size)
+	leftImg.Fill(col)
+	rightImg := ebiten.NewImage(1, size)
+	rightImg.Fill(col)
+	
+	opts = &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(0, 0)
+	img.DrawImage(leftImg, opts)
+	
+	opts = &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(size-1), 0)
+	img.DrawImage(rightImg, opts)
 }
 
 // UpdateCamera updates camera position to follow target
