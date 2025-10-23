@@ -63,6 +63,10 @@ type Renderer struct {
 	tileImages  map[string]*ebiten.Image
 	bgColor     color.Color
 	textManager *TextRenderManager
+	
+	// Ability icon caching to prevent regeneration every frame
+	abilityIconCache map[string]*ebiten.Image
+	lastAbilities    map[string]bool
 }
 
 // NewRenderer creates a new renderer
@@ -74,9 +78,11 @@ func NewRenderer() *Renderer {
 			Width:  ScreenWidth,
 			Height: ScreenHeight,
 		},
-		tileImages:  make(map[string]*ebiten.Image),
-		bgColor:     color.RGBA{20, 20, 30, 255}, // Dark blue background
-		textManager: NewTextRenderManager(true),  // Enable color rendering by default
+		tileImages:       make(map[string]*ebiten.Image),
+		bgColor:          color.RGBA{20, 20, 30, 255}, // Dark blue background
+		textManager:      NewTextRenderManager(true),  // Enable color rendering by default
+		abilityIconCache: make(map[string]*ebiten.Image),
+		lastAbilities:    make(map[string]bool),
 	}
 }
 
@@ -343,16 +349,30 @@ func (r *Renderer) renderEnhancedHealthBar(screen *ebiten.Image, health, maxHeal
 	return barX, barY, barHeight
 }
 
-// renderAbilityIcons draws ability indicators with procedural icons
+// renderAbilityIcons draws ability indicators with cached procedural icons
 func (r *Renderer) renderAbilityIcons(screen *ebiten.Image, abilities map[string]bool, startX, startY int) {
 	abilitySize := AbilityIconSize
 	abilitySpacing := AbilityIconSpacing
 
+	// Check if abilities have changed and regenerate cache if needed
+	if r.abilitiesChanged(abilities) {
+		r.regenerateAbilityIcons(abilities, abilitySize)
+		r.updateLastAbilities(abilities)
+	}
+
+	// Use cached icons for rendering
 	abilityNames := []string{"double_jump", "dash", "wall_jump", "glide"}
 	for i, abilityName := range abilityNames {
 		hasAbility := abilities[abilityName]
 		x := startX + i*(abilitySize+abilitySpacing)
-		r.renderAbilityIcon(screen, abilityName, x, startY, abilitySize, hasAbility)
+		
+		// Get cache key including unlock status
+		cacheKey := r.getAbilityCacheKey(abilityName, hasAbility)
+		if cachedIcon, exists := r.abilityIconCache[cacheKey]; exists {
+			opts := &ebiten.DrawImageOptions{}
+			opts.GeoM.Translate(float64(x), float64(startY))
+			screen.DrawImage(cachedIcon, opts)
+		}
 	}
 }
 
@@ -549,6 +569,93 @@ func (r *Renderer) drawIconBorder(img *ebiten.Image, size int, col color.Color) 
 	opts = &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(size-1), 0)
 	img.DrawImage(rightImg, opts)
+}
+
+// abilitiesChanged checks if ability states have changed since last frame
+func (r *Renderer) abilitiesChanged(abilities map[string]bool) bool {
+	if len(r.lastAbilities) == 0 {
+		return true // First time, need to generate cache
+	}
+	
+	for ability, hasAbility := range abilities {
+		if lastState, exists := r.lastAbilities[ability]; !exists || lastState != hasAbility {
+			return true
+		}
+	}
+	return false
+}
+
+// regenerateAbilityIcons regenerates cached ability icons when states change
+func (r *Renderer) regenerateAbilityIcons(abilities map[string]bool, size int) {
+	// Clear existing cache
+	r.abilityIconCache = make(map[string]*ebiten.Image)
+	
+	abilityNames := []string{"double_jump", "dash", "wall_jump", "glide"}
+	for _, abilityName := range abilityNames {
+		hasAbility := abilities[abilityName]
+		
+		// Generate icons for both locked and unlocked states
+		for _, unlocked := range []bool{false, true} {
+			if unlocked == hasAbility || (!hasAbility && !unlocked) {
+				cacheKey := r.getAbilityCacheKey(abilityName, unlocked)
+				r.abilityIconCache[cacheKey] = r.generateAbilityIcon(abilityName, size, unlocked)
+			}
+		}
+	}
+}
+
+// updateLastAbilities updates the cached ability states
+func (r *Renderer) updateLastAbilities(abilities map[string]bool) {
+	r.lastAbilities = make(map[string]bool)
+	for ability, hasAbility := range abilities {
+		r.lastAbilities[ability] = hasAbility
+	}
+}
+
+// getAbilityCacheKey generates a cache key for ability icons
+func (r *Renderer) getAbilityCacheKey(ability string, unlocked bool) string {
+	if unlocked {
+		return ability + "_unlocked"
+	}
+	return ability + "_locked"
+}
+
+// generateAbilityIcon creates a single ability icon image
+func (r *Renderer) generateAbilityIcon(ability string, size int, unlocked bool) *ebiten.Image {
+	// Create icon background
+	iconImg := ebiten.NewImage(size, size)
+
+	// Choose colors based on unlock status
+	var bgColor, iconColor color.Color
+	if unlocked {
+		bgColor = color.RGBA{50, 100, 150, 255}    // Blue background when unlocked
+		iconColor = color.RGBA{200, 220, 255, 255} // Light blue icon
+	} else {
+		bgColor = color.RGBA{30, 30, 30, 255}   // Dark background when locked
+		iconColor = color.RGBA{80, 80, 80, 255} // Dark gray icon
+	}
+
+	// Fill background
+	iconImg.Fill(bgColor)
+
+	// Draw procedural icon based on ability type
+	switch ability {
+	case "double_jump":
+		r.drawJumpIcon(iconImg, iconColor, size)
+	case "dash":
+		r.drawDashIcon(iconImg, iconColor, size)
+	case "wall_jump":
+		r.drawWallJumpIcon(iconImg, iconColor, size)
+	case "glide":
+		r.drawGlideIcon(iconImg, iconColor, size)
+	}
+
+	// Draw border for unlocked abilities
+	if unlocked {
+		r.drawIconBorder(iconImg, size, color.RGBA{255, 255, 255, 150})
+	}
+
+	return iconImg
 }
 
 // UpdateCamera updates camera position to follow target
