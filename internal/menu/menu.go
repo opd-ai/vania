@@ -242,7 +242,7 @@ func (mm *MenuManager) Draw(screen *ebiten.Image) {
 	titleY := MenuTitleY
 	mm.drawColoredText(screen, title, titleX, titleY, mm.textColor)
 
-	// Draw menu items
+	// Draw menu items with visual feedback
 	startY := MenuStartY
 	for i, item := range mm.items {
 		y := startY + i*MenuItemSpacing
@@ -255,13 +255,26 @@ func (mm *MenuManager) Draw(screen *ebiten.Image) {
 			itemColor = mm.selectedColor
 		}
 
-		// Draw selection indicator
+		// Calculate scaling and positioning for selected item
+		scale := 1.0
+		textX := 220
 		if i == mm.selectedIndex {
-			ebitenutil.DebugPrintAt(screen, ">", 200, y)
+			scale = 1.05 // Subtle scaling for selected items
+			textX = 225  // Slight offset to emphasize selection
 		}
 
-		// Draw item text
-		mm.drawColoredText(screen, item.Text, 220, y, itemColor)
+		// Draw selection indicator with enhanced styling
+		if i == mm.selectedIndex {
+			// Draw animated selection indicator
+			ebitenutil.DebugPrintAt(screen, ">>", 195, y)
+		}
+
+		// Draw item text with scaling effect
+		if scale != 1.0 {
+			mm.drawScaledColoredText(screen, item.Text, textX, y, itemColor, scale)
+		} else {
+			mm.drawColoredText(screen, item.Text, textX, y, itemColor)
+		}
 	}
 
 	// Draw instructions with proper centering
@@ -278,6 +291,34 @@ func (mm *MenuManager) drawColoredText(screen *ebiten.Image, text string, x, y i
 		charX := x + i*CharWidth
 		mm.drawChar(screen, char, charX, y, CharWidth, CharHeight, col)
 	}
+}
+
+// drawScaledColoredText draws text with scaling transformation for visual feedback
+func (mm *MenuManager) drawScaledColoredText(screen *ebiten.Image, text string, x, y int, col color.Color, scale float64) {
+	// Create temporary image for the text
+	textWidth := len(text) * CharWidth
+	textHeight := CharHeight
+	textImg := ebiten.NewImage(textWidth, textHeight)
+	
+	// Draw text to temporary image
+	for i, char := range text {
+		charX := i * CharWidth
+		mm.drawChar(textImg, char, charX, 0, CharWidth, CharHeight, col)
+	}
+	
+	// Apply scaling transformation and draw to screen
+	opts := &ebiten.DrawImageOptions{}
+	
+	// Scale around center point for better visual effect
+	centerX := float64(textWidth) / 2
+	centerY := float64(textHeight) / 2
+	
+	opts.GeoM.Translate(-centerX, -centerY)
+	opts.GeoM.Scale(scale, scale)
+	opts.GeoM.Translate(centerX, centerY)
+	opts.GeoM.Translate(float64(x), float64(y))
+	
+	screen.DrawImage(textImg, opts)
 }
 
 // drawChar draws a single character using optimized batch pixel rendering
