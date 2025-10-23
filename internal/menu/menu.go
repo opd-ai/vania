@@ -44,23 +44,23 @@ type MenuItem struct {
 
 // MenuManager handles all menu operations
 type MenuManager struct {
-	currentMenu     MenuType
-	state          MenuState
-	items          []*MenuItem
-	selectedIndex  int
-	inputHandler   *input.InputHandler
-	saveManager    *save.SaveManager
-	
+	currentMenu   MenuType
+	state         MenuState
+	items         []*MenuItem
+	selectedIndex int
+	inputHandler  *input.InputHandler
+	saveManager   *save.SaveManager
+
 	// Callbacks
 	onNewGame    func(seed int64) error
 	onLoadGame   func(slot int) error
 	onSettings   func() error
 	onQuitGame   func() error
 	onResumeGame func() error
-	
+
 	// Settings
 	settings *GameSettings
-	
+
 	// Visual properties
 	backgroundColor color.Color
 	textColor       color.Color
@@ -70,13 +70,13 @@ type MenuManager struct {
 
 // GameSettings holds user configurable settings
 type GameSettings struct {
-	MasterVolume   float64
-	SFXVolume      float64
-	MusicVolume    float64
-	FullScreen     bool
-	VSync          bool
-	ShowFPS        bool
-	KeyBindings    map[string][]ebiten.Key
+	MasterVolume float64
+	SFXVolume    float64
+	MusicVolume  float64
+	FullScreen   bool
+	VSync        bool
+	ShowFPS      bool
+	KeyBindings  map[string][]ebiten.Key
 }
 
 // NewMenuManager creates a new menu manager
@@ -102,12 +102,12 @@ func NewMenuManager() *MenuManager {
 
 	return &MenuManager{
 		currentMenu:     MainMenu,
-		state:          MenuStateActive,
-		items:          make([]*MenuItem, 0),
-		selectedIndex:  0,
-		inputHandler:   input.NewInputHandler(),
-		saveManager:    saveManager,
-		settings:       settings,
+		state:           MenuStateActive,
+		items:           make([]*MenuItem, 0),
+		selectedIndex:   0,
+		inputHandler:    input.NewInputHandler(),
+		saveManager:     saveManager,
+		settings:        settings,
 		backgroundColor: color.RGBA{20, 20, 30, 255},
 		textColor:       color.RGBA{200, 200, 200, 255},
 		selectedColor:   color.RGBA{255, 255, 100, 255},
@@ -514,7 +514,7 @@ func (mm *MenuManager) ShowSaveLoadMenu() {
 // buildSaveLoadMenuItems creates save/load menu items
 func (mm *MenuManager) buildSaveLoadMenuItems() {
 	mm.items = make([]*MenuItem, 0)
-	
+
 	// Add save slots
 	for i := 0; i < 5; i++ {
 		slotText := fmt.Sprintf("Slot %d", i+1)
@@ -528,7 +528,7 @@ func (mm *MenuManager) buildSaveLoadMenuItems() {
 				slotText = fmt.Sprintf("Slot %d - Empty", i+1)
 			}
 		}
-		
+
 		slot := i // Capture for closure
 		mm.items = append(mm.items, &MenuItem{
 			Text:    slotText,
@@ -541,7 +541,7 @@ func (mm *MenuManager) buildSaveLoadMenuItems() {
 			},
 		})
 	}
-	
+
 	// Add back option
 	mm.items = append(mm.items, &MenuItem{
 		Text:    "Back",
@@ -557,12 +557,12 @@ func (mm *MenuManager) navigateUp() {
 	if len(mm.items) == 0 {
 		return
 	}
-	
+
 	mm.selectedIndex--
 	if mm.selectedIndex < 0 {
 		mm.selectedIndex = len(mm.items) - 1
 	}
-	
+
 	// Skip disabled items
 	if !mm.items[mm.selectedIndex].Enabled {
 		mm.navigateUp()
@@ -574,12 +574,12 @@ func (mm *MenuManager) navigateDown() {
 	if len(mm.items) == 0 {
 		return
 	}
-	
+
 	mm.selectedIndex++
 	if mm.selectedIndex >= len(mm.items) {
 		mm.selectedIndex = 0
 	}
-	
+
 	// Skip disabled items
 	if !mm.items[mm.selectedIndex].Enabled {
 		mm.navigateDown()
@@ -627,7 +627,7 @@ func (mm *MenuManager) hasSaveFiles() bool {
 	if mm.saveManager == nil {
 		return false
 	}
-	
+
 	for i := 0; i < 5; i++ {
 		if _, err := mm.saveManager.LoadGame(i); err == nil {
 			return true

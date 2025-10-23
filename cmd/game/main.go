@@ -17,7 +17,7 @@ type GameApp struct {
 	gameRunner  *engine.GameRunner
 	currentGame *engine.Game
 	inMenu      bool
-	
+
 	// Command line options
 	directPlay bool
 	fixedSeed  int64
@@ -31,7 +31,7 @@ func NewGameApp(directPlay bool, fixedSeed int64) *GameApp {
 		directPlay:  directPlay,
 		fixedSeed:   fixedSeed,
 	}
-	
+
 	// Set up menu callbacks
 	app.menuManager.SetCallbacks(
 		app.onNewGame,    // New game
@@ -40,7 +40,7 @@ func NewGameApp(directPlay bool, fixedSeed int64) *GameApp {
 		app.onQuitGame,   // Quit
 		app.onResumeGame, // Resume
 	)
-	
+
 	// If direct play mode, start game immediately
 	if directPlay {
 		seed := fixedSeed
@@ -55,7 +55,7 @@ func NewGameApp(directPlay bool, fixedSeed int64) *GameApp {
 		// Show main menu
 		app.menuManager.ShowMainMenu()
 	}
-	
+
 	return app
 }
 
@@ -65,19 +65,19 @@ func (app *GameApp) Update() error {
 		return app.menuManager.Update()
 	} else if app.gameRunner != nil {
 		err := app.gameRunner.Update()
-		
+
 		// Check if player died (health <= 0)
 		if app.currentGame != nil && app.currentGame.Player.Health <= 0 {
 			app.showGameOver()
 			return nil
 		}
-		
+
 		return err
 	}
 	return nil
 }
 
-// Draw implements ebiten.Game interface  
+// Draw implements ebiten.Game interface
 func (app *GameApp) Draw(screen *ebiten.Image) {
 	if app.inMenu {
 		app.menuManager.Draw(screen)
@@ -96,7 +96,7 @@ func (app *GameApp) onNewGame(seed int64) error {
 	if seed == 0 {
 		seed = time.Now().UnixNano()
 	}
-	
+
 	return app.startGame(seed)
 }
 
@@ -108,12 +108,12 @@ func (app *GameApp) onLoadGame(slot int) error {
 			return err
 		}
 	}
-	
+
 	// Load the game from save slot
 	if err := app.gameRunner.LoadGame(slot); err != nil {
 		return fmt.Errorf("failed to load game: %v", err)
 	}
-	
+
 	app.inMenu = false
 	app.menuManager.Hide()
 	return nil
@@ -148,26 +148,26 @@ func (app *GameApp) startGame(seed int64) error {
 	fmt.Println()
 	fmt.Printf("Master Seed: %d\n", seed)
 	fmt.Println("Generating game world...")
-	
+
 	// Create game generator
 	generator := engine.NewGameGenerator(seed)
-	
+
 	// Generate complete game
 	game, err := generator.GenerateCompleteGame()
 	if err != nil {
 		return fmt.Errorf("error generating game: %v", err)
 	}
-	
+
 	fmt.Println("Generation complete! Starting game...")
-	
+
 	// Create game runner
 	app.currentGame = game
 	app.gameRunner = engine.NewGameRunner(game)
-	
+
 	// Switch to game mode
 	app.inMenu = false
 	app.menuManager.Hide()
-	
+
 	return nil
 }
 
@@ -188,30 +188,30 @@ func (app *GameApp) Run() error {
 	ebiten.SetWindowSize(960, 640)
 	ebiten.SetWindowTitle("VANIA - Procedural Metroidvania")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	
+
 	return ebiten.RunGame(app)
 }
 
 func main() {
-	// Parse command line arguments  
+	// Parse command line arguments
 	seedFlag := flag.Int64("seed", 0, "Master seed for generation (0 = use timestamp)")
 	playFlag := flag.Bool("play", false, "Launch the game with rendering (default: show main menu)")
 	noMenuFlag := flag.Bool("no-menu", false, "Skip menu and go directly to gameplay")
 	statsOnlyFlag := flag.Bool("stats-only", false, "Generate and show stats only (original behavior)")
 	flag.Parse()
-	
+
 	// Handle legacy stats-only mode
 	if *statsOnlyFlag {
 		runStatsOnlyMode(*seedFlag)
 		return
 	}
-	
+
 	// Determine if we should skip menus
 	directPlay := *playFlag && *noMenuFlag
-	
+
 	// Create and run the application
 	app := NewGameApp(directPlay, *seedFlag)
-	
+
 	if err := app.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Game error: %v\n", err)
 		os.Exit(1)
@@ -363,17 +363,17 @@ func displayAchievementSummary(game *engine.Game) {
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println("🏆 ACHIEVEMENT SUMMARY")
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	
+
 	unlocked := game.Achievements.GetUnlockedAchievements()
-	fmt.Printf("  Unlocked:           %d / %d (%.1f%%)\n", 
-		len(unlocked), 
+	fmt.Printf("  Unlocked:           %d / %d (%.1f%%)\n",
+		len(unlocked),
 		len(game.Achievements.GetAllAchievements()),
 		game.Achievements.GetCompletionPercentage())
-	fmt.Printf("  Points Earned:      %d / %d\n", 
+	fmt.Printf("  Points Earned:      %d / %d\n",
 		game.Achievements.GetTotalPoints(),
 		game.Achievements.GetMaxPoints())
 	fmt.Println()
-	
+
 	if len(unlocked) > 0 {
 		fmt.Println("  Unlocked Achievements:")
 		for i, u := range unlocked {
@@ -383,15 +383,15 @@ func displayAchievementSummary(game *engine.Game) {
 			}
 			achievement := game.Achievements.GetAchievement(u.AchievementID)
 			if achievement != nil {
-				fmt.Printf("    ✓ %s - %s (%d pts)\n", 
-					achievement.Name, 
+				fmt.Printf("    ✓ %s - %s (%d pts)\n",
+					achievement.Name,
 					achievement.Description,
 					achievement.Points)
 			}
 		}
 		fmt.Println()
 	}
-	
+
 	// Show some progress on locked achievements
 	fmt.Println("  In Progress:")
 	shown := 0
@@ -399,10 +399,10 @@ func displayAchievementSummary(game *engine.Game) {
 		if game.Achievements.IsUnlocked(achievement.ID) || achievement.Hidden {
 			continue
 		}
-		
+
 		progress := game.Achievements.GetProgress(achievement.ID)
 		if progress != nil && progress.Progress > 0 {
-			fmt.Printf("    ⋯ %s - %.0f%%\n", 
+			fmt.Printf("    ⋯ %s - %.0f%%\n",
 				achievement.Name,
 				progress.Progress*100)
 			shown++
@@ -411,11 +411,11 @@ func displayAchievementSummary(game *engine.Game) {
 			}
 		}
 	}
-	
+
 	if shown == 0 {
 		fmt.Println("    Keep playing to unlock more achievements!")
 	}
-	
+
 	fmt.Println()
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 }
