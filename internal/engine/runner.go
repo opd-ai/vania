@@ -380,7 +380,7 @@ func (gr *GameRunner) Update() error {
 				gr.particleSystem.AddEmitter(bloodEmitter)
 
 				gr.combatSystem.ApplyDamageToEnemy(enemy, gr.game.Player.Damage, gr.game.Player.X)
-				
+
 				// Track damage dealt for achievements
 				if gr.game.Achievements != nil {
 					gr.game.Achievements.RecordDamage(gr.game.Player.Damage, 0)
@@ -390,7 +390,7 @@ func (gr *GameRunner) Update() error {
 				if wasAlive && enemy.IsDead() {
 					enemyKey := int(enemy.X*1000 + enemy.Y)
 					gr.defeatedEnemies[enemyKey] = true
-					
+
 					// Record enemy kill for achievements
 					if gr.game.Achievements != nil {
 						// Check if it was a perfect kill (no damage taken in this room)
@@ -414,14 +414,14 @@ func (gr *GameRunner) Update() error {
 			if enemy.State == entity.AttackState {
 				damage = enemy.GetAttackDamage()
 			}
-			
+
 			// Record damage taken for achievements
 			if gr.game.Achievements != nil {
 				gr.game.Achievements.RecordDamage(0, damage)
 			}
-			
+
 			gr.combatSystem.ApplyDamageToPlayer(gr.game.Player, damage, enemy.X)
-			
+
 			// Check if player died
 			if gr.game.Player.Health <= 0 && gr.game.Achievements != nil {
 				gr.game.Achievements.RecordDeath()
@@ -448,7 +448,7 @@ func (gr *GameRunner) Update() error {
 	if gr.game.CurrentRoom != nil {
 		wasVisited := gr.visitedRooms[gr.game.CurrentRoom.ID]
 		gr.visitedRooms[gr.game.CurrentRoom.ID] = true
-		
+
 		// Record room visit for achievements (only first visit)
 		if !wasVisited && gr.game.Achievements != nil {
 			// Check if this room was completed without taking damage
@@ -482,7 +482,7 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	for _, enemy := range gr.enemyInstances {
 		if !enemy.IsDead() {
 			ex, ey, ew, eh := enemy.GetBounds()
-			
+
 			// Get current animation frame if available
 			var spriteToRender *graphics.Sprite
 			if enemy.AnimController != nil {
@@ -494,7 +494,7 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 					spriteToRender = sprite
 				}
 			}
-			
+
 			gr.renderer.RenderEnemy(screen, ex, ey, ew, eh, enemy.CurrentHealth, enemy.Enemy.Health, false, spriteToRender)
 		}
 	}
@@ -583,7 +583,12 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		// Position debug info below health bar and abilities (start at Y=120)
 		debugX := 10
 		debugY := 120
-		ebitenutil.DebugPrintAt(screen, debugInfo, debugX, debugY)
+		// Use text rendering abstraction with fallback to debug text
+		if gr.renderer != nil {
+			gr.renderer.RenderText(screen, debugInfo, debugX, debugY, color.RGBA{255, 255, 255, 255})
+		} else {
+			ebitenutil.DebugPrintAt(screen, debugInfo, debugX, debugY)
+		}
 	}
 
 	// Always show minimal controls hint in top-right corner if debug is off
@@ -591,7 +596,11 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		controlsHint := "F3=Debug Info"
 		hintX := render.ScreenWidth - 100
 		hintY := 10
-		ebitenutil.DebugPrintAt(screen, controlsHint, hintX, hintY)
+		if gr.renderer != nil {
+			gr.renderer.RenderText(screen, controlsHint, hintX, hintY, color.RGBA{200, 200, 200, 255})
+		} else {
+			ebitenutil.DebugPrintAt(screen, controlsHint, hintX, hintY)
+		}
 	}
 }
 
@@ -642,26 +651,26 @@ func (gr *GameRunner) CreateSaveData() *save.SaveData {
 	if gr.game.CurrentRoom != nil {
 		currentRoomID = gr.game.CurrentRoom.ID
 	}
-	
+
 	// Build achievement statistics
 	var achievementStats *save.AchievementStatistics
 	if gr.game.Achievements != nil {
 		stats := gr.game.Achievements.GetStatistics()
 		achievementStats = &save.AchievementStatistics{
-			EnemiesDefeated:    stats.EnemiesDefeated,
-			BossesDefeated:     stats.BossesDefeated,
-			TotalDamageDealt:   stats.TotalDamageDealt,
-			DamageTaken:        stats.DamageTaken,
-			PerfectKills:       stats.PerfectKills,
-			RoomsVisited:       stats.RoomsVisited,
-			BiomesExplored:     stats.BiomesExplored,
-			SecretsFound:       stats.SecretsFound,
-			ItemsCollected:     stats.ItemsCollected,
-			AbilitiesUnlocked:  stats.AbilitiesUnlocked,
-			DeathCount:         stats.DeathCount,
-			PerfectRooms:       stats.PerfectRooms,
-			ConsecutiveKills:   stats.ConsecutiveKills,
-			LongestCombo:       stats.LongestCombo,
+			EnemiesDefeated:   stats.EnemiesDefeated,
+			BossesDefeated:    stats.BossesDefeated,
+			TotalDamageDealt:  stats.TotalDamageDealt,
+			DamageTaken:       stats.DamageTaken,
+			PerfectKills:      stats.PerfectKills,
+			RoomsVisited:      stats.RoomsVisited,
+			BiomesExplored:    stats.BiomesExplored,
+			SecretsFound:      stats.SecretsFound,
+			ItemsCollected:    stats.ItemsCollected,
+			AbilitiesUnlocked: stats.AbilitiesUnlocked,
+			DeathCount:        stats.DeathCount,
+			PerfectRooms:      stats.PerfectRooms,
+			ConsecutiveKills:  stats.ConsecutiveKills,
+			LongestCombo:      stats.LongestCombo,
 		}
 	}
 
@@ -783,12 +792,12 @@ func (gr *GameRunner) checkItemCollection() {
 
 		// Check collision with player
 		itemX, itemY, itemW, itemH := item.GetBounds()
-		
+
 		if playerX < itemX+itemW &&
 			playerX+playerW > itemX &&
 			playerY < itemY+itemH &&
 			playerY+playerH > itemY {
-			
+
 			// Collect the item!
 			gr.collectItem(item)
 		}
@@ -829,14 +838,14 @@ func (gr *GameRunner) collectItem(item *entity.ItemInstance) {
 	case "increase_damage":
 		gr.game.Player.Damage += item.Item.Value / 10
 	}
-	
+
 	// Check if item grants an ability (for key items)
 	if item.Item.Type == entity.KeyItem {
 		// Key items grant abilities
 		abilityName := item.Item.Name // Use item name as ability identifier
 		if !gr.game.Player.Abilities[abilityName] {
 			gr.game.Player.Abilities[abilityName] = true
-			
+
 			// Record ability unlock for achievements
 			if gr.game.Achievements != nil {
 				gr.game.Achievements.RecordAbilityUnlocked()
@@ -901,7 +910,7 @@ func (gr *GameRunner) RestoreFromSaveData(saveData *save.SaveData) error {
 	if gr.unlockedDoors == nil {
 		gr.unlockedDoors = make(map[string]bool)
 	}
-	
+
 	// Restore achievement statistics if available
 	if saveData.AchievementStats != nil && gr.game.Achievements != nil {
 		stats := gr.game.Achievements.GetStatistics()
@@ -955,39 +964,38 @@ func (gr *GameRunner) CheckAutoSave() {
 // createItemInstancesForRoom creates item instances for a room
 func createItemInstancesForRoom(room *world.Room, allItems []*entity.Item) []*entity.ItemInstance {
 	var instances []*entity.ItemInstance
-	
+
 	if room == nil || room.Type != world.TreasureRoom {
 		return instances
 	}
-	
+
 	// Place 2-4 items in treasure rooms
 	itemCount := 2 + (room.ID % 3) // 2-4 items based on room ID
 	if itemCount > len(allItems) {
 		itemCount = len(allItems)
 	}
-	
+
 	for i := 0; i < itemCount && i < len(allItems); i++ {
 		// Generate unique item ID based on room and position
 		itemID := room.ID*1000 + i
-		
+
 		// Position items across the room (spread horizontally)
 		itemX := 200.0 + float64(i*150)
 		itemY := 500.0 // Ground level
-		
+
 		instance := entity.NewItemInstance(allItems[i%len(allItems)], itemID, itemX, itemY)
 		instances = append(instances, instance)
 	}
-	
+
 	return instances
 }
-
 
 // renderMessageWithProgress renders a message with a progress bar showing remaining time
 func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message string, currentTimer, maxDuration int, x, y int, bgColor color.Color) {
 	messageWidth := render.MessageWidth
 	messageHeight := render.MessageHeight
 	progressHeight := render.ProgressBarHeight
-	
+
 	// Draw main message background
 	messageImg := ebiten.NewImage(messageWidth, messageHeight)
 	messageImg.Fill(bgColor)
@@ -995,8 +1003,12 @@ func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message st
 	opts.GeoM.Translate(float64(x), float64(y))
 	screen.DrawImage(messageImg, opts)
 
-	// Draw text
-	ebitenutil.DebugPrintAt(screen, message, x+10, y+12)
+	// Draw text using renderer's text system if available
+	if gr.renderer != nil {
+		gr.renderer.RenderText(screen, message, x+10, y+12, color.RGBA{255, 255, 255, 255})
+	} else {
+		ebitenutil.DebugPrintAt(screen, message, x+10, y+12)
+	}
 
 	// Calculate progress (0.0 to 1.0)
 	progress := float64(currentTimer) / float64(maxDuration)
@@ -1018,7 +1030,7 @@ func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message st
 	progressWidth := int(float64(messageWidth-4) * progress)
 	if progressWidth > 0 {
 		progressImg := ebiten.NewImage(progressWidth, progressHeight)
-		
+
 		// Color progress bar based on remaining time
 		var progressColor color.Color
 		if progress > 0.5 {
@@ -1031,7 +1043,7 @@ func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message st
 			// Red when almost out of time
 			progressColor = color.RGBA{255, 100, 100, 200}
 		}
-		
+
 		progressImg.Fill(progressColor)
 		opts = &ebiten.DrawImageOptions{}
 		opts.GeoM.Translate(float64(x+2), float64(y+messageHeight-progressHeight-2))
@@ -1044,7 +1056,7 @@ func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message st
 	opts = &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(x-1), float64(y-1))
 	screen.DrawImage(borderImg, opts)
-	
+
 	// Redraw main background on top of border
 	opts = &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(x), float64(y))
@@ -1053,30 +1065,30 @@ func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message st
 
 // updateMusicContext updates the music context based on current game state
 func (gr *GameRunner) updateMusicContext() {
-// Count nearby enemies (alive enemies within aggro range)
-nearbyCount := 0
-inCombat := false
+	// Count nearby enemies (alive enemies within aggro range)
+	nearbyCount := 0
+	inCombat := false
 
-for _, enemy := range gr.enemyInstances {
-if enemy.IsDead() {
-continue
-}
+	for _, enemy := range gr.enemyInstances {
+		if enemy.IsDead() {
+			continue
+		}
 
-// Calculate distance to player
-dx := gr.game.Player.X - enemy.X
-dy := gr.game.Player.Y - enemy.Y
-distance := dx*dx + dy*dy
+		// Calculate distance to player
+		dx := gr.game.Player.X - enemy.X
+		dy := gr.game.Player.Y - enemy.Y
+		distance := dx*dx + dy*dy
 
-// Check if enemy is nearby (within ~300 pixels)
-if distance < 90000 { // 300^2
-nearbyCount++
-}
+		// Check if enemy is nearby (within ~300 pixels)
+		if distance < 90000 { // 300^2
+			nearbyCount++
+		}
 
-// Check if any enemy is actively chasing or attacking
-if enemy.State == entity.ChaseState || enemy.State == entity.AttackState {
-inCombat = true
-}
-}
+		// Check if any enemy is actively chasing or attacking
+		if enemy.State == entity.ChaseState || enemy.State == entity.AttackState {
+			inCombat = true
+		}
+	}
 
 	// Determine if this is a boss fight
 	isBossFight := false
@@ -1090,27 +1102,27 @@ inCombat = true
 		healthPct = float64(gr.game.Player.Health) / float64(gr.game.Player.MaxHealth)
 	}
 
-// Get room danger level
-dangerLevel := 0
-if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Biome != nil {
-dangerLevel = gr.game.CurrentRoom.Biome.DangerLevel
-}
+	// Get room danger level
+	dangerLevel := 0
+	if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Biome != nil {
+		dangerLevel = gr.game.CurrentRoom.Biome.DangerLevel
+	}
 
-// Update music context
-gr.musicContext.InCombat = inCombat
-gr.musicContext.IsBossFight = isBossFight
-gr.musicContext.NearbyEnemyCount = nearbyCount
-gr.musicContext.PlayerHealthPct = healthPct
-gr.musicContext.RoomDangerLevel = dangerLevel
+	// Update music context
+	gr.musicContext.InCombat = inCombat
+	gr.musicContext.IsBossFight = isBossFight
+	gr.musicContext.NearbyEnemyCount = nearbyCount
+	gr.musicContext.PlayerHealthPct = healthPct
+	gr.musicContext.RoomDangerLevel = dangerLevel
 
-// Calculate intensity and update adaptive music track
-intensity := gr.musicContext.CalculateIntensity()
+	// Calculate intensity and update adaptive music track
+	intensity := gr.musicContext.CalculateIntensity()
 
-// Get current biome's adaptive track and update it
-if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Biome != nil {
-if track, exists := gr.game.Audio.AdaptiveTracks[gr.game.CurrentRoom.Biome.Name]; exists {
-track.SetIntensity(intensity)
-track.Update()
-}
-}
+	// Get current biome's adaptive track and update it
+	if gr.game.CurrentRoom != nil && gr.game.CurrentRoom.Biome != nil {
+		if track, exists := gr.game.Audio.AdaptiveTracks[gr.game.CurrentRoom.Biome.Name]; exists {
+			track.SetIntensity(intensity)
+			track.Update()
+		}
+	}
 }
