@@ -12,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/opd-ai/vania/internal/input"
 	"github.com/opd-ai/vania/internal/save"
+	"github.com/opd-ai/vania/internal/settings"
 )
 
 // MenuType represents different menu types

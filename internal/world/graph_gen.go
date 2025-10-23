@@ -352,18 +352,22 @@ func (wg *WorldGenerator) assignBiome(world *World, depth int) *Biome {
 
 // populateRoom generates platforms, enemies, and items
 func (wg *WorldGenerator) populateRoom(room *Room) {
-	// Generate platforms based on room size
-	platformCount := 3 + wg.rng.Intn(5)
-	room.Platforms = make([]Platform, platformCount)
+	// Use procedural platform generator
+	platformGen := NewPlatformGenerator()
 	
-	for i := range room.Platforms {
-		room.Platforms[i] = Platform{
-			X:      wg.rng.Intn(room.Width - 4),
-			Y:      wg.rng.Intn(room.Height - 2),
-			Width:  3 + wg.rng.Intn(4),
-			Height: 1,
-		}
+	// Create a seed based on room ID and world seed for consistency
+	roomSeed := wg.rng.Int63() + int64(room.ID*1000)
+	
+	// For now, assume no abilities (full implementation would pass actual player abilities)
+	basicAbilities := map[string]bool{
+		"jump":        true,  // Always have basic jump
+		"double_jump": false,
+		"dash":        false,
+		"wall_climb":  false,
+		"glide":       false,
 	}
+	
+	platformGen.GeneratePlatforms(room, roomSeed, basicAbilities)
 	
 	// Add hazards based on room type and biome
 	if room.Type == CombatRoom || room.Type == BossRoom {
