@@ -60,7 +60,8 @@ type MenuManager struct {
 	onResumeGame func() error
 
 	// Settings
-	settings *GameSettings
+	settings        *GameSettings
+	settingsManager *settings.SettingsManager
 
 	// Visual properties
 	backgroundColor color.Color

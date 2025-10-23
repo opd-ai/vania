@@ -90,40 +90,40 @@ type AudioSettings struct {
 
 // GraphicsSettings holds graphics-related configuration
 type GraphicsSettings struct {
-	Quality          GraphicsQuality `json:"quality"`
-	Fullscreen       bool            `json:"fullscreen"`
-	VSync            bool            `json:"vsync"`
-	WindowWidth      int             `json:"window_width"`
-	WindowHeight     int             `json:"window_height"`
-	ShowFPS          bool            `json:"show_fps"`
-	ParticleEffects  bool            `json:"particle_effects"`
-	ScreenShake      bool            `json:"screen_shake"`
-	UIScale          float64         `json:"ui_scale"`
+	Quality         GraphicsQuality `json:"quality"`
+	Fullscreen      bool            `json:"fullscreen"`
+	VSync           bool            `json:"vsync"`
+	WindowWidth     int             `json:"window_width"`
+	WindowHeight    int             `json:"window_height"`
+	ShowFPS         bool            `json:"show_fps"`
+	ParticleEffects bool            `json:"particle_effects"`
+	ScreenShake     bool            `json:"screen_shake"`
+	UIScale         float64         `json:"ui_scale"`
 }
 
 // GameplaySettings holds gameplay-related configuration
 type GameplaySettings struct {
-	Difficulty        int     `json:"difficulty"` // 0=Easy, 1=Normal, 2=Hard, 3=Expert
-	AutoSave          bool    `json:"auto_save"`
-	ShowHints         bool    `json:"show_hints"`
-	InputBuffering    bool    `json:"input_buffering"`
-	CameraSmoothing   float64 `json:"camera_smoothing"`
-	MouseSensitivity  float64 `json:"mouse_sensitivity"`
+	Difficulty       int     `json:"difficulty"` // 0=Easy, 1=Normal, 2=Hard, 3=Expert
+	AutoSave         bool    `json:"auto_save"`
+	ShowHints        bool    `json:"show_hints"`
+	InputBuffering   bool    `json:"input_buffering"`
+	CameraSmoothing  float64 `json:"camera_smoothing"`
+	MouseSensitivity float64 `json:"mouse_sensitivity"`
 }
 
 // ControlSettings holds key mapping configuration
 type ControlSettings struct {
-	KeyBindings map[ControlAction]ebiten.Key `json:"key_bindings"`
-	GamepadEnabled bool                      `json:"gamepad_enabled"`
+	KeyBindings    map[ControlAction]ebiten.Key `json:"key_bindings"`
+	GamepadEnabled bool                         `json:"gamepad_enabled"`
 }
 
 // Settings holds all game configuration
 type Settings struct {
-	Audio       AudioSettings    `json:"audio"`
-	Graphics    GraphicsSettings `json:"graphics"`
-	Gameplay    GameplaySettings `json:"gameplay"`
-	Controls    ControlSettings  `json:"controls"`
-	Version     string          `json:"version"`
+	Audio    AudioSettings    `json:"audio"`
+	Graphics GraphicsSettings `json:"graphics"`
+	Gameplay GameplaySettings `json:"gameplay"`
+	Controls ControlSettings  `json:"controls"`
+	Version  string           `json:"version"`
 }
 
 // SettingsManager manages loading, saving, and validation of game settings
@@ -138,7 +138,7 @@ func NewSettingsManager() *SettingsManager {
 	sm := &SettingsManager{
 		callbacks: make(map[string]func(*Settings)),
 	}
-	
+
 	// Determine settings file path
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -148,10 +148,10 @@ func NewSettingsManager() *SettingsManager {
 		os.MkdirAll(configDir, 0755)
 		sm.settingsPath = filepath.Join(configDir, "settings.json")
 	}
-	
+
 	sm.settings = sm.createDefaultSettings()
 	sm.LoadSettings()
-	
+
 	return sm
 }
 
@@ -190,7 +190,7 @@ func (sm *SettingsManager) createDefaultSettings() *Settings {
 				ActionJump:      ebiten.KeySpace,
 				ActionDash:      ebiten.KeyShift,
 				ActionAttack:    ebiten.KeyJ,
-				ActionInteract: ebiten.KeyF,
+				ActionInteract:  ebiten.KeyF,
 				ActionPause:     ebiten.KeyEscape,
 				ActionMenu:      ebiten.KeyTab,
 				ActionInventory: ebiten.KeyI,
@@ -208,18 +208,18 @@ func (sm *SettingsManager) LoadSettings() error {
 		// File doesn't exist, use defaults
 		return sm.SaveSettings()
 	}
-	
+
 	var loadedSettings Settings
 	if err := json.Unmarshal(data, &loadedSettings); err != nil {
 		return fmt.Errorf("failed to parse settings: %w", err)
 	}
-	
+
 	// Validate and merge with defaults to handle version changes
 	sm.settings = sm.validateAndMergeSettings(&loadedSettings)
-	
+
 	// Notify callbacks
 	sm.notifyCallbacks()
-	
+
 	return nil
 }
 
@@ -229,14 +229,14 @@ func (sm *SettingsManager) SaveSettings() error {
 	if err != nil {
 		return fmt.Errorf("failed to serialize settings: %w", err)
 	}
-	
+
 	return ioutil.WriteFile(sm.settingsPath, data, 0644)
 }
 
 // validateAndMergeSettings ensures loaded settings have all required fields
 func (sm *SettingsManager) validateAndMergeSettings(loaded *Settings) *Settings {
 	defaults := sm.createDefaultSettings()
-	
+
 	// Merge audio settings
 	if loaded.Audio.MasterVolume <= 0 {
 		loaded.Audio.MasterVolume = defaults.Audio.MasterVolume
@@ -247,7 +247,7 @@ func (sm *SettingsManager) validateAndMergeSettings(loaded *Settings) *Settings 
 	if loaded.Audio.MusicVolume <= 0 {
 		loaded.Audio.MusicVolume = defaults.Audio.MusicVolume
 	}
-	
+
 	// Merge graphics settings
 	if loaded.Graphics.WindowWidth <= 0 {
 		loaded.Graphics.WindowWidth = defaults.Graphics.WindowWidth
@@ -258,7 +258,7 @@ func (sm *SettingsManager) validateAndMergeSettings(loaded *Settings) *Settings 
 	if loaded.Graphics.UIScale <= 0 {
 		loaded.Graphics.UIScale = defaults.Graphics.UIScale
 	}
-	
+
 	// Merge gameplay settings
 	if loaded.Gameplay.CameraSmoothing <= 0 {
 		loaded.Gameplay.CameraSmoothing = defaults.Gameplay.CameraSmoothing
@@ -266,7 +266,7 @@ func (sm *SettingsManager) validateAndMergeSettings(loaded *Settings) *Settings 
 	if loaded.Gameplay.MouseSensitivity <= 0 {
 		loaded.Gameplay.MouseSensitivity = defaults.Gameplay.MouseSensitivity
 	}
-	
+
 	// Ensure all key bindings exist
 	if loaded.Controls.KeyBindings == nil {
 		loaded.Controls.KeyBindings = make(map[ControlAction]ebiten.Key)
@@ -276,7 +276,7 @@ func (sm *SettingsManager) validateAndMergeSettings(loaded *Settings) *Settings 
 			loaded.Controls.KeyBindings[action] = defaultKey
 		}
 	}
-	
+
 	return loaded
 }
 
@@ -327,7 +327,7 @@ func (sm *SettingsManager) SetKeyBinding(action ControlAction, key ebiten.Key) e
 			return fmt.Errorf("key %v is already bound to %v", key, otherAction)
 		}
 	}
-	
+
 	sm.settings.Controls.KeyBindings[action] = key
 	sm.notifyCallbacks()
 	return sm.SaveSettings()
@@ -371,16 +371,16 @@ func (sm *SettingsManager) notifyCallbacks() {
 // ApplyGraphicsSettings applies graphics settings to Ebiten
 func (sm *SettingsManager) ApplyGraphicsSettings() {
 	graphics := &sm.settings.Graphics
-	
+
 	// Apply window size
 	ebiten.SetWindowSize(graphics.WindowWidth, graphics.WindowHeight)
-	
+
 	// Apply fullscreen
 	ebiten.SetFullscreen(graphics.Fullscreen)
-	
+
 	// Apply VSync
 	ebiten.SetVsyncEnabled(graphics.VSync)
-	
+
 	// Window title and other properties would be set by the main application
 }
 
@@ -438,7 +438,7 @@ func (sm *SettingsManager) ImportSettings(jsonData string) error {
 	if err := json.Unmarshal([]byte(jsonData), &imported); err != nil {
 		return fmt.Errorf("failed to parse imported settings: %w", err)
 	}
-	
+
 	sm.settings = sm.validateAndMergeSettings(&imported)
 	sm.notifyCallbacks()
 	return sm.SaveSettings()
