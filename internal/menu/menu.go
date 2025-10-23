@@ -12,7 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/opd-ai/vania/internal/input"
 	"github.com/opd-ai/vania/internal/save"
-	"github.com/opd-ai/vania/internal/settings"
+	settingspkg "github.com/opd-ai/vania/internal/settings"
 )
 
 // MenuType represents different menu types
@@ -61,7 +61,7 @@ type MenuManager struct {
 
 	// Settings
 	settings        *GameSettings
-	settingsManager *settings.SettingsManager
+	settingsManager *settingspkg.SettingsManager
 
 	// Visual properties
 	backgroundColor color.Color
@@ -101,6 +101,7 @@ func NewMenuManager() *MenuManager {
 	}
 
 	saveManager, _ := save.NewSaveManager("")
+	settingsManager := settingspkg.NewSettingsManager()
 
 	return &MenuManager{
 		currentMenu:     MainMenu,
@@ -110,6 +111,7 @@ func NewMenuManager() *MenuManager {
 		inputHandler:    input.NewInputHandler(),
 		saveManager:     saveManager,
 		settings:        settings,
+		settingsManager: settingsManager,
 		backgroundColor: color.RGBA{20, 20, 30, 255},
 		textColor:       color.RGBA{200, 200, 200, 255},
 		selectedColor:   color.RGBA{255, 255, 100, 255},
