@@ -10,6 +10,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/opd-ai/vania/internal/audio"
 	"github.com/opd-ai/vania/internal/entity"
 	"github.com/opd-ai/vania/internal/graphics"
@@ -49,6 +50,7 @@ type GameRunner struct {
 	itemMessage       string
 	itemMessageTimer  int
 	musicContext      *audio.MusicContext
+	showDebugInfo     bool
 }
 
 // NewGameRunner creates a new game runner
@@ -121,6 +123,7 @@ func NewGameRunner(game *Game) *GameRunner {
 		itemMessage:       "",
 		itemMessageTimer:  0,
 		musicContext:      audio.NewMusicContext(),
+		showDebugInfo:     false, // Debug info starts hidden
 	}
 }
 
@@ -137,6 +140,11 @@ func (gr *GameRunner) Update() error {
 	// Handle pause
 	if inputState.PausePress {
 		gr.paused = !gr.paused
+	}
+
+	// Handle debug toggle (F3 key)
+	if inpututil.IsKeyJustPressed(ebiten.KeyF3) {
+		gr.showDebugInfo = !gr.showDebugInfo
 	}
 
 	if gr.paused {
@@ -557,37 +565,50 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		ebitenutil.DebugPrintAt(screen, gr.itemMessage, messageX+10, messageY+12)
 	}
 
-	// Show debug info
-	aliveEnemies := 0
-	for _, enemy := range gr.enemyInstances {
-		if !enemy.IsDead() {
-			aliveEnemies++
+	// Show debug info if enabled (positioned below UI to avoid overlap)
+	if gr.showDebugInfo {
+		aliveEnemies := 0
+		for _, enemy := range gr.enemyInstances {
+			if !enemy.IsDead() {
+				aliveEnemies++
+			}
 		}
+
+		debugInfo := fmt.Sprintf("Seed: %d | Room: %s | FPS: %.2f | Enemies: %d/%d | Items: %d/%d\nPosition: (%.0f, %.0f) | Velocity: (%.1f, %.1f)\nHealth: %d/%d | OnGround: %v | Invuln: %v\nControls: WASD/Arrows=Move, Space=Jump, J=Attack, K=Dash, P=Pause, F3=Debug, Ctrl+Q=Quit",
+			gr.game.Seed,
+			gr.getCurrentRoomName(),
+			ebiten.ActualTPS(),
+			aliveEnemies,
+			len(gr.enemyInstances),
+			len(gr.collectedItems),
+			len(gr.game.Items),
+			gr.game.Player.X,
+			gr.game.Player.Y,
+			gr.game.Player.VelX,
+			gr.game.Player.VelY,
+			gr.game.Player.Health,
+			gr.game.Player.MaxHealth,
+			gr.playerBody.OnGround,
+			gr.combatSystem.IsInvulnerable(),
+		)
+
+		if gr.paused {
+			debugInfo = "PAUSED\nPress P to resume\n\n" + debugInfo
+		}
+
+		// Position debug info below health bar and abilities (start at Y=120)
+		debugX := 10
+		debugY := 120
+		ebitenutil.DebugPrintAt(screen, debugInfo, debugX, debugY)
 	}
 
-	debugInfo := fmt.Sprintf("Seed: %d | Room: %s | FPS: %.2f | Enemies: %d/%d | Items: %d/%d\nPosition: (%.0f, %.0f) | Velocity: (%.1f, %.1f)\nHealth: %d/%d | OnGround: %v | Invuln: %v\nControls: WASD/Arrows=Move, Space=Jump, J=Attack, K=Dash, P=Pause, Ctrl+Q=Quit",
-		gr.game.Seed,
-		gr.getCurrentRoomName(),
-		ebiten.ActualTPS(),
-		aliveEnemies,
-		len(gr.enemyInstances),
-		len(gr.collectedItems),
-		len(gr.game.Items),
-		gr.game.Player.X,
-		gr.game.Player.Y,
-		gr.game.Player.VelX,
-		gr.game.Player.VelY,
-		gr.game.Player.Health,
-		gr.game.Player.MaxHealth,
-		gr.playerBody.OnGround,
-		gr.combatSystem.IsInvulnerable(),
-	)
-
-	if gr.paused {
-		debugInfo = "PAUSED\nPress P to resume\n\n" + debugInfo
+	// Always show minimal controls hint in top-right corner if debug is off
+	if !gr.showDebugInfo {
+		controlsHint := "F3=Debug Info"
+		hintX := render.ScreenWidth - 100
+		hintY := 10
+		ebitenutil.DebugPrintAt(screen, controlsHint, hintX, hintY)
 	}
-
-	ebitenutil.DebugPrint(screen, debugInfo)
 }
 
 // Layout implements ebiten.Game interface
