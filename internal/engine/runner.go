@@ -22,6 +22,12 @@ import (
 	"github.com/opd-ai/vania/internal/world"
 )
 
+const (
+	// Message timing constants
+	lockedDoorMessageDuration = 120 // 2 seconds at 60 FPS
+	itemMessageDuration       = 120 // 2 seconds at 60 FPS
+)
+
 // GameRunner wraps the Game with Ebiten rendering
 type GameRunner struct {
 	game              *Game
@@ -533,36 +539,14 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 
 	// Show locked door message if active
 	if gr.lockedDoorTimer > 0 && gr.lockedDoorMessage != "" {
-		// Draw message in center of screen with background
-		messageX := render.ScreenWidth/2 - 100
-		messageY := render.ScreenHeight/2 - 20
-
-		// Draw semi-transparent background
-		messageImg := ebiten.NewImage(200, 40)
-		messageImg.Fill(color.RGBA{0, 0, 0, 180})
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(messageX), float64(messageY))
-		screen.DrawImage(messageImg, op)
-
-		// Draw text
-		ebitenutil.DebugPrintAt(screen, gr.lockedDoorMessage, messageX+10, messageY+12)
+		gr.renderMessageWithProgress(screen, gr.lockedDoorMessage, gr.lockedDoorTimer, lockedDoorMessageDuration,
+			render.ScreenWidth/2-100, render.ScreenHeight/2-20, color.RGBA{0, 0, 0, 180})
 	}
 
 	// Show item collection message if active
 	if gr.itemMessageTimer > 0 && gr.itemMessage != "" {
-		// Draw message in center-top of screen with background
-		messageX := render.ScreenWidth/2 - 100
-		messageY := 80
-
-		// Draw semi-transparent background
-		messageImg := ebiten.NewImage(200, 40)
-		messageImg.Fill(color.RGBA{255, 215, 0, 200}) // Golden background
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(messageX), float64(messageY))
-		screen.DrawImage(messageImg, op)
-
-		// Draw text
-		ebitenutil.DebugPrintAt(screen, gr.itemMessage, messageX+10, messageY+12)
+		gr.renderMessageWithProgress(screen, gr.itemMessage, gr.itemMessageTimer, itemMessageDuration,
+			render.ScreenWidth/2-100, 80, color.RGBA{255, 215, 0, 200})
 	}
 
 	// Show debug info if enabled (positioned below UI to avoid overlap)
@@ -756,7 +740,7 @@ func (gr *GameRunner) checkLockedDoorInteraction() {
 					} else {
 						gr.lockedDoorMessage = "Door is locked"
 					}
-					gr.lockedDoorTimer = 120 // Show for 2 seconds
+					gr.lockedDoorTimer = lockedDoorMessageDuration
 				}
 			}
 		}
@@ -774,7 +758,7 @@ func (gr *GameRunner) UnlockDoor(door *world.Door) {
 
 	// Show unlock message
 	gr.lockedDoorMessage = "Door unlocked!"
-	gr.lockedDoorTimer = 120 // Show for 2 seconds
+	gr.lockedDoorTimer = lockedDoorMessageDuration
 
 	// Create sparkle particle effect at door position
 	doorCenterX := float64(door.X) + float64(door.Width)/2
@@ -828,7 +812,7 @@ func (gr *GameRunner) collectItem(item *entity.ItemInstance) {
 
 	// Show message
 	gr.itemMessage = fmt.Sprintf("Collected: %s", item.Item.Name)
-	gr.itemMessageTimer = 120 // Show for 2 seconds
+	gr.itemMessageTimer = itemMessageDuration
 
 	// Create sparkle particle effect at item position
 	sparkleEmitter := gr.particlePresets.CreateSparkles(item.X, item.Y)
@@ -997,6 +981,75 @@ func createItemInstancesForRoom(room *world.Room, allItems []*entity.Item) []*en
 	return instances
 }
 
+
+// renderMessageWithProgress renders a message with a progress bar showing remaining time
+func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message string, currentTimer, maxDuration int, x, y int, bgColor color.Color) {
+	messageWidth := 200
+	messageHeight := 40
+	progressHeight := 3
+	
+	// Draw main message background
+	messageImg := ebiten.NewImage(messageWidth, messageHeight)
+	messageImg.Fill(bgColor)
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(x), float64(y))
+	screen.DrawImage(messageImg, opts)
+
+	// Draw text
+	ebitenutil.DebugPrintAt(screen, message, x+10, y+12)
+
+	// Calculate progress (0.0 to 1.0)
+	progress := float64(currentTimer) / float64(maxDuration)
+	if progress > 1.0 {
+		progress = 1.0
+	}
+	if progress < 0.0 {
+		progress = 0.0
+	}
+
+	// Draw progress bar background (darker)
+	progressBgImg := ebiten.NewImage(messageWidth-4, progressHeight)
+	progressBgImg.Fill(color.RGBA{0, 0, 0, 100})
+	opts = &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(x+2), float64(y+messageHeight-progressHeight-2))
+	screen.DrawImage(progressBgImg, opts)
+
+	// Draw progress bar fill (progress remaining)
+	progressWidth := int(float64(messageWidth-4) * progress)
+	if progressWidth > 0 {
+		progressImg := ebiten.NewImage(progressWidth, progressHeight)
+		
+		// Color progress bar based on remaining time
+		var progressColor color.Color
+		if progress > 0.5 {
+			// Green when lots of time left
+			progressColor = color.RGBA{100, 255, 100, 200}
+		} else if progress > 0.2 {
+			// Yellow when half time left
+			progressColor = color.RGBA{255, 255, 100, 200}
+		} else {
+			// Red when almost out of time
+			progressColor = color.RGBA{255, 100, 100, 200}
+		}
+		
+		progressImg.Fill(progressColor)
+		opts = &ebiten.DrawImageOptions{}
+		opts.GeoM.Translate(float64(x+2), float64(y+messageHeight-progressHeight-2))
+		screen.DrawImage(progressImg, opts)
+	}
+
+	// Add subtle border for better definition
+	borderImg := ebiten.NewImage(messageWidth+2, messageHeight+2)
+	borderImg.Fill(color.RGBA{255, 255, 255, 50})
+	opts = &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(x-1), float64(y-1))
+	screen.DrawImage(borderImg, opts)
+	
+	// Redraw main background on top of border
+	opts = &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(x), float64(y))
+	screen.DrawImage(messageImg, opts)
+}
 
 // updateMusicContext updates the music context based on current game state
 func (gr *GameRunner) updateMusicContext() {
