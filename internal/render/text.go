@@ -27,11 +27,11 @@ type DebugTextRenderer struct {
 	charHeight int
 }
 
-// NewDebugTextRenderer creates a debug text renderer with default font metrics
+// NewDebugTextRenderer creates a debug text renderer with standardized font metrics
 func NewDebugTextRenderer() *DebugTextRenderer {
 	return &DebugTextRenderer{
-		charWidth:  6,  // Approximate width of debug font characters
-		charHeight: 16, // Approximate height of debug font
+		charWidth:  8,  // Standardized to match bitmap renderer
+		charHeight: 12, // Standardized to match bitmap renderer
 	}
 }
 
@@ -426,7 +426,8 @@ type TextRenderManager struct {
 	useColor bool
 }
 
-// NewTextRenderManager creates a text render manager with primary and fallback renderers
+// NewTextRenderManager creates a text render manager with consistent font metrics
+// Both renderers use standardized 8x12 character dimensions for layout consistency
 func NewTextRenderManager(useColor bool) *TextRenderManager {
 	primary := NewBitmapTextRenderer()
 	fallback := NewDebugTextRenderer()
