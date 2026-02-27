@@ -35,9 +35,9 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 *Goal: ECS scaffold, seed-based PCG, rendering, and fully playable platforming in one genre (`fantasy` baseline).*
 
 #### ECS Framework
-- [ ] Component / Entity / System interfaces (`SetGenre(genreID string)` required on every **System**; see interface definition above)
-- [ ] System execution ordering and dependency graph
-- [ ] Entity lifecycle management (spawn, despawn, pooling)
+- [x] Component / Entity / System interfaces (`SetGenre(genreID string)` required on every **System**; see interface definition above)
+- [x] System execution ordering and dependency graph
+- [x] Entity lifecycle management (spawn, despawn, pooling)
 
 #### Seed-Based Deterministic RNG
 - [x] Master seed → subsystem seed derivation (`HashSeed` via SHA-256)
@@ -69,7 +69,7 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 
 #### Camera System
 - [x] Smooth follow camera with room-lock
-- [ ] Camera transition animations on room change
+- [x] Camera transition animations on room change
 - [x] Screen-shake on impact / explosion (`StartShake()` in `internal/camera`)
 
 #### Procedural Level Generation — Room Graph
@@ -87,17 +87,18 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 
 #### UI / HUD / Menus
 - [x] Health bar, ability indicators, seed display
-- [ ] Main menu, pause menu, options screen
+- [x] Main menu, pause menu, options screen
 - [ ] Genre-themed UI skin switchable via `SetGenre()`
 
 #### Save / Load
 - [x] Multiple save slots with checkpoint autosave
-- [ ] Slot selection screen
-- [ ] Seed embedded in save for reproducibility
+- [x] Slot selection screen
+- [x] Seed embedded in save for reproducibility
 
 #### Config / Settings
-- [ ] Resolution, volume, key bindings persisted to disk
-- [ ] CLI flags (`--seed`, `--play`, `--genre`)
+- [x] Resolution, volume, key bindings persisted to disk
+- [x] CLI flags (`--seed`, `--play`)
+- [ ] CLI flag `--genre`
 
 ---
 

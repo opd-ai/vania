@@ -20,13 +20,31 @@ Several ROADMAP items are already partially or fully addressed by existing code 
 
 ## Implementation Steps
 
-### Step 1 — Reconcile ROADMAP with existing code
+### Step 1 — Reconcile ROADMAP with existing code ✅ (2026-02-27)
 - **Deliverable**: Updated ROADMAP.md with checkmarks for items that are already implemented (menus, seed-in-save, settings persistence)
 - **Dependencies**: None
+- **Status**: COMPLETE — Updated ROADMAP.md to reflect existing implementations:
+  - Main menu, pause menu, settings menu ✅ (`internal/menu/`)
+  - Seed embedded in save ✅ (`SaveData.Seed` in `internal/save/`)
+  - Resolution, volume, key bindings persisted ✅ (`internal/settings/` → `~/.config/vania/settings.json`)
+  - CLI flags `--seed` and `--play` ✅ (in `cmd/game/main.go`)
+  - Camera transitions ✅ (`RoomTransitionHandler` in `internal/engine/transitions.go`)
+  - Save slot selection ✅ (`SaveLoadMenu` in `internal/menu/menu.go`)
+  - Remaining: `--genre` flag (deferred to Step 10)
 
-### Step 2 — ECS Framework: Interfaces and GenreSwitcher
+
+### Step 2 — ECS Framework: Interfaces and GenreSwitcher ✅ (2026-02-27)
 - **Deliverable**: `internal/engine/ecs/` package with `Component`, `Entity`, `System` interfaces; `GenreSwitcher` interface (`SetGenre(genreID string)`); genre ID constants (`fantasy`, `scifi`, `horror`, `cyberpunk`, `postapoc`)
 - **Dependencies**: None
+- **Status**: COMPLETE — Implemented ECS framework with:
+  - `Component` interface with `Type() ComponentType` method
+  - `Entity` struct with component management (Add/Get/Remove/Has)
+  - `System` interface with `Update(dt)`, `Draw(screen)`, and `SetGenre(genreID)` methods
+  - `GenreSwitcher` interface for genre-switching capability
+  - `GenreID` type with constants for all 5 genres
+  - Helper methods: `IsValid()`, `GetGenreName()`, `GetGenreDescription()`, `AllGenres()`, `DefaultGenre()`
+  - Comprehensive test coverage (100% for all files)
+  - All tests pass, no regressions
 - **Scope decision**: Genre switching is **startup-only** for v1.0 — `SetGenre()` is called once at game initialization from the `--genre` flag or seed-derived genre. Runtime mid-game genre switching is deferred to v2.0+.
 - **Details**:
   - Define `System` interface: `Update(dt float64)`, `Draw(screen)`, `SetGenre(genreID string)`
@@ -34,9 +52,21 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - Define `Entity` as a component container with unique ID
   - Register genre constants in `internal/pcg/genre/` or `internal/engine/ecs/`
 
-### Step 3 — ECS Framework: System ordering and entity lifecycle
+### Step 3 — ECS Framework: System ordering and entity lifecycle ✅ (2026-02-27)
 - **Deliverable**: `SystemManager` that executes systems in dependency order; `EntityManager` with spawn/despawn/pooling
 - **Dependencies**: Step 2
+- **Status**: COMPLETE — Implemented system and entity management:
+  - `SystemManager` with priority-based execution ordering
+  - System registration with `Register(system, priority)` and `Unregister(system)`
+  - Automatic sorting by priority (lower values execute first)
+  - Propagation of `Update()`, `Draw()`, and `SetGenre()` to all registered systems
+  - `EntityManager` with full lifecycle management
+  - Entity pooling for performance (default max pool size: 1000)
+  - Thread-safe operations with `sync.RWMutex`
+  - Query methods: `GetAll()`, `GetWithComponent(componentType)`, `GetActiveCount()`
+  - Pool management: `SetMaxPoolSize()`, `GetPoolSize()`, `Clear()`
+  - Comprehensive test coverage (100% for all new files)
+  - All tests pass, no regressions
 - **Details**:
   - `SystemManager.Register(system, priority int)` — systems run in priority order
   - `SystemManager.Update()` / `Draw()` — iterate registered systems
