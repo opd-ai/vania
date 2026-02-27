@@ -116,13 +116,15 @@ func TestJump(t *testing.T) {
 	body := NewBody(100, 100, 32, 32)
 	doubleJumpUsed := false
 
-	// Can't jump when not on ground and no double jump
+	// Can't jump when not on ground and no double jump and outside coyote window
+	body.FramesSinceGrounded = CoyoteFrames + 5 // Well outside coyote window
 	if body.Jump(false, &doubleJumpUsed) {
-		t.Error("Should not be able to jump when not on ground")
+		t.Error("Should not be able to jump when not on ground and outside coyote window")
 	}
 
 	// Can jump when on ground
 	body.OnGround = true
+	body.FramesSinceGrounded = 0
 	if !body.Jump(false, &doubleJumpUsed) {
 		t.Error("Should be able to jump when on ground")
 	}
@@ -133,6 +135,7 @@ func TestJump(t *testing.T) {
 
 	// Can double jump
 	body.OnGround = false
+	body.FramesSinceGrounded = CoyoteFrames + 5 // Outside coyote window
 	if !body.Jump(true, &doubleJumpUsed) {
 		t.Error("Should be able to double jump")
 	}
@@ -395,4 +398,356 @@ func TestVariableHeightJump(t *testing.T) {
 			t.Error("Mid-release jump should reach noticeable height")
 		}
 	})
+}
+
+func TestWallSlide(t *testing.T) {
+	testCases := []struct {
+		name         string
+		onWall       bool
+		wallSide     int
+		initialVelY  float64
+		expectedMaxY float64
+		description  string
+	}{
+		{
+			name:         "WallSlideActivates",
+			onWall:       true,
+			wallSide:     1,
+			initialVelY:  0.0,
+			expectedMaxY: WallSlideSpeed,
+			description:  "Fall speed should be capped at WallSlideSpeed when sliding on wall",
+		},
+		{
+			name:         "NoWallSlideInAir",
+			onWall:       false,
+			wallSide:     0,
+			initialVelY:  0.0,
+			expectedMaxY: MaxFallSpeed,
+			description:  "Fall speed should reach MaxFallSpeed when not on wall",
+		},
+		{
+			name:         "WallSlideOnLeftWall",
+			onWall:       true,
+			wallSide:     -1,
+			initialVelY:  0.0,
+			expectedMaxY: WallSlideSpeed,
+			description:  "Wall slide should work on left wall",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := NewBody(100, 100, 32, 32)
+			body.OnWall = tc.onWall
+			body.WallSide = tc.wallSide
+			body.Velocity.Y = tc.initialVelY
+
+			// Apply gravity for many frames to reach terminal velocity
+			for i := 0; i < 50; i++ {
+				body.ApplyGravity()
+			}
+
+			if body.Velocity.Y > tc.expectedMaxY+0.1 {
+				t.Errorf("%s: Fall speed %.2f exceeded expected max %.2f",
+					tc.description, body.Velocity.Y, tc.expectedMaxY)
+			}
+
+			// For wall-slide cases, verify it's significantly slower than max fall speed
+			if tc.onWall && body.Velocity.Y > WallSlideSpeed+0.1 {
+				t.Errorf("Wall slide not working: velocity %.2f > WallSlideSpeed %.2f",
+					body.Velocity.Y, WallSlideSpeed)
+			}
+		})
+	}
+}
+
+func TestCoyoteTime(t *testing.T) {
+	testCases := []struct {
+		name              string
+		framesSinceGround int
+		shouldAllowJump   bool
+		description       string
+	}{
+		{
+			name:              "JumpWithinCoyoteWindow",
+			framesSinceGround: 3,
+			shouldAllowJump:   true,
+			description:       "Should allow jump within coyote-time window",
+		},
+		{
+			name:              "JumpAtCoyoteEdge",
+			framesSinceGround: CoyoteFrames,
+			shouldAllowJump:   true,
+			description:       "Should allow jump exactly at coyote frame limit",
+		},
+		{
+			name:              "JumpAfterCoyoteExpired",
+			framesSinceGround: CoyoteFrames + 1,
+			shouldAllowJump:   false,
+			description:       "Should not allow jump after coyote-time expires",
+		},
+		{
+			name:              "JumpImmediatelyAfterLeaving",
+			framesSinceGround: 1,
+			shouldAllowJump:   true,
+			description:       "Should allow jump on first frame after leaving ground",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := NewBody(100, 100, 32, 32)
+			body.OnGround = false
+			body.FramesSinceGrounded = tc.framesSinceGround
+			doubleJumpUsed := false
+
+			result := body.Jump(false, &doubleJumpUsed)
+
+			if result != tc.shouldAllowJump {
+				t.Errorf("%s: Jump returned %v, expected %v", tc.description, result, tc.shouldAllowJump)
+			}
+
+			if tc.shouldAllowJump && body.Velocity.Y != PlayerJumpSpeed {
+				t.Errorf("Jump velocity incorrect: got %.2f, expected %.2f", body.Velocity.Y, PlayerJumpSpeed)
+			}
+		})
+	}
+}
+
+func TestJumpBuffer(t *testing.T) {
+	t.Run("BufferedJumpExecutesOnLanding", func(t *testing.T) {
+		// Start body above platform
+		body := NewBody(100, 460, 32, 32)
+		body.OnGround = false
+		body.Velocity.Y = 5.0
+
+		// Set buffer timer
+		body.JumpBufferTimer = JumpBufferFrames
+
+		// Create a platform for landing
+		platforms := []world.Platform{
+			{X: 50, Y: 500, Width: 200, Height: 32},
+		}
+
+		// Simulate frames until landing
+		landed := false
+		for i := 0; i < 10; i++ {
+			body.ApplyGravity()
+			body.Update()
+			body.ResolveCollisionWithPlatforms(platforms)
+
+			if body.OnGround {
+				landed = true
+				break
+			}
+		}
+
+		if !landed {
+			t.Error("Body should have landed on platform")
+			return
+		}
+
+		// Jump should have executed (negative velocity = upward)
+		if body.Velocity.Y >= 0 {
+			t.Errorf("Buffered jump should execute on landing, velocity.Y=%.2f", body.Velocity.Y)
+		}
+
+		if body.Velocity.Y != PlayerJumpSpeed {
+			t.Errorf("Expected jump velocity %.2f, got %.2f", PlayerJumpSpeed, body.Velocity.Y)
+		}
+	})
+
+	t.Run("BufferedJumpExpiresBeforeLanding", func(t *testing.T) {
+		// Position body high in air so it takes many frames to land
+		body := NewBody(100, 200, 32, 32)
+		body.OnGround = false
+		body.Velocity.Y = 1.0 // Start with small downward velocity
+
+		// Set buffer timer to expire quickly
+		body.JumpBufferTimer = 2
+
+		// Create a platform far below
+		platforms := []world.Platform{
+			{X: 50, Y: 500, Width: 200, Height: 32},
+		}
+
+		// Run until buffer expires
+		for i := 0; i < 3; i++ {
+			body.ApplyGravity()
+			body.Update()
+			body.ResolveCollisionWithPlatforms(platforms)
+		}
+
+		// Buffer should be expired now
+		if body.JumpBufferTimer != 0 {
+			t.Errorf("Buffer should have expired, got timer=%d", body.JumpBufferTimer)
+		}
+
+		// Continue until landing
+		for i := 0; i < 50; i++ {
+			body.ApplyGravity()
+			body.Update()
+			body.ResolveCollisionWithPlatforms(platforms)
+
+			if body.OnGround {
+				break
+			}
+		}
+
+		// Jump should NOT have executed (velocity should be 0 from landing, not negative from jump)
+		if body.Velocity.Y < 0 {
+			t.Errorf("Buffered jump should not execute after expiring, velocity.Y=%.2f", body.Velocity.Y)
+		}
+	})
+
+	t.Run("BufferedJumpAtEdge", func(t *testing.T) {
+		// Start body close to platform
+		body := NewBody(100, 460, 32, 32)
+		body.OnGround = false
+		body.Velocity.Y = 5.0
+
+		// Set buffer timer to exactly JumpBufferFrames
+		body.JumpBufferTimer = JumpBufferFrames
+
+		// Create a platform for landing
+		platforms := []world.Platform{
+			{X: 50, Y: 500, Width: 200, Height: 32},
+		}
+
+		// Simulate exactly JumpBufferFrames frames
+		landed := false
+		for i := 0; i < JumpBufferFrames; i++ {
+			body.ApplyGravity()
+			body.Update()
+			body.ResolveCollisionWithPlatforms(platforms)
+
+			if body.OnGround {
+				landed = true
+				break
+			}
+		}
+
+		// If landed within window, jump should execute
+		if landed && body.Velocity.Y >= 0 {
+			t.Error("Buffered jump should execute when landing at buffer edge")
+		}
+	})
+}
+
+func TestBufferJumpMethod(t *testing.T) {
+	body := NewBody(100, 100, 32, 32)
+
+	if body.JumpBufferTimer != 0 {
+		t.Error("JumpBufferTimer should start at 0")
+	}
+
+	body.BufferJump()
+
+	if body.JumpBufferTimer != JumpBufferFrames {
+		t.Errorf("BufferJump should set timer to %d, got %d", JumpBufferFrames, body.JumpBufferTimer)
+	}
+}
+
+func TestBufferDecrement(t *testing.T) {
+	body := NewBody(100, 100, 32, 32)
+	body.JumpBufferTimer = 5
+
+	// Simulate collision resolution which decrements buffer
+	platforms := []world.Platform{}
+	body.ResolveCollisionWithPlatforms(platforms)
+
+	if body.JumpBufferTimer != 4 {
+		t.Errorf("JumpBufferTimer should decrement to 4, got %d", body.JumpBufferTimer)
+	}
+
+	// Decrement to 0
+	for i := 0; i < 5; i++ {
+		body.ResolveCollisionWithPlatforms(platforms)
+	}
+
+	if body.JumpBufferTimer != 0 {
+		t.Errorf("JumpBufferTimer should not go below 0, got %d", body.JumpBufferTimer)
+	}
+}
+
+func TestCoyoteTimeTracking(t *testing.T) {
+	body := NewBody(100, 100, 32, 32)
+	platforms := []world.Platform{}
+
+	// Simulate being on ground initially
+	body.OnGround = true
+	body.FramesSinceGrounded = 0
+
+	// Call resolve to confirm we stay on ground
+	// (body.OnGround will be set to false then back to true if on ground)
+	// But with no platforms, it will be false
+	// So we need a platform or to manually set OnGround
+
+	// Actually, let's use the screen boundary as ground
+	body.Position.Y = 640 - body.Position.Height
+	body.Velocity.Y = 0
+	body.ResolveCollisionWithPlatforms(platforms)
+
+	if body.FramesSinceGrounded != 0 {
+		t.Errorf("FramesSinceGrounded should be 0 when on ground, got %d", body.FramesSinceGrounded)
+	}
+
+	// Move body up (off ground)
+	body.Position.Y = 500
+	body.OnGround = false
+
+	// First frame in air - should start counting
+	body.ResolveCollisionWithPlatforms(platforms)
+
+	if body.FramesSinceGrounded != 1 {
+		t.Errorf("FramesSinceGrounded should be 1 on first frame after leaving ground, got %d", body.FramesSinceGrounded)
+	}
+
+	// Continue in air for 5 more frames
+	for i := 0; i < 5; i++ {
+		body.ResolveCollisionWithPlatforms(platforms)
+	}
+
+	if body.FramesSinceGrounded != 6 {
+		t.Errorf("FramesSinceGrounded should be 6 after 6 frames in air, got %d", body.FramesSinceGrounded)
+	}
+
+	// Land again (use screen boundary)
+	body.Position.Y = 640 - body.Position.Height
+	body.Velocity.Y = 1 // Falling
+	body.ResolveCollisionWithPlatforms(platforms)
+
+	if body.FramesSinceGrounded != 0 {
+		t.Errorf("FramesSinceGrounded should reset to 0 on landing, got %d", body.FramesSinceGrounded)
+	}
+}
+
+func TestWallSlideAndCoyoteTimeCombination(t *testing.T) {
+	// Test that wall-slide doesn't interfere with coyote-time tracking
+	body := NewBody(100, 100, 32, 32)
+	body.OnGround = false
+	body.OnWall = true
+	body.WallSide = 1
+	body.FramesSinceGrounded = 2
+
+	doubleJumpUsed := false
+
+	// Should still allow jump via coyote-time even when on wall
+	if !body.Jump(false, &doubleJumpUsed) {
+		t.Error("Should allow jump via coyote-time even when on wall")
+	}
+}
+
+func TestJumpConsumesBuffer(t *testing.T) {
+	body := NewBody(100, 100, 32, 32)
+	body.OnGround = true
+	body.JumpBufferTimer = 5
+	doubleJumpUsed := false
+
+	// Execute jump
+	body.Jump(false, &doubleJumpUsed)
+
+	if body.JumpBufferTimer != 0 {
+		t.Error("Jump should consume buffer timer")
+	}
 }

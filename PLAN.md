@@ -89,13 +89,26 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - When jump button released during ascent, cap upward velocity (e.g., multiply by 0.5)
   - Preserves existing `PlayerJumpSpeed` as maximum jump velocity
 
-### Step 5 — Platforming physics: Wall-slide and coyote-time/jump-buffer
+### Step 5 — Platforming physics: Wall-slide and coyote-time/jump-buffer ✅ (2026-02-27)
 - **Deliverable**: Wall-slide mechanic (slow downward slide on wall contact); coyote-time (grace period after leaving ledge); jump-buffer (queue jump input before landing)
 - **Dependencies**: Step 4
+- **Status**: COMPLETE — Implemented advanced platforming mechanics:
+  - Wall-slide: Reduced fall speed to `WallSlideSpeed` (2.0) when on wall and falling
+  - Coyote-time: 6-frame grace period (100ms) after leaving ground during which jump is still allowed
+  - Jump-buffer: 6-frame window to queue jump input that executes upon landing
+  - Added physics constants: `WallSlideSpeed`, `CoyoteFrames`, `JumpBufferFrames`
+  - Added Body fields: `FramesSinceGrounded`, `JumpBufferTimer`
+  - Enhanced `ApplyGravity()` to cap fall speed when wall-sliding
+  - Enhanced `ResolveCollisionWithPlatforms()` to track coyote-time and execute buffered jumps
+  - Enhanced `Jump()` to support coyote-time window
+  - Added `BufferJump()` method for input buffering
+  - Integrated jump buffering in game runner (`runner.go`)
+  - Comprehensive test coverage with 12 new test cases covering all mechanics
+  - All existing tests pass, no regressions
 - **Details**:
-  - Wall-slide: When `Body.OnWall && !Body.OnGround && velocity.Y > 0`, reduce fall speed to `WallSlideSpeed` (e.g., 2.0)
-  - Coyote-time: Track frames since last grounded; allow jump within window (e.g., 6 frames / ~100ms)
-  - Jump-buffer: Track frames since jump pressed; execute jump if landing within window (e.g., 6 frames)
+  - Wall-slide: When `Body.OnWall && !Body.OnGround && velocity.Y > 0`, reduce fall speed to `WallSlideSpeed` (2.0)
+  - Coyote-time: Track frames since last grounded; allow jump within window (6 frames / ~100ms)
+  - Jump-buffer: Track frames since jump pressed; execute jump if landing within window (6 frames)
   - Add constants: `WallSlideSpeed`, `CoyoteFrames`, `JumpBufferFrames`
 
 ### Step 6 — Platforming physics: Glide and grapple hook

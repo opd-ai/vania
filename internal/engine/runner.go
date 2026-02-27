@@ -226,6 +226,9 @@ func (gr *GameRunner) Update() error {
 			emitter := gr.particlePresets.CreateJumpDust(gr.game.Player.X+16, gr.game.Player.Y+32)
 			emitter.Burst(8)
 			gr.particleSystem.AddEmitter(emitter)
+		} else {
+			// Jump conditions not met - buffer the input
+			gr.playerBody.BufferJump()
 		}
 	}
 
