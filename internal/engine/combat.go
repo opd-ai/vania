@@ -8,6 +8,28 @@ import (
 	"github.com/opd-ai/vania/internal/entity"
 )
 
+const (
+	// ParryWindowFrames is the active frame window during which parry can deflect attacks.
+	// At 60fps, 8 frames = ~133ms, requiring precise timing from the player.
+	ParryWindowFrames = 8
+
+	// ParryCooldownFrames is the cooldown after a parry attempt before another can be initiated.
+	ParryCooldownFrames = 30
+
+	// StaggerDurationFrames is how long an entity remains staggered after being hit.
+	// During stagger, the entity cannot attack or use abilities.
+	StaggerDurationFrames = 20
+)
+
+// DamageNumber represents floating damage text
+type DamageNumber struct {
+	Value    int
+	X, Y     float64
+	VelY     float64
+	LifeTime int
+	IsCrit   bool
+}
+
 // CombatSystem manages all combat interactions
 type CombatSystem struct {
 	playerAttackCooldown int
@@ -16,6 +38,19 @@ type CombatSystem struct {
 	knockbackVelX        float64
 	knockbackVelY        float64
 	invulnerableFrames   int
+
+	// Parry system
+	playerParrying     bool
+	parryFrame         int
+	parryCooldown      int
+	lastParrySucceeded bool
+
+	// Stagger system
+	playerStaggered   bool
+	playerStaggerTime int
+
+	// Damage numbers for visual feedback
+	damageNumbers []DamageNumber
 }
 
 // NewCombatSystem creates a new combat system
@@ -27,6 +62,13 @@ func NewCombatSystem() *CombatSystem {
 		knockbackVelX:        0,
 		knockbackVelY:        0,
 		invulnerableFrames:   0,
+		playerParrying:       false,
+		parryFrame:           0,
+		parryCooldown:        0,
+		lastParrySucceeded:   false,
+		playerStaggered:      false,
+		playerStaggerTime:    0,
+		damageNumbers:        make([]DamageNumber, 0),
 	}
 }
 
@@ -47,11 +89,45 @@ func (cs *CombatSystem) Update() {
 	if cs.invulnerableFrames > 0 {
 		cs.invulnerableFrames--
 	}
+
+	// Update parry state
+	if cs.parryCooldown > 0 {
+		cs.parryCooldown--
+	}
+
+	if cs.playerParrying {
+		cs.parryFrame++
+		if cs.parryFrame > ParryWindowFrames {
+			cs.playerParrying = false
+			cs.parryFrame = 0
+			cs.parryCooldown = ParryCooldownFrames
+		}
+	}
+
+	// Update stagger state
+	if cs.playerStaggered {
+		cs.playerStaggerTime--
+		if cs.playerStaggerTime <= 0 {
+			cs.playerStaggered = false
+		}
+	}
+
+	// Update damage numbers
+	for i := len(cs.damageNumbers) - 1; i >= 0; i-- {
+		cs.damageNumbers[i].Y -= cs.damageNumbers[i].VelY
+		cs.damageNumbers[i].VelY *= 0.95 // Decelerate
+		cs.damageNumbers[i].LifeTime--
+
+		if cs.damageNumbers[i].LifeTime <= 0 {
+			// Remove expired damage number
+			cs.damageNumbers = append(cs.damageNumbers[:i], cs.damageNumbers[i+1:]...)
+		}
+	}
 }
 
 // PlayerAttack initiates a player attack
 func (cs *CombatSystem) PlayerAttack() bool {
-	if cs.playerAttackCooldown <= 0 {
+	if cs.playerAttackCooldown <= 0 && !cs.playerStaggered {
 		cs.playerAttacking = true
 		cs.playerAttackFrame = 0
 		cs.playerAttackCooldown = 20 // 20 frames between attacks
@@ -60,9 +136,45 @@ func (cs *CombatSystem) PlayerAttack() bool {
 	return false
 }
 
-// CanAttack returns true if player can attack (not on cooldown)
+// PlayerParry initiates a parry attempt
+func (cs *CombatSystem) PlayerParry() bool {
+	if cs.parryCooldown <= 0 && !cs.playerStaggered && !cs.playerAttacking && !cs.playerParrying {
+		cs.playerParrying = true
+		cs.parryFrame = 0
+		cs.lastParrySucceeded = false
+		return true
+	}
+	return false
+}
+
+// CanAttack returns true if player can attack (not on cooldown or staggered)
 func (cs *CombatSystem) CanAttack() bool {
-	return cs.playerAttackCooldown <= 0
+	return cs.playerAttackCooldown <= 0 && !cs.playerStaggered
+}
+
+// CanParry returns true if player can parry (not on cooldown, staggered, attacking, or already parrying)
+func (cs *CombatSystem) CanParry() bool {
+	return cs.parryCooldown <= 0 && !cs.playerStaggered && !cs.playerAttacking && !cs.playerParrying
+}
+
+// IsPlayerParrying returns if player is currently in parry frames
+func (cs *CombatSystem) IsPlayerParrying() bool {
+	return cs.playerParrying
+}
+
+// IsInParryWindow returns if player is within the active parry window
+func (cs *CombatSystem) IsInParryWindow() bool {
+	return cs.playerParrying && cs.parryFrame <= ParryWindowFrames
+}
+
+// IsPlayerStaggered returns if player is currently staggered
+func (cs *CombatSystem) IsPlayerStaggered() bool {
+	return cs.playerStaggered
+}
+
+// GetStaggerFrames returns remaining stagger frames
+func (cs *CombatSystem) GetStaggerFrames() int {
+	return cs.playerStaggerTime
 }
 
 // IsPlayerAttacking returns if player is currently attacking
@@ -118,6 +230,9 @@ func (cs *CombatSystem) ApplyDamageToEnemy(enemy *entity.EnemyInstance, damage i
 
 	enemy.VelX = knockbackDir * 5.0
 	enemy.VelY = -3.0
+
+	// Spawn damage number
+	cs.AddDamageNumber(damage, enemy.X, enemy.Y-10, false)
 }
 
 // CheckPlayerEnemyCollision checks if player touched enemy
@@ -140,6 +255,18 @@ func (cs *CombatSystem) ApplyDamageToPlayer(player *Player, damage int, enemyX f
 		return // Player is invulnerable
 	}
 
+	// Check for successful parry
+	if cs.IsInParryWindow() {
+		cs.lastParrySucceeded = true
+		cs.playerParrying = false
+		cs.parryFrame = 0
+		cs.parryCooldown = ParryCooldownFrames / 2 // Shorter cooldown on successful parry
+
+		// Spawn damage number showing "PARRY!"
+		cs.AddDamageNumber(0, player.X, player.Y-20, false)
+		return
+	}
+
 	player.Health -= damage
 	if player.Health < 0 {
 		player.Health = 0
@@ -154,8 +281,15 @@ func (cs *CombatSystem) ApplyDamageToPlayer(player *Player, damage int, enemyX f
 	cs.knockbackVelX = knockbackDir * 8.0
 	cs.knockbackVelY = -5.0
 
+	// Apply stagger
+	cs.playerStaggered = true
+	cs.playerStaggerTime = StaggerDurationFrames
+
 	// Invulnerability frames
 	cs.invulnerableFrames = 60 // 1 second of invulnerability
+
+	// Spawn damage number
+	cs.AddDamageNumber(damage, player.X, player.Y-10, false)
 }
 
 // GetKnockback returns current knockback velocity
@@ -185,4 +319,31 @@ func (cs *CombatSystem) IsInvulnerable() bool {
 // GetInvulnerableFrames returns remaining invulnerable frames
 func (cs *CombatSystem) GetInvulnerableFrames() int {
 	return cs.invulnerableFrames
+}
+
+// AddDamageNumber adds a floating damage number for visual feedback
+func (cs *CombatSystem) AddDamageNumber(damage int, x, y float64, isCrit bool) {
+	cs.damageNumbers = append(cs.damageNumbers, DamageNumber{
+		Value:    damage,
+		X:        x,
+		Y:        y,
+		VelY:     2.0, // Initial upward velocity
+		LifeTime: 60,  // 1 second at 60fps
+		IsCrit:   isCrit,
+	})
+}
+
+// GetDamageNumbers returns all active damage numbers for rendering
+func (cs *CombatSystem) GetDamageNumbers() []DamageNumber {
+	return cs.damageNumbers
+}
+
+// LastParrySucceeded returns if the last parry successfully deflected an attack
+func (cs *CombatSystem) LastParrySucceeded() bool {
+	return cs.lastParrySucceeded
+}
+
+// ClearLastParrySuccess clears the last parry success flag
+func (cs *CombatSystem) ClearLastParrySuccess() {
+	cs.lastParrySucceeded = false
 }

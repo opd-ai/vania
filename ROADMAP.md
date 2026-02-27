@@ -108,9 +108,9 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 #### Combat System — Melee & Ranged
 - [x] Melee attack (swing hitbox, combo chain)
 - [x] Ranged attack (projectile with falloff)
-- [ ] Block / parry with timing window
-- [ ] Knockback and stagger states
-- [ ] Damage numbers HUD
+- [x] Block / parry with timing window
+- [x] Knockback and stagger states
+- [x] Damage numbers HUD
 
 #### Status Effects
 - [ ] Burn, freeze, shock, poison, bleed, slow, haste

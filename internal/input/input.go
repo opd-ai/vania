@@ -25,6 +25,8 @@ type InputState struct {
 	Dash        bool
 	DashPress   bool
 	UseAbility  bool
+	Block       bool // Hold to block/parry
+	BlockPress  bool // True only on the frame block was pressed
 	Pause       bool
 	PausePress  bool
 }
@@ -50,6 +52,7 @@ type KeyMapping struct {
 	Attack     []ebiten.Key
 	Dash       []ebiten.Key
 	UseAbility []ebiten.Key
+	Block      []ebiten.Key
 	Pause      []ebiten.Key
 }
 
@@ -62,6 +65,7 @@ func DefaultKeyMapping() *KeyMapping {
 		Attack:     []ebiten.Key{ebiten.KeyJ, ebiten.KeyZ},
 		Dash:       []ebiten.Key{ebiten.KeyK, ebiten.KeyX},
 		UseAbility: []ebiten.Key{ebiten.KeyL, ebiten.KeyC},
+		Block:      []ebiten.Key{ebiten.KeyS, ebiten.KeyArrowDown, ebiten.KeyShiftLeft},
 		Pause:      []ebiten.Key{ebiten.KeyEscape, ebiten.KeyP},
 	}
 }
@@ -142,6 +146,10 @@ func (ih *InputHandler) Update() InputState {
 
 	// Use ability (not buffered)
 	state.UseAbility = ih.isAnyKeyPressed(ih.keyMapping.UseAbility)
+
+	// Block/Parry (not buffered - requires precise timing)
+	state.Block = ih.isAnyKeyPressed(ih.keyMapping.Block)
+	state.BlockPress = ih.isAnyKeyJustPressed(ih.keyMapping.Block)
 
 	// Pause (not buffered)
 	state.Pause = ih.isAnyKeyPressed(ih.keyMapping.Pause)

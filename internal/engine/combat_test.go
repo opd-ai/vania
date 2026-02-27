@@ -308,3 +308,393 @@ func TestCombatSystemUpdate(t *testing.T) {
 		t.Errorf("Expected invuln frames 29, got %d", cs.invulnerableFrames)
 	}
 }
+
+// Tests for parry system
+
+func TestPlayerParry(t *testing.T) {
+	cs := NewCombatSystem()
+
+	// First parry should succeed
+	if !cs.PlayerParry() {
+		t.Error("Expected first parry to succeed")
+	}
+
+	if !cs.IsPlayerParrying() {
+		t.Error("Expected player to be parrying")
+	}
+
+	// Second parry should fail while still parrying
+	if cs.PlayerParry() {
+		t.Error("Expected second parry to fail while still parrying")
+	}
+
+	// Complete the parry window
+	for i := 0; i <= ParryWindowFrames; i++ {
+		cs.Update()
+	}
+
+	// Now on cooldown, should still fail
+	if cs.PlayerParry() {
+		t.Error("Expected parry to fail during cooldown")
+	}
+}
+
+func TestParryWindowFrames(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.PlayerParry()
+
+	// Within parry window
+	for i := 0; i < ParryWindowFrames; i++ {
+		if !cs.IsInParryWindow() {
+			t.Errorf("Expected to be in parry window at frame %d", i)
+		}
+		cs.Update()
+	}
+
+	// After parry window
+	cs.Update()
+	if cs.IsInParryWindow() {
+		t.Error("Expected to be outside parry window after duration")
+	}
+
+	// Parry should end
+	if cs.IsPlayerParrying() {
+		t.Error("Expected parry to end after window")
+	}
+}
+
+func TestParryCooldown(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.PlayerParry()
+
+	// Complete parry window
+	for i := 0; i <= ParryWindowFrames; i++ {
+		cs.Update()
+	}
+
+	// Should be on cooldown
+	if cs.CanParry() {
+		t.Error("Expected parry to be on cooldown")
+	}
+
+	// Cooldown should expire
+	for i := 0; i < ParryCooldownFrames; i++ {
+		cs.Update()
+	}
+
+	if !cs.CanParry() {
+		t.Error("Expected parry cooldown to have expired")
+	}
+}
+
+func TestParryBlocksAttack(t *testing.T) {
+	cs := NewCombatSystem()
+
+	player := &Player{
+		Health:    100,
+		MaxHealth: 100,
+		X:         100,
+		Y:         100,
+	}
+
+	cs.PlayerParry()
+
+	// Advance to within parry window
+	cs.Update()
+	cs.Update()
+
+	// Attack during parry window should be blocked
+	cs.ApplyDamageToPlayer(player, 25, 150)
+
+	if player.Health != 100 {
+		t.Error("Expected parry to block damage")
+	}
+
+	if cs.lastParrySucceeded != true {
+		t.Error("Expected lastParrySucceeded to be true")
+	}
+
+	// Should not be invulnerable (parry doesn't grant invuln)
+	if cs.invulnerableFrames > 0 {
+		t.Error("Expected no invulnerability from parry")
+	}
+}
+
+func TestParryOutsideWindowTakesDamage(t *testing.T) {
+	cs := NewCombatSystem()
+
+	player := &Player{
+		Health:    100,
+		MaxHealth: 100,
+		X:         100,
+		Y:         100,
+	}
+
+	cs.PlayerParry()
+
+	// Advance past parry window
+	for i := 0; i <= ParryWindowFrames+5; i++ {
+		cs.Update()
+	}
+
+	// Attack after parry window should deal damage
+	cs.ApplyDamageToPlayer(player, 25, 150)
+
+	if player.Health >= 100 {
+		t.Error("Expected damage to go through after parry window")
+	}
+}
+
+func TestCannotParryWhileAttacking(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.PlayerAttack()
+
+	if cs.CanParry() {
+		t.Error("Expected cannot parry while attacking")
+	}
+
+	if cs.PlayerParry() {
+		t.Error("Expected parry to fail while attacking")
+	}
+}
+
+func TestCannotParryWhileStaggered(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.playerStaggered = true
+	cs.playerStaggerTime = 10
+
+	if cs.CanParry() {
+		t.Error("Expected cannot parry while staggered")
+	}
+
+	if cs.PlayerParry() {
+		t.Error("Expected parry to fail while staggered")
+	}
+}
+
+// Tests for stagger system
+
+func TestStaggerPreventsActions(t *testing.T) {
+	cs := NewCombatSystem()
+
+	player := &Player{Health: 100, MaxHealth: 100, X: 100, Y: 100}
+
+	// Take damage to trigger stagger
+	cs.ApplyDamageToPlayer(player, 10, 150)
+
+	if !cs.IsPlayerStaggered() {
+		t.Error("Expected player to be staggered after damage")
+	}
+
+	// Cannot attack while staggered
+	if cs.CanAttack() {
+		t.Error("Expected cannot attack while staggered")
+	}
+
+	if cs.PlayerAttack() {
+		t.Error("Expected attack to fail while staggered")
+	}
+
+	// Cannot parry while staggered
+	if cs.CanParry() {
+		t.Error("Expected cannot parry while staggered")
+	}
+}
+
+func TestStaggerDuration(t *testing.T) {
+	cs := NewCombatSystem()
+
+	player := &Player{Health: 100, MaxHealth: 100, X: 100, Y: 100}
+
+	cs.ApplyDamageToPlayer(player, 10, 150)
+
+	initialStagger := cs.GetStaggerFrames()
+	if initialStagger != StaggerDurationFrames {
+		t.Errorf("Expected stagger duration %d, got %d", StaggerDurationFrames, initialStagger)
+	}
+
+	// Stagger should decay
+	cs.Update()
+	if cs.GetStaggerFrames() >= initialStagger {
+		t.Error("Expected stagger time to decrease")
+	}
+
+	// Stagger should eventually end
+	for i := 0; i < StaggerDurationFrames; i++ {
+		cs.Update()
+	}
+
+	if cs.IsPlayerStaggered() {
+		t.Error("Expected stagger to end after duration")
+	}
+
+	// Should be able to attack after stagger ends
+	if !cs.CanAttack() {
+		t.Error("Expected to be able to attack after stagger ends")
+	}
+}
+
+// Tests for damage numbers
+
+func TestAddDamageNumber(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.AddDamageNumber(25, 100.0, 100.0, false)
+
+	numbers := cs.GetDamageNumbers()
+	if len(numbers) != 1 {
+		t.Errorf("Expected 1 damage number, got %d", len(numbers))
+	}
+
+	if numbers[0].Value != 25 {
+		t.Errorf("Expected damage value 25, got %d", numbers[0].Value)
+	}
+
+	if numbers[0].X != 100.0 || numbers[0].Y != 100.0 {
+		t.Errorf("Expected position (100, 100), got (%.1f, %.1f)", numbers[0].X, numbers[0].Y)
+	}
+
+	if numbers[0].IsCrit {
+		t.Error("Expected non-crit damage")
+	}
+}
+
+func TestDamageNumberLifetime(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.AddDamageNumber(10, 100.0, 100.0, false)
+
+	initialLifetime := cs.GetDamageNumbers()[0].LifeTime
+
+	// Update should decrease lifetime
+	cs.Update()
+
+	numbers := cs.GetDamageNumbers()
+	if len(numbers) == 0 {
+		t.Fatal("Expected damage number to still exist")
+	}
+
+	if numbers[0].LifeTime >= initialLifetime {
+		t.Error("Expected lifetime to decrease")
+	}
+}
+
+func TestDamageNumberExpiration(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.AddDamageNumber(10, 100.0, 100.0, false)
+
+	// Update for longer than lifetime
+	for i := 0; i < 100; i++ {
+		cs.Update()
+	}
+
+	numbers := cs.GetDamageNumbers()
+	if len(numbers) != 0 {
+		t.Error("Expected damage number to be removed after expiration")
+	}
+}
+
+func TestMultipleDamageNumbers(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.AddDamageNumber(10, 100.0, 100.0, false)
+	cs.AddDamageNumber(20, 200.0, 200.0, true)
+	cs.AddDamageNumber(30, 300.0, 300.0, false)
+
+	numbers := cs.GetDamageNumbers()
+	if len(numbers) != 3 {
+		t.Errorf("Expected 3 damage numbers, got %d", len(numbers))
+	}
+
+	// Verify each is independent
+	if numbers[0].Value == numbers[1].Value {
+		t.Error("Expected different damage values")
+	}
+
+	if !numbers[1].IsCrit {
+		t.Error("Expected second damage to be crit")
+	}
+}
+
+func TestDamageNumberMovement(t *testing.T) {
+	cs := NewCombatSystem()
+
+	cs.AddDamageNumber(10, 100.0, 100.0, false)
+
+	initialY := cs.GetDamageNumbers()[0].Y
+
+	// Update should move damage number
+	cs.Update()
+
+	numbers := cs.GetDamageNumbers()
+	if len(numbers) == 0 {
+		t.Fatal("Expected damage number to still exist")
+	}
+
+	// Y should change (moving upward)
+	if numbers[0].Y == initialY {
+		t.Error("Expected damage number to move")
+	}
+}
+
+func TestDamageNumberAddedOnEnemyHit(t *testing.T) {
+	cs := NewCombatSystem()
+
+	enemy := &entity.Enemy{Health: 50}
+	instance := entity.NewEnemyInstance(enemy, 100, 100)
+
+	cs.ApplyDamageToEnemy(instance, 15, 50)
+
+	numbers := cs.GetDamageNumbers()
+	if len(numbers) != 1 {
+		t.Errorf("Expected 1 damage number from enemy hit, got %d", len(numbers))
+	}
+
+	if numbers[0].Value != 15 {
+		t.Errorf("Expected damage value 15, got %d", numbers[0].Value)
+	}
+}
+
+func TestDamageNumberAddedOnPlayerHit(t *testing.T) {
+	cs := NewCombatSystem()
+
+	player := &Player{Health: 100, MaxHealth: 100, X: 100, Y: 100}
+
+	cs.ApplyDamageToPlayer(player, 20, 150)
+
+	numbers := cs.GetDamageNumbers()
+	if len(numbers) != 1 {
+		t.Errorf("Expected 1 damage number from player hit, got %d", len(numbers))
+	}
+
+	if numbers[0].Value != 20 {
+		t.Errorf("Expected damage value 20, got %d", numbers[0].Value)
+	}
+}
+
+func TestParryDamageNumber(t *testing.T) {
+	cs := NewCombatSystem()
+
+	player := &Player{Health: 100, MaxHealth: 100, X: 100, Y: 100}
+
+	cs.PlayerParry()
+	cs.Update()
+
+	// Attack during parry
+	cs.ApplyDamageToPlayer(player, 25, 150)
+
+	numbers := cs.GetDamageNumbers()
+	if len(numbers) != 1 {
+		t.Errorf("Expected 1 damage number for parry feedback, got %d", len(numbers))
+	}
+
+	// Parry damage number has value 0 (special marker)
+	if numbers[0].Value != 0 {
+		t.Errorf("Expected parry damage number value 0, got %d", numbers[0].Value)
+	}
+}

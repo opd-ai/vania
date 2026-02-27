@@ -1016,3 +1016,67 @@ func (r *Renderer) RenderItem(screen *ebiten.Image, x, y, width, height float64,
 	innerOpts.GeoM.Translate(x+float64(int(width)-innerSize)/2, y+float64(int(height)-innerSize)/2)
 	screen.DrawImage(innerImg, innerOpts)
 }
+
+// RenderDamageNumbers draws floating damage numbers to the screen
+func (r *Renderer) RenderDamageNumbers(screen *ebiten.Image, damageNumbers []DamageNumber) {
+	for _, dmg := range damageNumbers {
+		// Calculate screen position
+		screenX := dmg.X - r.camera.X
+		screenY := dmg.Y - r.camera.Y
+
+		// Skip if off-screen
+		if screenX < -50 || screenX > float64(ScreenWidth)+50 ||
+			screenY < -50 || screenY > float64(ScreenHeight)+50 {
+			continue
+		}
+
+		// Choose color based on damage type
+		var col color.Color
+		var text string
+
+		if dmg.Value == 0 {
+			// Special case: parry feedback
+			col = color.RGBA{100, 200, 255, 255} // Bright blue
+			text = "PARRY!"
+		} else if dmg.IsCrit {
+			col = color.RGBA{255, 100, 100, 255} // Red for crits
+			text = formatDamageText(dmg.Value, true)
+		} else {
+			col = color.RGBA{255, 255, 255, 255} // White for normal damage
+			text = formatDamageText(dmg.Value, false)
+		}
+
+		// Apply fade based on lifetime
+		if dmg.LifeTime < 15 {
+			// Fade out in last 15 frames
+			alpha := uint8((dmg.LifeTime * 255) / 15)
+			switch c := col.(type) {
+			case color.RGBA:
+				c.A = alpha
+				col = c
+			}
+		}
+
+		// Render text
+		r.textManager.DrawText(screen, text, int(screenX), int(screenY), col)
+	}
+}
+
+// DamageNumber represents floating damage text (duplicated from engine package for rendering)
+type DamageNumber struct {
+	Value    int
+	X, Y     float64
+	VelY     float64
+	LifeTime int
+	IsCrit   bool
+}
+
+func formatDamageText(value int, isCrit bool) string {
+	if isCrit {
+		return "!" + string(rune('0'+value/10)) + string(rune('0'+value%10)) + "!"
+	}
+	if value < 10 {
+		return string(rune('0' + value))
+	}
+	return string(rune('0'+value/10)) + string(rune('0'+value%10))
+}
