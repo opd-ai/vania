@@ -7,6 +7,12 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
+const (
+	// BufferFrames is the window (in frames at 60fps) during which actions
+	// are buffered and will execute when conditions are met. Industry standard: ~100ms = 6 frames.
+	BufferFrames = 6
+)
+
 // InputState represents the current input state
 type InputState struct {
 	MoveLeft    bool
@@ -23,50 +29,166 @@ type InputState struct {
 	PausePress  bool
 }
 
-// InputHandler manages input processing
-type InputHandler struct {
-	prevState InputState
+// BufferedInput tracks buffered action inputs
+type BufferedInput struct {
+	AttackBuffer int // Countdown timer for buffered attack
+	DashBuffer   int // Countdown timer for buffered dash
 }
 
-// NewInputHandler creates a new input handler
-func NewInputHandler() *InputHandler {
-	return &InputHandler{
-		prevState: InputState{},
+// InputHandler manages input processing with rebindable controls
+type InputHandler struct {
+	prevState  InputState
+	buffered   BufferedInput
+	keyMapping *KeyMapping
+}
+
+// KeyMapping defines rebindable key bindings for all actions
+type KeyMapping struct {
+	MoveLeft   []ebiten.Key
+	MoveRight  []ebiten.Key
+	Jump       []ebiten.Key
+	Attack     []ebiten.Key
+	Dash       []ebiten.Key
+	UseAbility []ebiten.Key
+	Pause      []ebiten.Key
+}
+
+// DefaultKeyMapping returns the default key configuration
+func DefaultKeyMapping() *KeyMapping {
+	return &KeyMapping{
+		MoveLeft:   []ebiten.Key{ebiten.KeyA, ebiten.KeyArrowLeft},
+		MoveRight:  []ebiten.Key{ebiten.KeyD, ebiten.KeyArrowRight},
+		Jump:       []ebiten.Key{ebiten.KeySpace, ebiten.KeyW, ebiten.KeyArrowUp},
+		Attack:     []ebiten.Key{ebiten.KeyJ, ebiten.KeyZ},
+		Dash:       []ebiten.Key{ebiten.KeyK, ebiten.KeyX},
+		UseAbility: []ebiten.Key{ebiten.KeyL, ebiten.KeyC},
+		Pause:      []ebiten.Key{ebiten.KeyEscape, ebiten.KeyP},
 	}
 }
 
-// Update reads current input state
+// NewInputHandler creates a new input handler with default key bindings
+func NewInputHandler() *InputHandler {
+	return &InputHandler{
+		prevState:  InputState{},
+		buffered:   BufferedInput{},
+		keyMapping: DefaultKeyMapping(),
+	}
+}
+
+// NewInputHandlerWithMapping creates a new input handler with custom key bindings
+func NewInputHandlerWithMapping(mapping *KeyMapping) *InputHandler {
+	return &InputHandler{
+		prevState:  InputState{},
+		buffered:   BufferedInput{},
+		keyMapping: mapping,
+	}
+}
+
+// SetKeyMapping updates the key bindings
+func (ih *InputHandler) SetKeyMapping(mapping *KeyMapping) {
+	ih.keyMapping = mapping
+}
+
+// isAnyKeyPressed checks if any key in the list is pressed
+func (ih *InputHandler) isAnyKeyPressed(keys []ebiten.Key) bool {
+	for _, key := range keys {
+		if ebiten.IsKeyPressed(key) {
+			return true
+		}
+	}
+	return false
+}
+
+// isAnyKeyJustPressed checks if any key in the list was just pressed
+func (ih *InputHandler) isAnyKeyJustPressed(keys []ebiten.Key) bool {
+	for _, key := range keys {
+		if inpututil.IsKeyJustPressed(key) {
+			return true
+		}
+	}
+	return false
+}
+
+// isAnyKeyJustReleased checks if any key in the list was just released
+func (ih *InputHandler) isAnyKeyJustReleased(keys []ebiten.Key) bool {
+	for _, key := range keys {
+		if inpututil.IsKeyJustReleased(key) {
+			return true
+		}
+	}
+	return false
+}
+
+// Update reads current input state using configured key bindings
 func (ih *InputHandler) Update() InputState {
 	state := InputState{}
 
-	// Movement
-	state.MoveLeft = ebiten.IsKeyPressed(ebiten.KeyA) || ebiten.IsKeyPressed(ebiten.KeyArrowLeft)
-	state.MoveRight = ebiten.IsKeyPressed(ebiten.KeyD) || ebiten.IsKeyPressed(ebiten.KeyArrowRight)
+	// Movement (not buffered)
+	state.MoveLeft = ih.isAnyKeyPressed(ih.keyMapping.MoveLeft)
+	state.MoveRight = ih.isAnyKeyPressed(ih.keyMapping.MoveRight)
 
-	// Jump
-	state.Jump = ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsKeyPressed(ebiten.KeyW) || ebiten.IsKeyPressed(ebiten.KeyArrowUp)
-	state.JumpPress = inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyW) || inpututil.IsKeyJustPressed(ebiten.KeyArrowUp)
-	state.JumpRelease = inpututil.IsKeyJustReleased(ebiten.KeySpace) || inpututil.IsKeyJustReleased(ebiten.KeyW) || inpututil.IsKeyJustReleased(ebiten.KeyArrowUp)
+	// Jump (physics system handles buffering)
+	state.Jump = ih.isAnyKeyPressed(ih.keyMapping.Jump)
+	state.JumpPress = ih.isAnyKeyJustPressed(ih.keyMapping.Jump)
+	state.JumpRelease = ih.isAnyKeyJustReleased(ih.keyMapping.Jump)
 
-	// Attack
-	state.Attack = ebiten.IsKeyPressed(ebiten.KeyJ) || ebiten.IsKeyPressed(ebiten.KeyZ)
-	state.AttackPress = inpututil.IsKeyJustPressed(ebiten.KeyJ) || inpututil.IsKeyJustPressed(ebiten.KeyZ)
+	// Attack (buffered)
+	state.Attack = ih.isAnyKeyPressed(ih.keyMapping.Attack)
+	state.AttackPress = ih.isAnyKeyJustPressed(ih.keyMapping.Attack)
 
-	// Dash
-	state.Dash = ebiten.IsKeyPressed(ebiten.KeyK) || ebiten.IsKeyPressed(ebiten.KeyX)
-	state.DashPress = inpututil.IsKeyJustPressed(ebiten.KeyK) || inpututil.IsKeyJustPressed(ebiten.KeyX)
+	// Dash (buffered)
+	state.Dash = ih.isAnyKeyPressed(ih.keyMapping.Dash)
+	state.DashPress = ih.isAnyKeyJustPressed(ih.keyMapping.Dash)
 
-	// Use ability
-	state.UseAbility = ebiten.IsKeyPressed(ebiten.KeyL) || ebiten.IsKeyPressed(ebiten.KeyC)
+	// Use ability (not buffered)
+	state.UseAbility = ih.isAnyKeyPressed(ih.keyMapping.UseAbility)
 
-	// Pause
-	state.Pause = ebiten.IsKeyPressed(ebiten.KeyEscape) || ebiten.IsKeyPressed(ebiten.KeyP)
-	state.PausePress = inpututil.IsKeyJustPressed(ebiten.KeyEscape) || inpututil.IsKeyJustPressed(ebiten.KeyP)
+	// Pause (not buffered)
+	state.Pause = ih.isAnyKeyPressed(ih.keyMapping.Pause)
+	state.PausePress = ih.isAnyKeyJustPressed(ih.keyMapping.Pause)
 
 	// Update previous state
 	ih.prevState = state
 
 	return state
+}
+
+// BufferAttack buffers an attack input for execution when conditions are met
+func (ih *InputHandler) BufferAttack() {
+	ih.buffered.AttackBuffer = BufferFrames
+}
+
+// BufferDash buffers a dash input for execution when conditions are met
+func (ih *InputHandler) BufferDash() {
+	ih.buffered.DashBuffer = BufferFrames
+}
+
+// GetBufferedAttack returns true if attack is buffered and consumes the buffer
+func (ih *InputHandler) GetBufferedAttack() bool {
+	if ih.buffered.AttackBuffer > 0 {
+		ih.buffered.AttackBuffer = 0
+		return true
+	}
+	return false
+}
+
+// GetBufferedDash returns true if dash is buffered and consumes the buffer
+func (ih *InputHandler) GetBufferedDash() bool {
+	if ih.buffered.DashBuffer > 0 {
+		ih.buffered.DashBuffer = 0
+		return true
+	}
+	return false
+}
+
+// UpdateBuffers decrements buffer timers (call once per frame)
+func (ih *InputHandler) UpdateBuffers() {
+	if ih.buffered.AttackBuffer > 0 {
+		ih.buffered.AttackBuffer--
+	}
+	if ih.buffered.DashBuffer > 0 {
+		ih.buffered.DashBuffer--
+	}
 }
 
 // IsQuitRequested checks if the user wants to quit

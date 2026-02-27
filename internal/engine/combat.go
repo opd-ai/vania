@@ -60,6 +60,11 @@ func (cs *CombatSystem) PlayerAttack() bool {
 	return false
 }
 
+// CanAttack returns true if player can attack (not on cooldown)
+func (cs *CombatSystem) CanAttack() bool {
+	return cs.playerAttackCooldown <= 0
+}
+
 // IsPlayerAttacking returns if player is currently attacking
 func (cs *CombatSystem) IsPlayerAttacking() bool {
 	return cs.playerAttacking

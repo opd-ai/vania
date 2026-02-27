@@ -217,6 +217,15 @@ func (gr *GameRunner) Update() error {
 
 	// Handle attack
 	if inputState.AttackPress {
+		attacked := gr.combatSystem.PlayerAttack()
+		if !attacked {
+			// Attack conditions not met (e.g., in cooldown) - buffer the input
+			gr.inputHandler.BufferAttack()
+		}
+	}
+
+	// Check for buffered attack that can now execute
+	if gr.inputHandler.GetBufferedAttack() && gr.combatSystem.CanAttack() {
 		gr.combatSystem.PlayerAttack()
 	}
 
@@ -241,8 +250,8 @@ func (gr *GameRunner) Update() error {
 	}
 
 	// Handle dash
-	if inputState.DashPress && gr.dashCooldown <= 0 {
-		if gr.game.Player.Abilities["dash"] {
+	if inputState.DashPress && gr.game.Player.Abilities["dash"] {
+		if gr.dashCooldown <= 0 {
 			direction := 0.0
 			if inputState.MoveRight {
 				direction = 1.0
@@ -259,8 +268,31 @@ func (gr *GameRunner) Update() error {
 
 			// Stop dash trail after dash duration (let it fade naturally)
 			// The emitter will be removed automatically as particles die
+		} else {
+			// Dash on cooldown - buffer the input
+			gr.inputHandler.BufferDash()
 		}
 	}
+
+	// Check for buffered dash that can now execute
+	if gr.inputHandler.GetBufferedDash() && gr.dashCooldown <= 0 && gr.game.Player.Abilities["dash"] {
+		direction := 0.0
+		if inputState.MoveRight {
+			direction = 1.0
+		} else if inputState.MoveLeft {
+			direction = -1.0
+		}
+		gr.playerBody.Dash(direction)
+		gr.dashCooldown = 30
+
+		// Create dash trail particles
+		emitter := gr.particlePresets.CreateDashTrail(gr.game.Player.X+16, gr.game.Player.Y+16)
+		emitter.Start()
+		gr.particleSystem.AddEmitter(emitter)
+	}
+
+	// Update input buffers
+	gr.inputHandler.UpdateBuffers()
 
 	if gr.dashCooldown > 0 {
 		gr.dashCooldown--

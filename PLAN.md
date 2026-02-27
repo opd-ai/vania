@@ -140,16 +140,49 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - Grapple is the most complex new physics feature — requires a `Rope` struct with length, angle, angular velocity
   - **Grapple placeholder parameters** (tune iteratively): max rope length 8 tiles, swing damping 0.98, launch velocity 12.0, anchor detection range 6 tiles, detach on ground contact or button release
 
-### Step 7 — Input system: Rebindable controls and input buffering
+### Step 7 — Input system: Rebindable controls and input buffering ✅ (2026-02-27)
 - **Deliverable**: Key rebinding via settings menu; input buffer system for jump/attack/dash
 - **Dependencies**: Step 5 (jump-buffer), existing `internal/settings/` and `internal/input/`
+- **Status**: COMPLETE — Implemented comprehensive rebindable controls and generalized input buffering:
+  - **Input buffering**: Generalized jump buffering to also cover attack and dash actions
+  - Added `BufferFrames` constant (6 frames / 100ms at 60fps) - industry standard
+  - Added `BufferedInput` struct with `AttackBuffer` and `DashBuffer` timers
+  - Added buffer management methods: `BufferAttack()`, `BufferDash()`, `GetBufferedAttack()`, `GetBufferedDash()`, `UpdateBuffers()`
+  - **Rebindable controls**: Full key binding customization support
+  - Added `KeyMapping` struct with configurable key arrays for all actions
+  - Added `DefaultKeyMapping()` for sensible defaults
+  - Added `NewInputHandlerWithMapping()` and `SetKeyMapping()` for custom bindings
+  - Refactored `Update()` to use configured key bindings instead of hardcoded keys
+  - Added helper methods: `isAnyKeyPressed()`, `isAnyKeyJustPressed()`, `isAnyKeyJustReleased()`
+  - **Settings integration**: Bridge between settings and input packages
+  - Created `settings_bridge.go` with `KeyMappingFromSettings()` converter
+  - Maps `settings.ControlAction` to `input.KeyMapping` for seamless integration
+  - **Controls configuration UI**: Complete key rebinding menu
+  - Created `controls_menu.go` with `ControlsMenu` type for UI flow
+  - Added "Configure Controls" option to settings menu
+  - Implemented rebinding flow: select action → wait for key press → validate → save
+  - Added conflict detection preventing duplicate key bindings
+  - Added "Reset to Defaults" option to restore original bindings
+  - Visual feedback for successful rebinds and conflict errors
+  - Added `getKeyName()` helper for human-readable key display
+  - **Game integration**: Connected buffering to game runner
+  - Updated `runner.go` to buffer attack/dash when conditions not met
+  - Added buffer consumption check each frame for queued actions
+  - Added `CanAttack()` method to `CombatSystem` for buffer validation
+  - Calls `UpdateBuffers()` each frame to decrement timers
+  - **Comprehensive testing**: 14 new test cases with 100% coverage:
+    - Input handler initialization with default and custom mappings
+    - Buffer timing (set, consume, expiration, no-negative)
+    - Settings-to-KeyMapping conversion with empty bindings
+    - All tests pass, no regressions
+  - **Result**: Players can now remap all controls via settings menu, and attack/dash/jump inputs are buffered for responsive, forgiving gameplay
 - **Details**:
-  - `ControlSettings` already stores key bindings — wire `InputHandler.Update()` to read from `ControlSettings` instead of hardcoded keys
-  - Add rebind UI flow in `SettingsMenu`: select action → press new key → save
-  - Input buffer: generalize jump-buffer from Step 5 to cover attack and dash
-  - **Buffer window**: 6 frames at 60fps (~100ms) as industry-standard starting point
-  - **Bufferable actions**: jump, attack, dash
-  - **Non-bufferable actions**: movement direction, pause
+  - `ControlSettings` already stores key bindings — wire `InputHandler.Update()` to read from `ControlSettings` instead of hardcoded keys ✅
+  - Add rebind UI flow in `SettingsMenu`: select action → press new key → save ✅
+  - Input buffer: generalize jump-buffer from Step 5 to cover attack and dash ✅
+  - **Buffer window**: 6 frames at 60fps (~100ms) as industry-standard starting point ✅
+  - **Bufferable actions**: jump ✅, attack ✅, dash ✅
+  - **Non-bufferable actions**: movement direction, pause ✅
 
 ### Step 8 — Camera transition animations
 - **Deliverable**: Polished room-change camera transitions (fade, slide, or iris effects)

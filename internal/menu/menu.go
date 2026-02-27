@@ -78,6 +78,7 @@ type MenuManager struct {
 	// Settings
 	settings        *GameSettings
 	settingsManager *settingspkg.SettingsManager
+	controlsMenu    *ControlsMenu
 
 	// Visual properties
 	backgroundColor color.Color
@@ -1083,6 +1084,17 @@ func (mm *MenuManager) buildSettingsMenuItems() {
 			Action: func() error {
 				mm.settings.ShowFPS = !mm.settings.ShowFPS
 				mm.buildSettingsMenuItems() // Rebuild to update display
+				return nil
+			},
+		},
+		{
+			Text:    "Configure Controls",
+			Enabled: true,
+			Action: func() error {
+				if mm.controlsMenu == nil {
+					mm.controlsMenu = NewControlsMenu(mm)
+				}
+				mm.controlsMenu.Show()
 				return nil
 			},
 		},
