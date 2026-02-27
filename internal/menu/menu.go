@@ -85,6 +85,7 @@ type MenuManager struct {
 	textColor       color.Color
 	selectedColor   color.Color
 	disabledColor   color.Color
+	currentGenre    string
 }
 
 // GameSettings holds user configurable settings
@@ -133,6 +134,7 @@ func NewMenuManager() *MenuManager {
 		textColor:       color.RGBA{200, 200, 200, 255},
 		selectedColor:   color.RGBA{255, 255, 100, 255},
 		disabledColor:   color.RGBA{100, 100, 100, 255},
+		currentGenre:    "fantasy",
 	}
 }
 
@@ -149,6 +151,46 @@ func (mm *MenuManager) SetCallbacks(
 	mm.onSettings = onSettings
 	mm.onQuitGame = onQuitGame
 	mm.onResumeGame = onResumeGame
+}
+
+// SetGenre applies genre-themed UI colors to the menu system
+func (mm *MenuManager) SetGenre(genreID string) {
+	mm.currentGenre = genreID
+
+	// Set genre-specific color themes for UI
+	switch genreID {
+	case "fantasy":
+		mm.backgroundColor = color.RGBA{20, 25, 35, 255}  // Deep blue-purple
+		mm.textColor = color.RGBA{220, 210, 180, 255}     // Warm beige
+		mm.selectedColor = color.RGBA{255, 215, 100, 255} // Gold
+		mm.disabledColor = color.RGBA{100, 95, 90, 255}   // Dark warm gray
+	case "scifi":
+		mm.backgroundColor = color.RGBA{10, 15, 25, 255}  // Deep space black
+		mm.textColor = color.RGBA{180, 220, 255, 255}     // Cool cyan-white
+		mm.selectedColor = color.RGBA{100, 200, 255, 255} // Bright cyan
+		mm.disabledColor = color.RGBA{60, 70, 80, 255}    // Dark blue-gray
+	case "horror":
+		mm.backgroundColor = color.RGBA{15, 10, 15, 255} // Nearly black with purple tint
+		mm.textColor = color.RGBA{200, 180, 180, 255}    // Desaturated pink
+		mm.selectedColor = color.RGBA{200, 80, 80, 255}  // Blood red
+		mm.disabledColor = color.RGBA{80, 70, 70, 255}   // Dark desaturated red
+	case "cyberpunk":
+		mm.backgroundColor = color.RGBA{25, 15, 30, 255}  // Dark purple
+		mm.textColor = color.RGBA{255, 100, 255, 255}     // Hot pink
+		mm.selectedColor = color.RGBA{100, 255, 255, 255} // Electric cyan
+		mm.disabledColor = color.RGBA{100, 60, 100, 255}  // Dark magenta
+	case "postapoc":
+		mm.backgroundColor = color.RGBA{30, 25, 20, 255} // Dusty brown-gray
+		mm.textColor = color.RGBA{200, 180, 150, 255}    // Sandy beige
+		mm.selectedColor = color.RGBA{255, 150, 80, 255} // Rusty orange
+		mm.disabledColor = color.RGBA{100, 90, 80, 255}  // Dark muddy brown
+	default:
+		// Default to fantasy theme
+		mm.backgroundColor = color.RGBA{20, 25, 35, 255}
+		mm.textColor = color.RGBA{220, 210, 180, 255}
+		mm.selectedColor = color.RGBA{255, 215, 100, 255}
+		mm.disabledColor = color.RGBA{100, 95, 90, 255}
+	}
 }
 
 // ShowMainMenu displays the main menu

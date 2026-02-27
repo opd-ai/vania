@@ -21,15 +21,17 @@ type GameApp struct {
 	// Command line options
 	directPlay bool
 	fixedSeed  int64
+	genre      string
 }
 
 // NewGameApp creates a new game application
-func NewGameApp(directPlay bool, fixedSeed int64) *GameApp {
+func NewGameApp(directPlay bool, fixedSeed int64, genre string) *GameApp {
 	app := &GameApp{
 		menuManager: menu.NewMenuManager(),
 		inMenu:      !directPlay,
 		directPlay:  directPlay,
 		fixedSeed:   fixedSeed,
+		genre:       genre,
 	}
 
 	// Set up menu callbacks
@@ -40,6 +42,9 @@ func NewGameApp(directPlay bool, fixedSeed int64) *GameApp {
 		app.onQuitGame,   // Quit
 		app.onResumeGame, // Resume
 	)
+
+	// Set genre theme on menu system
+	app.menuManager.SetGenre(genre)
 
 	// If direct play mode, start game immediately
 	if directPlay {
@@ -147,10 +152,11 @@ func (app *GameApp) startGame(seed int64) error {
 	fmt.Println("╚════════════════════════════════════════════════════════╝")
 	fmt.Println()
 	fmt.Printf("Master Seed: %d\n", seed)
+	fmt.Printf("Genre:       %s\n", app.genre)
 	fmt.Println("Generating game world...")
 
-	// Create game generator
-	generator := engine.NewGameGenerator(seed)
+	// Create game generator with genre
+	generator := engine.NewGameGeneratorWithGenre(seed, app.genre)
 
 	// Generate complete game
 	game, err := generator.GenerateCompleteGame()
@@ -198,11 +204,26 @@ func main() {
 	playFlag := flag.Bool("play", false, "Launch the game with rendering (default: show main menu)")
 	noMenuFlag := flag.Bool("no-menu", false, "Skip menu and go directly to gameplay")
 	statsOnlyFlag := flag.Bool("stats-only", false, "Generate and show stats only (original behavior)")
+	genreFlag := flag.String("genre", "fantasy", "Game genre (fantasy|scifi|horror|cyberpunk|postapoc)")
 	flag.Parse()
+
+	// Validate genre flag
+	validGenres := map[string]bool{
+		"fantasy":   true,
+		"scifi":     true,
+		"horror":    true,
+		"cyberpunk": true,
+		"postapoc":  true,
+	}
+	if !validGenres[*genreFlag] {
+		fmt.Fprintf(os.Stderr, "Invalid genre: %s\n", *genreFlag)
+		fmt.Fprintf(os.Stderr, "Valid genres: fantasy, scifi, horror, cyberpunk, postapoc\n")
+		os.Exit(1)
+	}
 
 	// Handle legacy stats-only mode
 	if *statsOnlyFlag {
-		runStatsOnlyMode(*seedFlag)
+		runStatsOnlyMode(*seedFlag, *genreFlag)
 		return
 	}
 
@@ -210,7 +231,7 @@ func main() {
 	directPlay := *playFlag && *noMenuFlag
 
 	// Create and run the application
-	app := NewGameApp(directPlay, *seedFlag)
+	app := NewGameApp(directPlay, *seedFlag, *genreFlag)
 
 	if err := app.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Game error: %v\n", err)
@@ -219,7 +240,7 @@ func main() {
 }
 
 // runStatsOnlyMode provides the original stats-only behavior
-func runStatsOnlyMode(seedFlag int64) {
+func runStatsOnlyMode(seedFlag int64, genre string) {
 	var masterSeed int64
 	if seedFlag == 0 {
 		masterSeed = time.Now().UnixNano()
@@ -235,13 +256,14 @@ func runStatsOnlyMode(seedFlag int64) {
 	fmt.Println("╚════════════════════════════════════════════════════════╝")
 	fmt.Println()
 	fmt.Printf("Master Seed: %d\n", masterSeed)
+	fmt.Printf("Genre:       %s\n", genre)
 	fmt.Println()
 	fmt.Println("Generating game world...")
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println()
 
-	// Create game generator
-	generator := engine.NewGameGenerator(masterSeed)
+	// Create game generator with genre
+	generator := engine.NewGameGeneratorWithGenre(masterSeed, genre)
 
 	// Generate complete game
 	game, err := generator.GenerateCompleteGame()

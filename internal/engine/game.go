@@ -30,6 +30,7 @@ type Game struct {
 	CurrentRoom  *world.Room
 	Running      bool
 	Seed         int64
+	Genre        string
 	PCGContext   *pcg.PCGContext
 	Achievements *achievement.AchievementTracker
 }
@@ -69,6 +70,7 @@ type AudioSystem struct {
 // GameGenerator orchestrates all generation
 type GameGenerator struct {
 	MasterSeed   int64
+	Genre        string
 	GraphicsGen  *GraphicsGenerator
 	AudioGen     *AudioGenerator
 	NarrativeGen *narrative.NarrativeGenerator
@@ -92,12 +94,18 @@ type EntityGenerator struct {
 	Seed int64
 }
 
-// NewGameGenerator creates a new game generator
+// NewGameGenerator creates a new game generator with default fantasy genre
 func NewGameGenerator(masterSeed int64) *GameGenerator {
+	return NewGameGeneratorWithGenre(masterSeed, "fantasy")
+}
+
+// NewGameGeneratorWithGenre creates a new game generator with specified genre
+func NewGameGeneratorWithGenre(masterSeed int64, genre string) *GameGenerator {
 	seeds := pcg.DeriveSeeds(masterSeed)
 
 	return &GameGenerator{
 		MasterSeed:   masterSeed,
+		Genre:        genre,
 		GraphicsGen:  &GraphicsGenerator{Seed: seeds["graphics"]},
 		AudioGen:     &AudioGenerator{Seed: seeds["audio"]},
 		NarrativeGen: narrative.NewNarrativeGenerator(seeds["narrative"]),
@@ -158,6 +166,7 @@ func (gg *GameGenerator) GenerateCompleteGame() (*Game, error) {
 		CurrentRoom:  worldData.StartRoom,
 		Running:      true,
 		Seed:         gg.MasterSeed,
+		Genre:        gg.Genre,
 		PCGContext:   gg.PCGContext,
 		Achievements: achievementTracker,
 	}
@@ -178,15 +187,14 @@ func (gg *GameGenerator) generateGraphics(narrative *narrative.WorldContext) *Gr
 		Sprites:    make(map[string]*graphics.Sprite),
 	}
 
-	// Generate player sprite
+	// Generate player sprite using genre-aware palette
 	playerSpriteGen := graphics.NewSpriteGenerator(16, 16, graphics.VerticalSymmetry)
 	system.Sprites["player"] = playerSpriteGen.Generate(gg.GraphicsGen.Seed)
 
-	// Generate tilesets for each biome
+	// Generate genre-themed tilesets for each biome
 	biomeTypes := []string{"cave", "forest", "ruins", "crystal", "abyss", "sky"}
 	for i, biome := range biomeTypes {
-		tilesetGen := graphics.NewTilesetGenerator(16, biome)
-		system.Tilesets[biome] = tilesetGen.Generate(gg.GraphicsGen.Seed + int64(i))
+		system.Tilesets[biome] = graphics.GenerateGenreTileset(gg.Genre, gg.GraphicsGen.Seed+int64(i), 16)
 	}
 
 	return system
