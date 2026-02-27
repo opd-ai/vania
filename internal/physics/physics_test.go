@@ -38,7 +38,7 @@ func TestApplyGravity(t *testing.T) {
 	body := NewBody(100, 100, 32, 32)
 
 	// Not on ground, gravity should apply
-	body.ApplyGravity()
+	body.ApplyGravity(false)
 
 	if body.Velocity.Y != Gravity {
 		t.Errorf("Expected velocity Y=%f, got %f", Gravity, body.Velocity.Y)
@@ -46,7 +46,7 @@ func TestApplyGravity(t *testing.T) {
 
 	// Apply gravity multiple times
 	for i := 0; i < 30; i++ {
-		body.ApplyGravity()
+		body.ApplyGravity(false)
 	}
 
 	// Should cap at max fall speed
@@ -57,7 +57,7 @@ func TestApplyGravity(t *testing.T) {
 	// On ground, gravity should not apply
 	body.OnGround = true
 	prevVel := body.Velocity.Y
-	body.ApplyGravity()
+	body.ApplyGravity(false)
 
 	if body.Velocity.Y != prevVel {
 		t.Error("Gravity should not apply when on ground")
@@ -314,7 +314,7 @@ func TestVariableHeightJump(t *testing.T) {
 		// Simulate full ascent without releasing
 		maxHeight := body.Position.Y
 		for i := 0; i < 100; i++ {
-			body.ApplyGravity()
+			body.ApplyGravity(false)
 			body.Update()
 			if body.Velocity.Y > 0 {
 				// Started falling, record peak
@@ -339,7 +339,7 @@ func TestVariableHeightJump(t *testing.T) {
 		// Simulate ascent
 		maxHeight2 := body2.Position.Y
 		for i := 0; i < 100; i++ {
-			body2.ApplyGravity()
+			body2.ApplyGravity(false)
 			body2.Update()
 			if body2.Velocity.Y > 0 {
 				// Started falling, record peak
@@ -372,7 +372,7 @@ func TestVariableHeightJump(t *testing.T) {
 
 		// Simulate partial ascent before releasing
 		for i := 0; i < 5; i++ {
-			body.ApplyGravity()
+			body.ApplyGravity(false)
 			body.Update()
 		}
 
@@ -382,7 +382,7 @@ func TestVariableHeightJump(t *testing.T) {
 		// Continue to peak
 		maxHeight := body.Position.Y
 		for i := 0; i < 100; i++ {
-			body.ApplyGravity()
+			body.ApplyGravity(false)
 			body.Update()
 			if body.Velocity.Y > 0 {
 				maxHeight = body.Position.Y
@@ -444,7 +444,7 @@ func TestWallSlide(t *testing.T) {
 
 			// Apply gravity for many frames to reach terminal velocity
 			for i := 0; i < 50; i++ {
-				body.ApplyGravity()
+				body.ApplyGravity(false)
 			}
 
 			if body.Velocity.Y > tc.expectedMaxY+0.1 {
@@ -532,7 +532,7 @@ func TestJumpBuffer(t *testing.T) {
 		// Simulate frames until landing
 		landed := false
 		for i := 0; i < 10; i++ {
-			body.ApplyGravity()
+			body.ApplyGravity(false)
 			body.Update()
 			body.ResolveCollisionWithPlatforms(platforms)
 
@@ -573,7 +573,7 @@ func TestJumpBuffer(t *testing.T) {
 
 		// Run until buffer expires
 		for i := 0; i < 3; i++ {
-			body.ApplyGravity()
+			body.ApplyGravity(false)
 			body.Update()
 			body.ResolveCollisionWithPlatforms(platforms)
 		}
@@ -585,7 +585,7 @@ func TestJumpBuffer(t *testing.T) {
 
 		// Continue until landing
 		for i := 0; i < 50; i++ {
-			body.ApplyGravity()
+			body.ApplyGravity(false)
 			body.Update()
 			body.ResolveCollisionWithPlatforms(platforms)
 
@@ -617,7 +617,7 @@ func TestJumpBuffer(t *testing.T) {
 		// Simulate exactly JumpBufferFrames frames
 		landed := false
 		for i := 0; i < JumpBufferFrames; i++ {
-			body.ApplyGravity()
+			body.ApplyGravity(false)
 			body.Update()
 			body.ResolveCollisionWithPlatforms(platforms)
 

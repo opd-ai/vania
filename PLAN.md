@@ -111,9 +111,29 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - Jump-buffer: Track frames since jump pressed; execute jump if landing within window (6 frames)
   - Add constants: `WallSlideSpeed`, `CoyoteFrames`, `JumpBufferFrames`
 
-### Step 6 — Platforming physics: Glide and grapple hook
+### Step 6 — Platforming physics: Glide and grapple hook ✅ (2026-02-27)
 - **Deliverable**: Glide ability (slow-fall toggle when airborne); grapple hook (swing to anchor point)
 - **Dependencies**: Step 5
+- **Status**: COMPLETE — Implemented glide and grapple hook mechanics:
+  - Glide: Caps fall speed to `GlideFallSpeed` (1.5) when gliding ability is active and glide button held
+  - Modified `ApplyGravity()` to accept gliding parameter for fall speed reduction
+  - Grapple: Full rope physics with pendulum swing mechanics
+  - Added `StartGrapple()`, `UpdateGrapple()`, and `ReleaseGrapple()` methods to Body
+  - Grapple uses pendulum physics with angular velocity and gravity component
+  - Added `AnchorPoint` type in world package for grapple anchor positions
+  - Added `generateAnchors()` to platform generator - creates 1-5 anchors per room based on type
+  - Anchors placed on ceilings and above large platform gaps
+  - `FindNearestAnchor()` searches within `GrappleAnchorRange` (192px / 6 tiles)
+  - Grapple auto-detaches on ground contact or button release
+  - Added grapple cooldown (15 frames) to prevent spam
+  - Integrated glide and grapple into game runner with UseAbility input
+  - Comprehensive test coverage with 12 new test cases covering:
+    - Glide fall speed capping
+    - Grapple initiation and physics simulation
+    - Anchor finding and range limits
+    - Auto-detachment on landing
+    - Determinism tests for both glide and grapple
+  - All existing tests pass, no regressions
 - **Details**:
   - Glide: When ability unlocked and glide-button held while falling, cap fall speed to `GlideFallSpeed` (e.g., 1.5)
   - Grapple: Requires anchor-point tiles in rooms; rope physics with pendulum swing; launch toward nearest anchor within range

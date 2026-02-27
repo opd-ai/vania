@@ -42,6 +42,7 @@ type GameRunner struct {
 	particlePresets   *particle.ParticlePresets
 	doubleJumpUsed    bool
 	dashCooldown      int
+	grappleCooldown   int
 	playerFacingDir   float64
 	paused            bool
 	saveManager       *save.SaveManager
@@ -189,8 +190,10 @@ func (gr *GameRunner) Update() error {
 	}
 	gr.checkLockedDoorInteraction()
 
-	// Apply physics
-	gr.playerBody.ApplyGravity()
+	// Apply physics (with glide support)
+	hasGlide := gr.game.Player.Abilities["glide"]
+	isGliding := hasGlide && inputState.UseAbility && !gr.playerBody.OnGround && gr.playerBody.Velocity.Y > 0
+	gr.playerBody.ApplyGravity(isGliding)
 
 	// Update combat system
 	gr.combatSystem.Update()
@@ -261,6 +264,31 @@ func (gr *GameRunner) Update() error {
 
 	if gr.dashCooldown > 0 {
 		gr.dashCooldown--
+	}
+
+	// Handle grapple hook
+	if inputState.UseAbility && gr.grappleCooldown <= 0 && !gr.playerBody.Grappling {
+		if gr.game.Player.Abilities["grapple"] && gr.game.CurrentRoom != nil {
+			// Find nearest anchor point
+			anchor, found := physics.FindNearestAnchor(gr.playerBody.Position, gr.game.CurrentRoom.Anchors)
+			if found {
+				gr.playerBody.StartGrapple(anchor)
+				gr.grappleCooldown = 15 // 15 frames cooldown before can grapple again
+			}
+		}
+	}
+
+	// Update grapple physics if grappling
+	if gr.playerBody.Grappling {
+		gr.playerBody.UpdateGrapple()
+		// Release grapple if button released
+		if !inputState.UseAbility {
+			gr.playerBody.ReleaseGrapple()
+		}
+	}
+
+	if gr.grappleCooldown > 0 {
+		gr.grappleCooldown--
 	}
 
 	// Apply knockback from damage

@@ -71,6 +71,9 @@ func (pg *PlatformGenerator) GeneratePlatforms(room *Room, seed int64, playerAbi
 	// Ensure platforms don't overlap with doors
 	pg.clearPlatformsByDoors(room)
 
+	// Generate grapple anchor points
+	pg.generateAnchors(room, playerAbilities)
+
 	// Validate that room is traversable
 	pg.validateTraversability(room, playerAbilities)
 }
@@ -452,6 +455,67 @@ func (pg *PlatformGenerator) validateTraversability(room *Room, abilities map[st
 			X: 500, Y: 350, Width: 100, Height: 32,
 		})
 	}
+}
+
+// generateAnchors creates grapple hook anchor points in the room.
+// Anchors are placed on ceilings and high walls to enable grappling traversal.
+func (pg *PlatformGenerator) generateAnchors(room *Room, abilities map[string]bool) {
+	// Only generate anchors if grapple ability exists in the game
+	// (even if player doesn't have it yet, anchors should exist for future use)
+	room.Anchors = make([]AnchorPoint, 0)
+
+	roomWidth := 960.0
+
+	// Base anchor count varies by room type
+	anchorCount := 2 + pg.rng.Intn(3)
+	switch room.Type {
+	case BossRoom:
+		anchorCount += 2 // More anchors in boss rooms
+	case TreasureRoom, CombatRoom:
+		anchorCount += 1 // Extra anchors for treasure/combat rooms
+	case StartRoom, SaveRoom:
+		anchorCount = 1 // Minimal anchors in safe rooms
+	}
+
+	// Place anchors at random high positions
+	for i := 0; i < anchorCount; i++ {
+		// Anchors are typically on the ceiling or high walls
+		x := 100.0 + pg.rng.Float64()*(roomWidth-200.0)
+		y := 50.0 + pg.rng.Float64()*150.0 // Top third of room
+
+		room.Anchors = append(room.Anchors, AnchorPoint{
+			X: x,
+			Y: y,
+		})
+	}
+
+	// Add anchors above challenging platform gaps
+	for i := 0; i < len(room.Platforms)-1; i++ {
+		p1 := room.Platforms[i]
+		p2 := room.Platforms[i+1]
+
+		// Calculate horizontal distance between platforms
+		dx := float64(p2.X - (p1.X + p1.Width))
+		if dx > 200 { // Large gap - add anchor above
+			midX := float64(p1.X+p1.Width) + dx/2
+			midY := float64(min(p1.Y, p2.Y)) - 80.0 - pg.rng.Float64()*40.0
+
+			if midY > 50 { // Ensure anchor isn't too high
+				room.Anchors = append(room.Anchors, AnchorPoint{
+					X: midX,
+					Y: midY,
+				})
+			}
+		}
+	}
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // Helper function for cosine (missing in simplified math)

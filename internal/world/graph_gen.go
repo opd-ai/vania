@@ -20,7 +20,8 @@ type Room struct {
 	Items       []interface{} // Will be populated with item data
 	Platforms   []Platform
 	Hazards     []Hazard
-	Doors       []Door // Exits to other rooms
+	Doors       []Door        // Exits to other rooms
+	Anchors     []AnchorPoint // Grapple hook anchor points
 }
 
 // RoomType defines room archetypes
@@ -59,6 +60,11 @@ type Door struct {
 	Direction     string // "north", "south", "east", "west"
 	LeadsTo       *Room  // Connected room
 	Locked        bool   // Whether door requires ability/key
+}
+
+// AnchorPoint represents a grapple hook anchor point
+type AnchorPoint struct {
+	X, Y float64
 }
 
 // World represents the complete game world

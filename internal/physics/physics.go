@@ -3,6 +3,8 @@
 package physics
 
 import (
+	"math"
+
 	"github.com/opd-ai/vania/internal/world"
 )
 
@@ -32,6 +34,22 @@ const (
 	// JumpBufferFrames is the window (in frames at 60fps) during which a jump
 	// input is buffered and will execute upon landing. Industry standard: ~100ms = 6 frames.
 	JumpBufferFrames = 6
+
+	// GlideFallSpeed is the maximum fall speed when gliding (units/frame).
+	// Significantly reduced from MaxFallSpeed for slow, controlled descent.
+	GlideFallSpeed = 1.5
+
+	// GrappleMaxLength is the maximum rope length in pixels (8 tiles * 32px/tile = 256px).
+	GrappleMaxLength = 256.0
+
+	// GrappleLaunchSpeed is the initial velocity when launching toward an anchor point.
+	GrappleLaunchSpeed = 12.0
+
+	// GrappleSwingDamping reduces swing momentum over time (0.98 = 2% energy loss per frame).
+	GrappleSwingDamping = 0.98
+
+	// GrappleAnchorRange is the maximum distance to detect anchor points (6 tiles * 32px = 192px).
+	GrappleAnchorRange = 192.0
 )
 
 // AABB represents an axis-aligned bounding box
@@ -49,6 +67,11 @@ type Body struct {
 	WallSide            int // -1 for left, 1 for right, 0 for none
 	FramesSinceGrounded int // Used for coyote-time
 	JumpBufferTimer     int // Countdown for buffered jump input
+	Grappling           bool
+	GrappleAnchor       Vector2D
+	GrappleLength       float64
+	GrappleAngle        float64
+	GrappleAngularVel   float64
 }
 
 // Vector2D represents a 2D vector
@@ -74,13 +97,17 @@ func NewBody(x, y, width, height float64) *Body {
 	}
 }
 
-// ApplyGravity applies gravity to the body with wall-slide support
-func (b *Body) ApplyGravity() {
-	if !b.OnGround {
+// ApplyGravity applies gravity to the body with wall-slide and glide support.
+// When gliding is active, fall speed is capped at GlideFallSpeed.
+func (b *Body) ApplyGravity(gliding bool) {
+	if !b.OnGround && !b.Grappling {
 		b.Velocity.Y += Gravity
 
-		// Wall-slide: slow fall speed when sliding down a wall
-		if b.OnWall && b.Velocity.Y > WallSlideSpeed {
+		// Glide: very slow fall speed when gliding
+		if gliding && b.Velocity.Y > GlideFallSpeed {
+			b.Velocity.Y = GlideFallSpeed
+		} else if b.OnWall && b.Velocity.Y > WallSlideSpeed {
+			// Wall-slide: slow fall speed when sliding down a wall
 			b.Velocity.Y = WallSlideSpeed
 		} else if b.Velocity.Y > MaxFallSpeed {
 			b.Velocity.Y = MaxFallSpeed
@@ -153,6 +180,10 @@ func (b *Body) ResolveCollisionWithPlatforms(platforms []world.Platform) {
 		b.Position.Y = 640 - b.Position.Height
 		b.Velocity.Y = 0
 		b.OnGround = true
+		// Detach grapple on ground contact
+		if b.Grappling {
+			b.ReleaseGrapple()
+		}
 	}
 
 	// Keep player on screen (left/right boundaries)
@@ -172,6 +203,10 @@ func (b *Body) ResolveCollisionWithPlatforms(platforms []world.Platform) {
 		if b.JumpBufferTimer > 0 {
 			b.Velocity.Y = PlayerJumpSpeed
 			b.JumpBufferTimer = 0
+		}
+		// Detach grapple on landing
+		if b.Grappling {
+			b.ReleaseGrapple()
 		}
 	} else if wasOnGround {
 		// Just left ground, start counting
@@ -257,4 +292,116 @@ func (b *Body) ApplyFriction() {
 		// Air resistance
 		b.Velocity.X *= 0.95
 	}
+}
+
+// Glide applies glide physics by capping fall speed.
+// This method is kept for explicit glide activation but the actual
+// fall speed capping is done in ApplyGravity when gliding parameter is true.
+func (b *Body) Glide() {
+	if b.Velocity.Y > GlideFallSpeed {
+		b.Velocity.Y = GlideFallSpeed
+	}
+}
+
+// StartGrapple initiates a grapple to the specified anchor point.
+// Launches the player toward the anchor with initial velocity.
+func (b *Body) StartGrapple(anchor world.AnchorPoint) {
+	b.Grappling = true
+	b.GrappleAnchor = Vector2D{X: anchor.X, Y: anchor.Y}
+
+	// Calculate distance and angle to anchor
+	dx := anchor.X - (b.Position.X + b.Position.Width/2)
+	dy := anchor.Y - (b.Position.Y + b.Position.Height/2)
+	b.GrappleLength = math.Sqrt(dx*dx + dy*dy)
+	b.GrappleAngle = math.Atan2(dy, dx)
+	b.GrappleAngularVel = 0
+
+	// Launch toward anchor
+	dirX := dx / b.GrappleLength
+	dirY := dy / b.GrappleLength
+	b.Velocity.X = dirX * GrappleLaunchSpeed
+	b.Velocity.Y = dirY * GrappleLaunchSpeed
+}
+
+// UpdateGrapple updates grapple rope physics using pendulum mechanics.
+// Applies swing forces and constraints to maintain rope length.
+func (b *Body) UpdateGrapple() {
+	if !b.Grappling {
+		return
+	}
+
+	// Get center of player body
+	centerX := b.Position.X + b.Position.Width/2
+	centerY := b.Position.Y + b.Position.Height/2
+
+	// Calculate vector to anchor
+	dx := b.GrappleAnchor.X - centerX
+	dy := b.GrappleAnchor.Y - centerY
+	currentDist := math.Sqrt(dx*dx + dy*dy)
+
+	// Update angle based on current position
+	b.GrappleAngle = math.Atan2(dy, dx)
+
+	// Calculate tangential velocity (perpendicular to rope)
+	// Project velocity onto tangent direction
+	tangentX := -dy / currentDist
+	tangentY := dx / currentDist
+	tangentVel := b.Velocity.X*tangentX + b.Velocity.Y*tangentY
+
+	// Update angular velocity from tangent velocity
+	b.GrappleAngularVel = tangentVel / b.GrappleLength
+
+	// Apply gravity as angular acceleration (pendulum physics)
+	// a = g * sin(angle) / length
+	gravityComponent := Gravity * (dx / currentDist) // Horizontal component of gravity pulls toward vertical
+	b.GrappleAngularVel += gravityComponent / b.GrappleLength
+
+	// Apply damping to angular velocity
+	b.GrappleAngularVel *= GrappleSwingDamping
+
+	// Update angle
+	b.GrappleAngle += b.GrappleAngularVel
+
+	// Convert back to Cartesian velocity
+	tangentX = -math.Sin(b.GrappleAngle)
+	tangentY = math.Cos(b.GrappleAngle)
+	tangentSpeed := b.GrappleAngularVel * b.GrappleLength
+	b.Velocity.X = tangentX * tangentSpeed
+	b.Velocity.Y = tangentY * tangentSpeed
+
+	// Constrain to rope length
+	newX := b.GrappleAnchor.X - math.Cos(b.GrappleAngle)*b.GrappleLength - b.Position.Width/2
+	newY := b.GrappleAnchor.Y - math.Sin(b.GrappleAngle)*b.GrappleLength - b.Position.Height/2
+	b.Position.X = newX
+	b.Position.Y = newY
+}
+
+// ReleaseGrapple detaches from the grapple anchor and returns to normal physics
+func (b *Body) ReleaseGrapple() {
+	b.Grappling = false
+}
+
+// FindNearestAnchor finds the closest anchor point within range.
+// Returns the anchor and true if found, or zero anchor and false if none in range.
+func FindNearestAnchor(bodyPos AABB, anchors []world.AnchorPoint) (world.AnchorPoint, bool) {
+	centerX := bodyPos.X + bodyPos.Width/2
+	centerY := bodyPos.Y + bodyPos.Height/2
+
+	var nearest world.AnchorPoint
+	nearestDist := GrappleAnchorRange + 1 // Start beyond max range
+	found := false
+
+	for _, anchor := range anchors {
+		dx := anchor.X - centerX
+		dy := anchor.Y - centerY
+		dist := math.Sqrt(dx*dx + dy*dy)
+
+		if dist <= GrappleAnchorRange && dist < nearestDist {
+			nearest = anchor
+			nearestDist = dist
+			found = true
+		}
+	}
+
+	return nearest, found
 }
