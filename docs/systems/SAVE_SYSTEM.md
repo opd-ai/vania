@@ -323,12 +323,12 @@ Potential improvements for the save system:
 4. **Backup System**: Automatic backup of recent saves
 5. **Save Import/Export**: Share saves with other players
 6. **Quick Save/Load**: F5/F9 hotkeys
-7. **Save Screenshots**: Visual preview of each save
+7. **Save Screenshots**: Procedurally rendered visual preview of each save (no static image files stored)
 8. **Statistics Tracking**: Detailed play statistics per save
 
 ### Advanced State Tracking
-1. **Quest Progress**: Track story progression
-2. **Dialogue History**: Remember conversations
+1. **Quest Progress**: Track procedurally generated story progression
+2. **Dialogue History**: Remember procedurally generated conversations (no pre-authored dialogue trees)
 3. **Map Exploration**: % completion per biome
 4. **Achievement Progress**: Track unlocked achievements
 5. **Enemy Bestiary**: Remember encountered enemies

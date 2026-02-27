@@ -237,13 +237,13 @@ item := itemGen.Generate(itemType, seed+roomID*100+index)
 ### Potential Additions
 - [ ] Item sprites from procedural generation
 - [ ] Floating animation for items
-- [ ] Sound effects on collection
+- [ ] Procedurally synthesized sound effects on collection (no bundled audio files)
 - [ ] Item rarity system (common/rare/legendary)
 - [ ] Equipment system (equip weapons/armor)
 - [ ] Inventory UI screen
 - [ ] Item combination/crafting
 - [ ] Trade/shop system
-- [ ] Item tooltips with detailed info
+- [ ] Item tooltips with procedurally generated descriptive text
 
 ### Advanced Features
 - [ ] Magnetic item pickup (auto-attract)

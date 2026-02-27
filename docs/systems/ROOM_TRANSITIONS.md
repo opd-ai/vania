@@ -237,9 +237,9 @@ PASS
 - Display "Need [ability]" message
 
 **2. Door Animations**
-- Opening/closing animations
-- Particle effects
-- Sound effects
+- Procedurally generated opening/closing animations
+- Procedurally generated particle effects
+- Procedurally synthesized sound effects (no bundled audio files)
 - Smooth visual polish
 
 **3. Camera Transitions**

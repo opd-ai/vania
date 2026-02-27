@@ -81,6 +81,8 @@ Launch the full game with graphical rendering:
 
 ## Features in Rendering Mode
 
+All visual and audio content is procedurally generated at runtime from the seed — no external image, audio, or text asset files are loaded or bundled.
+
 - **Procedurally generated tilesets** rendered in real-time
 - **Player sprite** with physics-based movement
 - **Platform collision detection** with gravity and jumping
@@ -175,4 +177,4 @@ Check that vsync is enabled and your system isn't running in power-saving mode.
 - Advanced lighting
 - Minimap
 - Save/load system
-- Audio playback integration
+- Procedurally synthesized audio playback integration (all audio generated at runtime from seed — no bundled audio files)

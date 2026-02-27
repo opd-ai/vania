@@ -2,7 +2,7 @@
 
 **Gameplay style**: Metroidvania — 2D side-scrolling platformer with ability-gated exploration, persistent progression, and interconnected backtracking worlds.
 
-**Vision**: Ship an infinitely replayable, fully procedural Metroidvania — every sprite, sound, story, and room generated from a single seed — achieving feature parity with the reference-complete **venture** roguelike across all five setting genres.
+**Vision**: Ship an infinitely replayable, fully procedural Metroidvania — every sprite, sound, story, and room generated from a single seed — achieving feature parity with the reference-complete **venture** roguelike across all five setting genres. **All gameplay assets — including audio, visual, and narrative/story-driven components — must be procedurally generated at runtime using deterministic algorithms. No pre-rendered images (`.png`, `.jpg`, `.svg`, `.gif`), bundled audio files (`.mp3`, `.wav`, `.ogg`), or static narrative content (hardcoded dialogue, pre-written cutscene scripts, fixed story arcs, embedded text assets) are permitted in the project.**
 
 ---
 
@@ -148,10 +148,10 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 #### Loot / Drops
 - [x] Enemy drop tables (items, currency, ability fragments)
 - [ ] Drop rarity tiers (common, uncommon, rare, legendary)
-- [ ] Drop VFX and audio feedback
+- [ ] Drop VFX and procedurally synthesized audio feedback (no bundled assets)
 
 #### Shops / Economy
-- [ ] Merchant NPC in safe rooms (genre-skinned: wizard, trader, black-market dealer)
+- [ ] Merchant NPC in safe rooms (genre-skinned: wizard, trader, black-market dealer) — all dialogue and inventory procedurally generated from seed
 - [ ] Currency system (dropped by enemies, found in rooms)
 - [ ] Item buyback
 
@@ -159,19 +159,19 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 - [ ] Primary quest (reach final boss, gain all abilities)
 - [ ] Optional side objectives (find lore rooms, defeat bonus bosses)
 - [ ] Objective tracker in HUD
-- [ ] Genre-flavoured quest text via `SetGenre()`
+- [ ] Genre-flavoured quest text via `SetGenre()` — all quest text, objectives, and descriptions procedurally generated at runtime
 
 #### All 5 Genres — Full Integration
 - [ ] `SetGenre()` implemented on every system (renderer, audio, AI, HUD, physics hazards) — depends on GenreSwitcher interface (v1.0 ECS task)
 - [ ] Genre selection at game start (or seed-derived genre)
-- [ ] Per-genre tileset / palette / SFX / music presets
+- [ ] Per-genre tileset / palette / SFX / music generation parameter presets (configuration values that drive procedural generation, not bundled asset files)
 - [ ] Per-genre platforming hazards (magic barriers, airlock vents, darkness, voltage floors, radiation clouds)
 
 #### Narrative Generation — Full Pipeline
 - [x] Theme/story/lore generation
 - [x] Character and faction generation
-- [ ] Room descriptions surfaced in HUD on entry
-- [ ] Environmental text (signs, terminals, gravestones) as diegetic lore
+- [ ] Room descriptions surfaced in HUD on entry — all text procedurally generated from seed
+- [ ] Environmental text (signs, terminals, gravestones) as diegetic lore — procedurally generated at runtime, no pre-authored text assets
 - [ ] `SetGenre()` re-skins narrative vocabulary
 
 ---
@@ -207,12 +207,14 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 - [x] Dynamic layer system (exploration, combat, boss)
 - [x] Biome-specific tracks
 - [ ] Smooth cross-fade between states
-- [ ] Genre instrument mapping via `SetGenre()` (lute → synthesizer → pipe organ → glitch-bass → distorted guitar)
+- [ ] Genre instrument mapping via `SetGenre()` (lute → synthesizer → pipe organ → glitch-bass → distorted guitar) — all instruments procedurally synthesized, not sampled from bundled audio
 
 #### Audio — Positional SFX
 - [ ] Distance attenuation for offscreen sounds
 - [ ] Left/right stereo panning
 - [ ] Reverb preset per room size / material
+
+All SFX and music are procedurally synthesized at runtime — no pre-recorded or bundled audio files.
 
 #### Genre Post-Processing Presets
 - [ ] `fantasy` — warm desaturated vignette, bloom on magic
@@ -260,7 +262,7 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 #### Companion AI
 - [ ] Follower NPC that assists in combat (ranged support)
 - [ ] Companion ability (genre-skinned: fairy guide, drone, ghost, AI partner, survivor)
-- [ ] Companion dialogue during exploration
+- [ ] Procedurally generated companion dialogue during exploration — no pre-written dialogue trees or static text
 - [ ] `SetGenre()` swaps companion model, voice lines, ability
 
 #### Magic / Spell System (mapped to Ability System)
@@ -272,16 +274,16 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 #### Reputation / Alignment
 - [ ] Moral choice events in lore rooms
 - [ ] Alignment axis (e.g., hope ↔ despair for `horror`, order ↔ chaos for `cyberpunk`)
-- [ ] Alignment affects NPC dialogue and ending text
+- [ ] Alignment affects procedurally generated NPC dialogue and ending text — no pre-written dialogue trees
 
 #### Environmental Storytelling
-- [ ] Scripted environmental vignettes (body with journal, broken terminal, collapsed altar)
-- [ ] Audio logs / readable items surface in lore overlay
+- [ ] Procedurally generated environmental vignettes (body with journal, broken terminal, collapsed altar) — all text and layout determined algorithmically from seed
+- [ ] Procedurally generated audio logs / readable items surface in lore overlay — no pre-authored text or bundled audio files
 - [ ] Genre-flavoured props via `SetGenre()`
 
 #### Books / Lore Codex
 - [ ] In-game codex screen with discovered lore entries
-- [ ] Procedurally generated lore texts per genre
+- [ ] Procedurally generated lore texts per genre — all lore, backstories, and world-building text generated deterministically from seed, no embedded text assets
 - [ ] Unlock via exploration (hidden rooms, boss drops)
 
 #### Mini-Games (Optional Challenge Rooms)
@@ -293,7 +295,7 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 #### Tutorial System
 - [ ] Contextual pop-up tutorials on first encounter (jump, dash, combat)
 - [ ] Skippable for veteran players
-- [ ] Genre-voiced hint text via `SetGenre()`
+- [ ] Genre-voiced hint text via `SetGenre()` — all tutorial text procedurally generated, not hardcoded
 
 #### Achievement System (Enhanced)
 - [x] 19 achievements across 6 categories
@@ -302,7 +304,7 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 
 #### Crafting System
 - [ ] Combine drops to craft upgrades at workbench rooms
-- [ ] Recipe discovery (genre: spell tome, schematic, ritual, blueprint, manual)
+- [ ] Recipe discovery (genre: spell tome, schematic, ritual, blueprint, manual) — all recipe names and descriptions procedurally generated
 - [ ] Limited crafting slots to encourage decision-making
 
 #### Skill / Talent Trees

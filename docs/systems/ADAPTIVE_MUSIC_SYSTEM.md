@@ -4,7 +4,7 @@ The Adaptive Music System dynamically adjusts background music in real-time base
 
 ## 🎵 Overview
 
-Instead of playing static background tracks, the adaptive music system:
+All music in VANIA is procedurally synthesized at runtime from seed-derived parameters — no pre-recorded audio files (`.mp3`, `.wav`, `.ogg`) are loaded or bundled. Instead of playing static background tracks, the adaptive music system:
 - **Layers multiple audio tracks** (pads, melody, bass, drums, lead) that can be mixed dynamically
 - **Adjusts intensity** based on game state (exploration, tension, combat, boss fights)
 - **Transitions smoothly** between intensity levels without jarring cuts
