@@ -229,6 +229,11 @@ func (gr *GameRunner) Update() error {
 		}
 	}
 
+	// Handle variable-height jump (jump button release)
+	if inputState.JumpRelease {
+		gr.playerBody.ReleaseJump()
+	}
+
 	// Handle dash
 	if inputState.DashPress && gr.dashCooldown <= 0 {
 		if gr.game.Player.Abilities["dash"] {

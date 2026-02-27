@@ -15,6 +15,11 @@ const (
 	PlayerDashSpeed = 8.0
 	PlayerWidth     = 32
 	PlayerHeight    = 32
+
+	// JumpReleaseDamping is applied to upward velocity when jump button is released.
+	// Multiplies current Y velocity to reduce jump height on early release.
+	// Value of 0.5 cuts jump height approximately in half for instant release.
+	JumpReleaseDamping = 0.5
 )
 
 // AABB represents an axis-aligned bounding box
@@ -166,6 +171,17 @@ func (b *Body) Jump(hasDoubleJump bool, doubleJumpUsed *bool) bool {
 		return true
 	}
 	return false
+}
+
+// ReleaseJump applies variable-height jump mechanics.
+// When called during upward movement (negative Y velocity), it reduces
+// the jump height by damping the velocity. This allows for short-hop jumps
+// when the jump button is released early.
+func (b *Body) ReleaseJump() {
+	// Only apply damping when moving upward (negative Y velocity)
+	if b.Velocity.Y < 0 {
+		b.Velocity.Y *= JumpReleaseDamping
+	}
 }
 
 // Dash performs a dash move

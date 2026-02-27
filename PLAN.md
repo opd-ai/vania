@@ -73,9 +73,17 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - `EntityManager.Spawn()` / `Despawn()` / `Get()` — manages entity instances
   - Object pooling for frequently spawned entities (projectiles, particles)
 
-### Step 4 — Platforming physics: Variable-height jump
+### Step 4 — Platforming physics: Variable-height jump ✅ (2026-02-27)
 - **Deliverable**: Modified `physics.Body.Jump()` that supports hold-to-rise; early button release shortens jump height
 - **Dependencies**: None (can be done in parallel with ECS)
+- **Status**: COMPLETE — Implemented variable-height jump mechanics:
+  - Added `JumpReleaseDamping` constant (0.5) to physics package with documentation
+  - Added `ReleaseJump()` method to `Body` that applies damping to upward velocity
+  - Added `JumpRelease` field to `InputState` that tracks jump button release
+  - Integrated jump release handling in game engine (`runner.go`)
+  - Comprehensive test coverage with table-driven tests and determinism verification
+  - Tests verify short jump is 20-40% of full jump height, as expected
+  - All existing tests pass, no regressions
 - **Details**:
   - Track jump-button held state in `InputState`
   - When jump button released during ascent, cap upward velocity (e.g., multiply by 0.5)

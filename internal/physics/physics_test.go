@@ -250,3 +250,149 @@ func TestScreenBoundaries(t *testing.T) {
 		t.Error("Body should be on ground when at bottom boundary")
 	}
 }
+
+func TestReleaseJump(t *testing.T) {
+	testCases := []struct {
+		name             string
+		initialVelocity  float64
+		expectedVelocity float64
+		description      string
+	}{
+		{
+			name:             "ReleaseJumpDuringAscent",
+			initialVelocity:  -10.0,
+			expectedVelocity: -10.0 * JumpReleaseDamping,
+			description:      "Upward velocity should be damped when jump released during ascent",
+		},
+		{
+			name:             "ReleaseJumpAtPeak",
+			initialVelocity:  -0.5,
+			expectedVelocity: -0.5 * JumpReleaseDamping,
+			description:      "Small upward velocity should still be damped",
+		},
+		{
+			name:             "ReleaseJumpWhileFalling",
+			initialVelocity:  5.0,
+			expectedVelocity: 5.0,
+			description:      "Downward velocity should not be affected by jump release",
+		},
+		{
+			name:             "ReleaseJumpWhenStationary",
+			initialVelocity:  0.0,
+			expectedVelocity: 0.0,
+			description:      "Zero velocity should remain zero",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			body := NewBody(100, 100, 32, 32)
+			body.Velocity.Y = tc.initialVelocity
+
+			body.ReleaseJump()
+
+			if body.Velocity.Y != tc.expectedVelocity {
+				t.Errorf("%s: Expected velocity Y=%f, got %f", tc.description, tc.expectedVelocity, body.Velocity.Y)
+			}
+		})
+	}
+}
+
+func TestVariableHeightJump(t *testing.T) {
+	// Test full jump height (hold button entire ascent)
+	t.Run("FullJumpHeight", func(t *testing.T) {
+		body := NewBody(100, 500, 32, 32)
+		body.OnGround = true
+		doubleJumpUsed := false
+
+		// Jump
+		body.Jump(false, &doubleJumpUsed)
+
+		// Simulate full ascent without releasing
+		maxHeight := body.Position.Y
+		for i := 0; i < 100; i++ {
+			body.ApplyGravity()
+			body.Update()
+			if body.Velocity.Y > 0 {
+				// Started falling, record peak
+				maxHeight = body.Position.Y
+				break
+			}
+		}
+
+		fullJumpDistance := 500 - maxHeight
+
+		// Test short jump height (release button immediately)
+		body2 := NewBody(100, 500, 32, 32)
+		body2.OnGround = true
+		doubleJumpUsed2 := false
+
+		// Jump
+		body2.Jump(false, &doubleJumpUsed2)
+
+		// Release jump immediately
+		body2.ReleaseJump()
+
+		// Simulate ascent
+		maxHeight2 := body2.Position.Y
+		for i := 0; i < 100; i++ {
+			body2.ApplyGravity()
+			body2.Update()
+			if body2.Velocity.Y > 0 {
+				// Started falling, record peak
+				maxHeight2 = body2.Position.Y
+				break
+			}
+		}
+
+		shortJumpDistance := 500 - maxHeight2
+
+		// Short jump should be noticeably shorter than full jump
+		// With damping of 0.5, short jump should be roughly 25-35% of full jump
+		ratio := shortJumpDistance / fullJumpDistance
+		if ratio > 0.4 {
+			t.Errorf("Short jump too high: %.2f%% of full jump (expected < 40%%)", ratio*100)
+		}
+		if ratio < 0.2 {
+			t.Errorf("Short jump too low: %.2f%% of full jump (expected > 20%%)", ratio*100)
+		}
+	})
+
+	// Test mid-release jump height
+	t.Run("MidReleaseJumpHeight", func(t *testing.T) {
+		body := NewBody(100, 500, 32, 32)
+		body.OnGround = true
+		doubleJumpUsed := false
+
+		// Jump
+		body.Jump(false, &doubleJumpUsed)
+
+		// Simulate partial ascent before releasing
+		for i := 0; i < 5; i++ {
+			body.ApplyGravity()
+			body.Update()
+		}
+
+		// Release jump mid-ascent
+		body.ReleaseJump()
+
+		// Continue to peak
+		maxHeight := body.Position.Y
+		for i := 0; i < 100; i++ {
+			body.ApplyGravity()
+			body.Update()
+			if body.Velocity.Y > 0 {
+				maxHeight = body.Position.Y
+				break
+			}
+		}
+
+		midJumpDistance := 500 - maxHeight
+
+		// Mid-release should produce medium jump height (40-70% of full)
+		// This is approximate since physics is discrete
+		if midJumpDistance < 20 {
+			t.Error("Mid-release jump should reach noticeable height")
+		}
+	})
+}

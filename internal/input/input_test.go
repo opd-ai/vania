@@ -23,6 +23,41 @@ func TestInputStateInitialization(t *testing.T) {
 	if state.JumpPress || state.AttackPress || state.DashPress || state.PausePress {
 		t.Error("InputState press flags should initialize as false")
 	}
+
+	if state.JumpRelease {
+		t.Error("InputState JumpRelease should initialize as false")
+	}
+}
+
+func TestInputStateFields(t *testing.T) {
+	// Verify all expected fields exist and can be set
+	state := InputState{
+		MoveLeft:    true,
+		MoveRight:   false,
+		Jump:        true,
+		JumpPress:   true,
+		JumpRelease: true,
+		Attack:      false,
+		AttackPress: false,
+		Dash:        false,
+		DashPress:   false,
+		UseAbility:  false,
+		Pause:       false,
+		PausePress:  false,
+	}
+
+	if !state.MoveLeft {
+		t.Error("MoveLeft field should be settable")
+	}
+	if !state.Jump {
+		t.Error("Jump field should be settable")
+	}
+	if !state.JumpPress {
+		t.Error("JumpPress field should be settable")
+	}
+	if !state.JumpRelease {
+		t.Error("JumpRelease field should be settable")
+	}
 }
 
 // Note: Full input testing requires ebiten context which needs X11/graphics libraries.

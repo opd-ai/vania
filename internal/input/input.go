@@ -13,6 +13,7 @@ type InputState struct {
 	MoveRight   bool
 	Jump        bool
 	JumpPress   bool // True only on the frame jump was pressed
+	JumpRelease bool // True only on the frame jump was released
 	Attack      bool
 	AttackPress bool
 	Dash        bool
@@ -45,6 +46,7 @@ func (ih *InputHandler) Update() InputState {
 	// Jump
 	state.Jump = ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsKeyPressed(ebiten.KeyW) || ebiten.IsKeyPressed(ebiten.KeyArrowUp)
 	state.JumpPress = inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyW) || inpututil.IsKeyJustPressed(ebiten.KeyArrowUp)
+	state.JumpRelease = inpututil.IsKeyJustReleased(ebiten.KeySpace) || inpututil.IsKeyJustReleased(ebiten.KeyW) || inpututil.IsKeyJustReleased(ebiten.KeyArrowUp)
 
 	// Attack
 	state.Attack = ebiten.IsKeyPressed(ebiten.KeyJ) || ebiten.IsKeyPressed(ebiten.KeyZ)
