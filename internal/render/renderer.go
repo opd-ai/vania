@@ -67,6 +67,10 @@ type Renderer struct {
 	// Ability icon caching to prevent regeneration every frame
 	abilityIconCache map[string]*ebiten.Image
 	lastAbilities    map[string]bool
+
+	// Genre-specific visual state
+	currentGenre string
+	genreBgColor color.Color
 }
 
 // NewRenderer creates a new renderer
@@ -83,7 +87,40 @@ func NewRenderer() *Renderer {
 		textManager:      NewTextRenderManager(true),  // Enable color rendering by default
 		abilityIconCache: make(map[string]*ebiten.Image),
 		lastAbilities:    make(map[string]bool),
+		currentGenre:     "fantasy",
+		genreBgColor:     color.RGBA{20, 20, 30, 255},
 	}
+}
+
+// SetGenre switches the renderer's visual theme based on genre
+func (r *Renderer) SetGenre(genreID string) {
+	r.currentGenre = genreID
+
+	// Update background color based on genre
+	switch genreID {
+	case "fantasy":
+		r.genreBgColor = color.RGBA{20, 25, 35, 255} // Deep blue-purple
+		r.bgColor = r.genreBgColor
+	case "scifi":
+		r.genreBgColor = color.RGBA{10, 15, 25, 255} // Deep space black
+		r.bgColor = r.genreBgColor
+	case "horror":
+		r.genreBgColor = color.RGBA{15, 10, 15, 255} // Nearly black with purple tint
+		r.bgColor = r.genreBgColor
+	case "cyberpunk":
+		r.genreBgColor = color.RGBA{25, 15, 30, 255} // Dark purple
+		r.bgColor = r.genreBgColor
+	case "postapoc":
+		r.genreBgColor = color.RGBA{30, 25, 20, 255} // Dusty brown-gray
+		r.bgColor = r.genreBgColor
+	default:
+		r.genreBgColor = color.RGBA{20, 20, 30, 255} // Default
+		r.bgColor = r.genreBgColor
+	}
+
+	// Invalidate ability icon cache to force regeneration with new genre theme
+	r.abilityIconCache = make(map[string]*ebiten.Image)
+	r.lastAbilities = make(map[string]bool)
 }
 
 // RenderWorld draws the game world to the screen

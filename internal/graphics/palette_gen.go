@@ -165,3 +165,67 @@ func GenerateEnemyPalette(seed int64, dangerLevel int) []color.RGBA {
 
 	return palette
 }
+
+// GenerateGenrePalette creates a genre-specific color palette
+func GenerateGenrePalette(genreID string, seed int64, count int) []color.RGBA {
+	rng := rand.New(rand.NewSource(seed))
+	palette := make([]color.RGBA, count)
+
+	switch genreID {
+	case "fantasy":
+		// Earthy greens, browns, gold accents
+		baseHue := 100.0 + rng.Float64()*40.0 // Green-yellow range
+		for i := 0; i < count; i++ {
+			hue := mod(baseHue+float64(i)*25.0, 360.0)
+			saturation := 0.45 + float64(i%3)*0.15
+			value := 0.35 + float64(i)*0.12
+			palette[i] = hsvToRGB(hue, saturation, value)
+		}
+
+	case "scifi":
+		// Cool blues, cyans, metallic silvers
+		baseHue := 180.0 + rng.Float64()*60.0 // Cyan-blue range
+		for i := 0; i < count; i++ {
+			hue := mod(baseHue+float64(i)*20.0, 360.0)
+			saturation := 0.5 + float64(i%2)*0.2
+			value := 0.4 + float64(i)*0.1
+			palette[i] = hsvToRGB(hue, saturation, value)
+		}
+
+	case "horror":
+		// Desaturated reds, purples, dark grays
+		baseHue := 0.0 + rng.Float64()*30.0 // Red range
+		for i := 0; i < count; i++ {
+			hue := mod(baseHue+float64(i)*15.0, 360.0)
+			saturation := 0.25 + float64(i%3)*0.1 // Low saturation
+			value := 0.2 + float64(i)*0.08        // Dark values
+			palette[i] = hsvToRGB(hue, saturation, value)
+		}
+
+	case "cyberpunk":
+		// Hot pinks, neon purples, electric blues
+		baseHue := 290.0 + rng.Float64()*50.0 // Magenta-purple range
+		for i := 0; i < count; i++ {
+			hue := mod(baseHue+float64(i)*30.0, 360.0)
+			saturation := 0.7 + float64(i%2)*0.15 // High saturation
+			value := 0.5 + float64(i)*0.1
+			palette[i] = hsvToRGB(hue, saturation, value)
+		}
+
+	case "postapoc":
+		// Rusty oranges, muddy browns, dusty grays
+		baseHue := 20.0 + rng.Float64()*30.0 // Orange-brown range
+		for i := 0; i < count; i++ {
+			hue := mod(baseHue+float64(i)*20.0, 360.0)
+			saturation := 0.35 + float64(i%3)*0.12 // Muted
+			value := 0.3 + float64(i)*0.1
+			palette[i] = hsvToRGB(hue, saturation, value)
+		}
+
+	default:
+		// Fallback to fantasy
+		return GenerateGenrePalette("fantasy", seed, count)
+	}
+
+	return palette
+}

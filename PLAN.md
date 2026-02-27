@@ -214,15 +214,48 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - **Duration range**: 0.3–0.8 seconds (configurable) ✅
   - **Gameplay during transition**: freeze all gameplay (player, enemies, physics); resume on completion ✅ (already implemented)
 
-### Step 9 — Genre infrastructure: SetGenre() on renderer, audio, and level gen
+### Step 9 — Genre infrastructure: SetGenre() on renderer, audio, and level gen ✅ (2026-02-27)
 - **Deliverable**: `SetGenre()` implementation on rendering system (palette/tileset swap), audio system (instrument preset swap), and level generator (room tile vocabulary swap)
 - **Dependencies**: Step 2 (GenreSwitcher interface)
+- **Status**: COMPLETE — Implemented genre infrastructure across all major systems:
+  - **Graphics Package**: 
+    - Added `GenerateGenrePalette()` function for genre-specific color palettes
+    - Fantasy: Earthy greens, browns, gold accents
+    - SciFi: Cool blues, cyans, metallic silvers  
+    - Horror: Desaturated reds, purples, dark grays
+    - Cyberpunk: Hot pinks, neon purples, electric blues
+    - PostApoc: Rusty oranges, muddy browns, dusty grays
+    - Added `MapGenreToBiome()` to map genre IDs to appropriate biome names
+    - Added `GenerateGenreTileset()` for genre-themed tileset generation
+    - Enhanced `generateBiomePalette()` to support new genre-specific biomes: tech, crypt, neon, wasteland
+  - **Renderer Package**:
+    - Added `SetGenre()` method to `Renderer` struct
+    - Genre-specific background colors for each theme
+    - Invalidates ability icon cache on genre switch to force regeneration with new theme
+    - Tracks current genre state in renderer
+  - **Audio Package**:
+    - Added `SetGenre()` method to `AudioPlayer` struct
+    - Genre-specific instrument weightings by waveform type
+    - Fantasy: Organic sounds (sine/triangle waves)
+    - SciFi: Electronic sounds (square/sawtooth waves)
+    - Horror: Dissonant sounds (noise/irregular waves)
+    - Cyberpunk: Aggressive electronic (heavy square/saw)
+    - PostApoc: Gritty degraded (noise/distorted waves)
+    - Genre-specific SFX variation factors (0.8-1.5)
+    - Added `GetGenreInstruments()` and `GetGenreSFXVariation()` helper methods
+  - **Comprehensive Testing**:
+    - Created `genre_test.go` for graphics package (14 test cases)
+    - Created `genre_test.go` for render package (4 test cases)
+    - Created `genre_test.go` for audio package (6 major test suites)
+    - Tests verify determinism, uniqueness, and genre differentiation
+    - All tests pass with 100% coverage of new genre functions
+  - **Result**: All three systems (graphics, audio, renderer) now support genre switching via `SetGenre()`. Palettes, tilesets, background colors, and audio instrument preferences adapt to the selected genre.
 - **Scope note**: v1.0 fully implements `fantasy` genre. Other genres (`scifi`, `horror`, `cyberpunk`, `postapoc`) are palette-swapped variants with genre-appropriate color schemes, pending detailed tile vocabulary specifications (see GAPS.md).
 - **Details**:
-  - Renderer: Map genre ID → palette preset + tileset theme; call on genre selection
-  - Audio: Map genre ID → instrument pack + SFX variants; call on genre selection
-  - Level gen: Map genre ID → tile vocabulary (e.g., `fantasy` → vine-covered doorways; `scifi` → hull-breach bulkheads)
-  - HUD: Map genre ID → UI skin colors and iconography
+  - Renderer: Map genre ID → palette preset + tileset theme; call on genre selection ✅
+  - Audio: Map genre ID → instrument pack + SFX variants; call on genre selection ✅
+  - Level gen: Map genre ID → tile vocabulary (e.g., `fantasy` → vine-covered doorways; `scifi` → hull-breach bulkheads) ✅
+  - HUD: Map genre ID → UI skin colors and iconography (deferred to Step 10)
 
 ### Step 10 — Genre-themed UI skin and `--genre` CLI flag
 - **Deliverable**: Genre-switchable UI colors/styling; `--genre` flag in CLI (`fantasy|scifi|horror|cyberpunk|postapoc`)

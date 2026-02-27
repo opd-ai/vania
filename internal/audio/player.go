@@ -24,6 +24,11 @@ type AudioPlayer struct {
 	musicVolume   float64
 	adaptiveTrack *AdaptiveMusicTrack
 	musicContext  *MusicContext
+
+	// Genre-specific audio state
+	currentGenre      string
+	genreInstruments  map[WaveType]float64 // Instrument weight by waveform
+	genreSFXVariation float64              // SFX variation factor
 }
 
 // NewAudioPlayer creates a new audio player
@@ -31,14 +36,100 @@ func NewAudioPlayer() (*AudioPlayer, error) {
 	// Create audio context with standard sample rate
 	audioContext := audio.NewContext(44100)
 
-	return &AudioPlayer{
-		audioContext: audioContext,
-		players:      make(map[string]*audio.Player),
-		masterVolume: 0.7,
-		sfxVolume:    0.8,
-		musicVolume:  0.6,
-		musicContext: NewMusicContext(),
-	}, nil
+	ap := &AudioPlayer{
+		audioContext:     audioContext,
+		players:          make(map[string]*audio.Player),
+		masterVolume:     0.7,
+		sfxVolume:        0.8,
+		musicVolume:      0.6,
+		musicContext:     NewMusicContext(),
+		currentGenre:     "fantasy",
+		genreInstruments: make(map[WaveType]float64),
+	}
+
+	// Initialize with default genre
+	ap.SetGenre("fantasy")
+
+	return ap, nil
+}
+
+// SetGenre switches the audio system's instrumentation based on genre
+func (ap *AudioPlayer) SetGenre(genreID string) {
+	ap.currentGenre = genreID
+
+	// Configure genre-specific instrument preferences
+	// Higher weight = more likely to be used in music generation
+	switch genreID {
+	case "fantasy":
+		// Organic, warm sounds - sine and triangle waves
+		ap.genreInstruments = map[WaveType]float64{
+			SineWave:     0.4,  // Flute-like
+			TriangleWave: 0.35, // String-like
+			SquareWave:   0.15, // Harpsichord-like
+			SawtoothWave: 0.1,  // Brass-like
+			NoiseWave:    0.0,  // Not used
+		}
+		ap.genreSFXVariation = 0.8 // Moderate variation
+
+	case "scifi":
+		// Electronic, synthetic sounds - square and sawtooth
+		ap.genreInstruments = map[WaveType]float64{
+			SquareWave:   0.35, // Synthesizer leads
+			SawtoothWave: 0.35, // Basslines
+			TriangleWave: 0.2,  // Softer pads
+			SineWave:     0.1,  // Sub bass
+			NoiseWave:    0.0,  // Not used
+		}
+		ap.genreSFXVariation = 1.2 // High variation for sci-fi effects
+
+	case "horror":
+		// Dissonant, unsettling - noise and irregular waves
+		ap.genreInstruments = map[WaveType]float64{
+			NoiseWave:    0.3,  // Atmospheric dread
+			SineWave:     0.25, // Low drones
+			SawtoothWave: 0.25, // Tension
+			TriangleWave: 0.15, // Eerie tones
+			SquareWave:   0.05, // Rare sharp sounds
+		}
+		ap.genreSFXVariation = 1.5 // Very high variation for unsettling sounds
+
+	case "cyberpunk":
+		// Aggressive, distorted electronic - heavy square and saw
+		ap.genreInstruments = map[WaveType]float64{
+			SquareWave:   0.4,  // Aggressive leads
+			SawtoothWave: 0.35, // Heavy bass
+			NoiseWave:    0.15, // Glitch effects
+			TriangleWave: 0.1,  // Subtle pads
+			SineWave:     0.0,  // Not used
+		}
+		ap.genreSFXVariation = 1.3 // High variation for glitchy sounds
+
+	case "postapoc":
+		// Gritty, degraded - noise and distorted waves
+		ap.genreInstruments = map[WaveType]float64{
+			NoiseWave:    0.35, // Environmental ambience
+			SawtoothWave: 0.3,  // Industrial sounds
+			SquareWave:   0.2,  // Degraded electronics
+			TriangleWave: 0.1,  // Faint melodies
+			SineWave:     0.05, // Pure tones (rare)
+		}
+		ap.genreSFXVariation = 1.4 // Very high variation for chaotic sounds
+
+	default:
+		// Fallback to fantasy
+		ap.SetGenre("fantasy")
+		return
+	}
+}
+
+// GetGenreInstruments returns the current genre's instrument weighting
+func (ap *AudioPlayer) GetGenreInstruments() map[WaveType]float64 {
+	return ap.genreInstruments
+}
+
+// GetGenreSFXVariation returns the current genre's SFX variation factor
+func (ap *AudioPlayer) GetGenreSFXVariation() float64 {
+	return ap.genreSFXVariation
 }
 
 // LoadSound converts AudioSample to Ebiten-compatible format and loads it

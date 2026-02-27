@@ -80,6 +80,26 @@ func (tg *TilesetGenerator) generateBiomePalette(rng *rand.Rand) []color.RGBA {
 		palette[1] = color.RGBA{120, 110, 95, 255}  // weathered stone
 		palette[2] = color.RGBA{80, 85, 90, 255}    // blue-gray
 		palette[3] = color.RGBA{140, 130, 115, 255} // light stone
+	case "tech":
+		palette[0] = color.RGBA{50, 60, 80, 255}   // dark metal
+		palette[1] = color.RGBA{70, 85, 110, 255}  // metal
+		palette[2] = color.RGBA{90, 110, 140, 255} // light metal
+		palette[3] = color.RGBA{60, 140, 180, 255} // cyan accent
+	case "crypt":
+		palette[0] = color.RGBA{30, 25, 30, 255} // very dark
+		palette[1] = color.RGBA{50, 40, 45, 255} // dark purple
+		palette[2] = color.RGBA{70, 50, 55, 255} // muted red
+		palette[3] = color.RGBA{90, 70, 75, 255} // lighter gray
+	case "neon":
+		palette[0] = color.RGBA{40, 40, 50, 255}   // dark concrete
+		palette[1] = color.RGBA{60, 55, 70, 255}   // urban gray
+		palette[2] = color.RGBA{180, 60, 160, 255} // magenta
+		palette[3] = color.RGBA{80, 140, 220, 255} // electric blue
+	case "wasteland":
+		palette[0] = color.RGBA{70, 60, 50, 255}  // rust brown
+		palette[1] = color.RGBA{90, 75, 60, 255}  // dusty orange
+		palette[2] = color.RGBA{80, 70, 65, 255}  // gray concrete
+		palette[3] = color.RGBA{100, 85, 70, 255} // weathered tan
 	default:
 		// Generic palette
 		baseHue := rng.Float64() * 360.0
@@ -246,6 +266,31 @@ func (tg *TilesetGenerator) generateBackgroundTile(rng *rand.Rand, palette []col
 	}
 
 	return sprite
+}
+
+// MapGenreToBiome maps a genre ID to an appropriate biome name
+func MapGenreToBiome(genreID string) string {
+	switch genreID {
+	case "fantasy":
+		return "ruins" // Castle ruins, magical architecture
+	case "scifi":
+		return "tech" // Space station, tech facility
+	case "horror":
+		return "crypt" // Dark crypts, haunted areas
+	case "cyberpunk":
+		return "neon" // Neon-lit urban areas
+	case "postapoc":
+		return "wasteland" // Destroyed infrastructure
+	default:
+		return "cave" // Generic fallback
+	}
+}
+
+// GenerateGenreTileset creates a genre-themed tileset
+func GenerateGenreTileset(genreID string, seed int64, tileSize int) *Tileset {
+	biome := MapGenreToBiome(genreID)
+	gen := NewTilesetGenerator(tileSize, biome)
+	return gen.Generate(seed)
 }
 
 func clamp(val, min, max int) int {
