@@ -2,13 +2,13 @@
 
 **Gameplay style**: Metroidvania — 2D side-scrolling platformer with ability-gated exploration, persistent progression, and interconnected backtracking worlds.
 
-**Vision**: Ship an infinitely replayable, fully procedural Metroidvania — every sprite, sound, story, and room generated from a single seed — achieving feature parity with the reference-complete *venture* roguelike across all five setting genres.
+**Vision**: Ship an infinitely replayable, fully procedural Metroidvania — every sprite, sound, story, and room generated from a single seed — achieving feature parity with the reference-complete **venture** roguelike across all five setting genres.
 
 ---
 
 ## Genre Support
 
-Every system must implement the `GenreSwitcher` interface to switch thematic presentation at runtime:
+Every system must implement the `GenreSwitcher` interface to switch thematic presentation at runtime. **This interface is not yet implemented** — creating it is the first task in v1.0 ECS Framework.
 
 ```go
 type GenreSwitcher interface {
@@ -50,10 +50,12 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 - [ ] Input buffering for responsive platformer feel
 
 #### Platforming Physics
-- [ ] Gravity, variable-height jump (hold-to-rise)
-- [ ] Wall-slide and wall-jump
-- [ ] Dash (horizontal burst with i-frames)
-- [ ] Double-jump
+- [x] Gravity (`ApplyGravity()` in `internal/physics`)
+- [x] Double-jump (supported in `Jump()`)
+- [x] Wall-jump (supported in `Jump()` when `OnWall` is set)
+- [x] Dash (horizontal burst via `Dash()`)
+- [ ] Variable-height jump (hold-to-rise — shorten jump on early button release)
+- [ ] Wall-slide (slow downward slide on wall contact)
 - [ ] Glide (slow-fall toggle)
 - [ ] Grapple hook (swing to anchor point)
 - [ ] Coyote-time and jump-buffer tolerances
@@ -68,7 +70,7 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 #### Camera System
 - [x] Smooth follow camera with room-lock
 - [ ] Camera transition animations on room change
-- [ ] Screen-shake on impact / explosion
+- [x] Screen-shake on impact / explosion (`StartShake()` in `internal/camera`)
 
 #### Procedural Level Generation — Room Graph
 - [x] Graph-based world (80–150 rooms, 4–6 biomes)
@@ -160,7 +162,7 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 - [ ] Genre-flavoured quest text via `SetGenre()`
 
 #### All 5 Genres — Full Integration
-- [ ] `SetGenre()` implemented on every system (renderer, audio, AI, HUD, physics hazards)
+- [ ] `SetGenre()` implemented on every system (renderer, audio, AI, HUD, physics hazards) — depends on GenreSwitcher interface (v1.0 ECS task)
 - [ ] Genre selection at game start (or seed-derived genre)
 - [ ] Per-genre tileset / palette / SFX / music presets
 - [ ] Per-genre platforming hazards (magic barriers, airlock vents, darkness, voltage floors, radiation clouds)
@@ -314,7 +316,10 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 - [ ] Stat increases (HP, ATK, DEF, SPD)
 
 #### Character Archetypes (replaces venture's 35-class system: 15 base + 20 prestige)
-- [ ] 5 starting archetypes (Warrior, Rogue, Mage, Ranger, Survivor) — reduced to match metroidvania convention where player class shapes starting ability and talent bias rather than branching class trees; ability-gate progression provides depth instead
+
+The reduction to five archetypes matches Metroidvania conventions: player class shapes starting ability and talent bias rather than branching class trees; progression depth comes from ability-gate upgrades instead.
+
+- [ ] 5 starting archetypes (Warrior, Rogue, Mage, Ranger, Survivor)
 - [ ] Each archetype has unique starting ability and talent bias
 - [ ] Genre-skinned archetype names via `SetGenre()`
 
@@ -368,10 +373,11 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 - [ ] Mobile (iOS + Android via Ebiten mobile target)
 
 #### Test Coverage ≥ 82%
-*82% matches the venture reference target — sufficient to catch regressions in deterministic PCG without requiring exhaustive coverage of generated-content edge cases.*
-- [x] PCG core: seed, cache, validation (100%)
-- [x] Graphics generators: sprite, tileset, palette
-- [x] Audio generators: waveform, SFX, music
+*82% matches the **venture** reference target — sufficient to catch regressions in deterministic PCG without requiring exhaustive coverage of generated-content edge cases.*
+- [x] PCG core: seed, cache, validation (96.3%)
+- [x] Graphics generators: sprite, tileset, palette (98.9%)
+- [x] Achievement system (90.9%)
+- [ ] Audio generators: waveform, SFX, music (build requires ALSA; needs CI env fix)
 - [ ] World generator: room graph, biome, ability gates
 - [ ] Entity generator: enemy, boss, item, ability
 - [ ] Engine integration: combat, physics, input
@@ -398,7 +404,7 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 
 ## Excluded Features
 
-The following *venture* features are intentionally omitted from vania:
+The following **venture** features are intentionally omitted from vania:
 
 | Venture Feature        | Rationale                                                                                   |
 |------------------------|---------------------------------------------------------------------------------------------|
@@ -412,13 +418,13 @@ The following *venture* features are intentionally omitted from vania:
 
 ## Shared Infrastructure
 
-The following portable packages from venture can be reused or ported directly:
+The following portable packages from **venture** can be reused or ported directly into vania's `internal/` structure. Note: package paths below are **venture's** paths — vania equivalents live under `internal/` per Go conventions.
 
-| Package / Module              | Reuse Plan                                                                              |
+| venture Package / Module      | Reuse Plan for vania                                                                    |
 |-------------------------------|-----------------------------------------------------------------------------------------|
-| `pkg/engine` (ECS core)       | Direct port — component/entity/system interfaces with `SetGenre()` hook                |
-| `pkg/procgen/genre`           | Direct reuse — `SetGenre()` dispatch table and genre ID constants                       |
-| Audio synthesis engine        | Already implemented in `internal/audio`; extend with genre instrument presets           |
+| `pkg/engine` (ECS core)       | Port to `internal/engine/ecs` — component/entity/system interfaces with `SetGenre()` hook |
+| `pkg/procgen/genre`           | Port to `internal/pcg/genre` — `SetGenre()` dispatch table and genre ID constants      |
+| Audio synthesis engine        | Already in `internal/audio`; extend with genre instrument presets                      |
 | Save / load serialisation     | Port venture's JSON state serialiser; add ability-unlock and room-explored bitmasks     |
 | Networking / netcode          | Port client-server loop and lag-compensation for v5.0 co-op                            |
 | CI/CD workflow templates      | Reuse venture's multi-platform GitHub Actions matrix (Linux/macOS/Win/WASM/mobile)     |
