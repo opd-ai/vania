@@ -508,7 +508,7 @@ func TestParticlePresets_CreateDamageNumber_VariousDamages(t *testing.T) {
 // TestParticlePresets_AllEffectsHaveValidColors tests all effects have colors set
 func TestParticlePresets_AllEffectsHaveValidColors(t *testing.T) {
 	pp := &ParticlePresets{}
-	
+
 	emitters := []*ParticleEmitter{
 		pp.CreateHitEffect(0, 0, 1),
 		pp.CreateDashTrail(0, 0),
@@ -537,7 +537,7 @@ func TestParticlePresets_AllEffectsHaveValidColors(t *testing.T) {
 // TestParticlePresets_AllEffectsHaveValidSizes tests all effects have reasonable sizes
 func TestParticlePresets_AllEffectsHaveValidSizes(t *testing.T) {
 	pp := &ParticlePresets{}
-	
+
 	emitters := []*ParticleEmitter{
 		pp.CreateHitEffect(0, 0, 1),
 		pp.CreateDashTrail(0, 0),
@@ -565,7 +565,7 @@ func TestParticlePresets_AllEffectsHaveValidSizes(t *testing.T) {
 // TestParticlePresets_AllEffectsHaveValidLife tests all effects have positive life
 func TestParticlePresets_AllEffectsHaveValidLife(t *testing.T) {
 	pp := &ParticlePresets{}
-	
+
 	emitters := []*ParticleEmitter{
 		pp.CreateHitEffect(0, 0, 1),
 		pp.CreateDashTrail(0, 0),
@@ -608,7 +608,7 @@ func TestParticlePresets_PositionPreservation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			emitter := tc.fn(tc.x, tc.y)
 			if emitter.X != tc.x || emitter.Y != tc.y {
-				t.Errorf("Expected position (%.2f, %.2f), got (%.2f, %.2f)", 
+				t.Errorf("Expected position (%.2f, %.2f), got (%.2f, %.2f)",
 					tc.x, tc.y, emitter.X, emitter.Y)
 			}
 		})
@@ -618,7 +618,7 @@ func TestParticlePresets_PositionPreservation(t *testing.T) {
 // TestParticlePresets_OneShotVsContinuous tests one-shot vs continuous classification
 func TestParticlePresets_OneShotVsContinuous(t *testing.T) {
 	pp := &ParticlePresets{}
-	
+
 	oneShotEffects := []struct {
 		name    string
 		emitter *ParticleEmitter
@@ -660,23 +660,23 @@ func TestParticlePresets_OneShotVsContinuous(t *testing.T) {
 // TestParticlePresets_ExplosionScaling tests explosion size scaling
 func TestParticlePresets_ExplosionScaling(t *testing.T) {
 	pp := &ParticlePresets{}
-	
+
 	size1 := 1.0
 	size2 := 2.0
-	
+
 	exp1 := pp.CreateExplosion(0, 0, size1)
 	exp2 := pp.CreateExplosion(0, 0, size2)
-	
+
 	// Speed should scale
 	if exp2.Speed <= exp1.Speed {
 		t.Error("Larger explosion should have higher speed")
 	}
-	
+
 	// Size should scale
 	if exp2.Size <= exp1.Size {
 		t.Error("Larger explosion should have bigger particle size")
 	}
-	
+
 	// Life should scale
 	if exp2.Life <= exp1.Life {
 		t.Error("Larger explosion should have longer life")
@@ -686,14 +686,14 @@ func TestParticlePresets_ExplosionScaling(t *testing.T) {
 // TestParticlePresets_SmokeMode tests smoke continuous mode
 func TestParticlePresets_SmokeMode(t *testing.T) {
 	pp := &ParticlePresets{}
-	
+
 	oneShotSmoke := pp.CreateSmoke(0, 0, false)
 	continuousSmoke := pp.CreateSmoke(0, 0, true)
-	
+
 	if !oneShotSmoke.OneShot {
 		t.Error("One-shot smoke should have OneShot=true")
 	}
-	
+
 	if continuousSmoke.OneShot {
 		t.Error("Continuous smoke should have OneShot=false")
 	}
@@ -703,17 +703,17 @@ func TestParticlePresets_SmokeMode(t *testing.T) {
 func TestParticlePresets_DamageNumberProperties(t *testing.T) {
 	pp := &ParticlePresets{}
 	particle := pp.CreateDamageNumber(50.0, 75.0, 123)
-	
+
 	// Should have positive life
 	if particle.Life <= 0 {
 		t.Error("Damage number should have positive life")
 	}
-	
+
 	// Should have positive size
 	if particle.Size <= 0 {
 		t.Error("Damage number should have positive size")
 	}
-	
+
 	// Should have white color (for visibility)
 	if particle.Color.R != 255 || particle.Color.G != 255 || particle.Color.B != 255 {
 		t.Error("Damage number should have white color")

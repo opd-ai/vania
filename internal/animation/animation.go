@@ -8,20 +8,20 @@ import (
 
 // Animation represents a sequence of sprite frames
 type Animation struct {
-	Name       string
-	Frames     []*graphics.Sprite
-	FrameTime  int // frames per sprite frame (at 60 FPS)
-	Loop       bool
+	Name         string
+	Frames       []*graphics.Sprite
+	FrameTime    int // frames per sprite frame (at 60 FPS)
+	Loop         bool
 	currentFrame int
-	timer      int
+	timer        int
 }
 
 // AnimationController manages animations for an entity
 type AnimationController struct {
-	animations      map[string]*Animation
-	currentAnim     string
-	defaultAnim     string
-	playing         bool
+	animations  map[string]*Animation
+	currentAnim string
+	defaultAnim string
+	playing     bool
 }
 
 // NewAnimation creates a new animation
@@ -29,14 +29,14 @@ func NewAnimation(name string, frames []*graphics.Sprite, frameTime int, loop bo
 	if frameTime <= 0 {
 		frameTime = 10 // Default to 10 frames per sprite frame
 	}
-	
+
 	return &Animation{
-		Name:       name,
-		Frames:     frames,
-		FrameTime:  frameTime,
-		Loop:       loop,
+		Name:         name,
+		Frames:       frames,
+		FrameTime:    frameTime,
+		Loop:         loop,
 		currentFrame: 0,
-		timer:      0,
+		timer:        0,
 	}
 }
 
@@ -77,14 +77,14 @@ func (ac *AnimationController) Update() {
 	if !ac.playing {
 		return
 	}
-	
+
 	anim, exists := ac.animations[ac.currentAnim]
 	if !exists {
 		return
 	}
-	
+
 	anim.Update()
-	
+
 	// If animation finished and not looping, stop or return to default
 	if anim.IsFinished() && !anim.Loop {
 		if ac.currentAnim != ac.defaultAnim {
@@ -119,14 +119,14 @@ func (a *Animation) Update() {
 	if len(a.Frames) == 0 {
 		return
 	}
-	
+
 	a.timer++
-	
+
 	// Time to advance to next frame?
 	if a.timer >= a.FrameTime {
 		a.timer = 0
 		a.currentFrame++
-		
+
 		// Handle looping or clamping
 		if a.currentFrame >= len(a.Frames) {
 			if a.Loop {
@@ -143,12 +143,12 @@ func (a *Animation) GetCurrentFrame() *graphics.Sprite {
 	if len(a.Frames) == 0 {
 		return nil
 	}
-	
+
 	// Ensure currentFrame is valid
 	if a.currentFrame < 0 || a.currentFrame >= len(a.Frames) {
 		a.currentFrame = 0
 	}
-	
+
 	return a.Frames[a.currentFrame]
 }
 
@@ -171,21 +171,21 @@ func (a *Animation) GetProgress() float64 {
 	if len(a.Frames) == 0 {
 		return 1.0
 	}
-	
+
 	totalFrames := len(a.Frames) * a.FrameTime
 	currentPosition := a.currentFrame*a.FrameTime + a.timer
-	
+
 	return float64(currentPosition) / float64(totalFrames)
 }
 
 // Clone creates a copy of the animation with independent state
 func (a *Animation) Clone() *Animation {
 	return &Animation{
-		Name:       a.Name,
-		Frames:     a.Frames, // Share frame data, don't deep copy
-		FrameTime:  a.FrameTime,
-		Loop:       a.Loop,
+		Name:         a.Name,
+		Frames:       a.Frames, // Share frame data, don't deep copy
+		FrameTime:    a.FrameTime,
+		Loop:         a.Loop,
 		currentFrame: 0,
-		timer:      0,
+		timer:        0,
 	}
 }

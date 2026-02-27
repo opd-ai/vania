@@ -145,7 +145,7 @@ func NewSettingsManager() *SettingsManager {
 		sm.settingsPath = "vania_settings.json" // Fallback to current directory
 	} else {
 		configDir := filepath.Join(homeDir, ".config", "vania")
-		os.MkdirAll(configDir, 0755)
+		os.MkdirAll(configDir, 0o755)
 		sm.settingsPath = filepath.Join(configDir, "settings.json")
 	}
 
@@ -230,7 +230,7 @@ func (sm *SettingsManager) SaveSettings() error {
 		return fmt.Errorf("failed to serialize settings: %w", err)
 	}
 
-	return ioutil.WriteFile(sm.settingsPath, data, 0644)
+	return ioutil.WriteFile(sm.settingsPath, data, 0o644)
 }
 
 // validateAndMergeSettings ensures loaded settings have all required fields
@@ -408,7 +408,7 @@ func (sm *SettingsManager) GetDifficultyName(difficulty int) string {
 }
 
 // GetQualitySettings returns performance settings for the given quality level
-func (sm *SettingsManager) GetQualitySettings(quality GraphicsQuality) (particleCount int, shadowQuality int, textureQuality int) {
+func (sm *SettingsManager) GetQualitySettings(quality GraphicsQuality) (particleCount, shadowQuality, textureQuality int) {
 	switch quality {
 	case QualityLow:
 		return 50, 0, 0 // Minimal particles, no shadows, low textures

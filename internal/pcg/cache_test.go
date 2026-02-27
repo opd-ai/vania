@@ -258,10 +258,10 @@ func TestClear_RemovesAllCachedAssets(t *testing.T) {
 // TestClear_RetrievalAfterClear tests that retrieval fails after clear
 func TestClear_RetrievalAfterClear(t *testing.T) {
 	cache := NewAssetCache()
-	
+
 	cache.SetSprite("sprite1", "data1")
 	cache.Clear()
-	
+
 	_, ok := cache.GetSprite("sprite1")
 	if ok {
 		t.Error("GetSprite should return false after Clear")
@@ -400,17 +400,17 @@ func TestAssetCache_ConcurrentMixedOperations(t *testing.T) {
 	// Mix of reads, writes, and clears
 	for i := 0; i < 50; i++ {
 		wg.Add(3)
-		
+
 		go func(index int) {
 			defer wg.Done()
 			cache.SetSprite("key", index)
 		}(i)
-		
+
 		go func() {
 			defer wg.Done()
 			cache.GetSprite("key")
 		}()
-		
+
 		go func() {
 			defer wg.Done()
 			if i%10 == 0 {
@@ -420,7 +420,7 @@ func TestAssetCache_ConcurrentMixedOperations(t *testing.T) {
 	}
 
 	wg.Wait()
-	
+
 	// Should not panic and cache should be in valid state
 	cache.SetSprite("final", "value")
 	_, ok := cache.GetSprite("final")
@@ -432,11 +432,11 @@ func TestAssetCache_ConcurrentMixedOperations(t *testing.T) {
 // TestAssetCache_EmptyKeyHandling tests handling of empty keys
 func TestAssetCache_EmptyKeyHandling(t *testing.T) {
 	cache := NewAssetCache()
-	
+
 	// Should be able to use empty string as key
 	cache.SetSprite("", "empty_key_value")
 	value, ok := cache.GetSprite("")
-	
+
 	if !ok {
 		t.Error("Should be able to use empty string as key")
 	}
@@ -448,11 +448,11 @@ func TestAssetCache_EmptyKeyHandling(t *testing.T) {
 // TestAssetCache_NilValueHandling tests handling of nil values
 func TestAssetCache_NilValueHandling(t *testing.T) {
 	cache := NewAssetCache()
-	
+
 	// Should be able to store nil
 	cache.SetSprite("nil_key", nil)
 	value, ok := cache.GetSprite("nil_key")
-	
+
 	if !ok {
 		t.Error("Should return true for stored nil value")
 	}
@@ -464,16 +464,16 @@ func TestAssetCache_NilValueHandling(t *testing.T) {
 // TestAssetCache_LargeNumberOfEntries tests cache with many entries
 func TestAssetCache_LargeNumberOfEntries(t *testing.T) {
 	cache := NewAssetCache()
-	
+
 	count := 1000
 	for i := 0; i < count; i++ {
 		cache.SetSprite(string(rune(i)), i)
 	}
-	
+
 	if len(cache.Sprites) != count {
 		t.Errorf("Expected %d sprites, got %d", count, len(cache.Sprites))
 	}
-	
+
 	// Verify random access works
 	value, ok := cache.GetSprite(string(rune(500)))
 	if !ok {

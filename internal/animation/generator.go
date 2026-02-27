@@ -25,13 +25,13 @@ func (ag *AnimationGenerator) GenerateWalkFrames(baseSprite *graphics.Sprite, nu
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createWalkFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
@@ -40,13 +40,13 @@ func (ag *AnimationGenerator) GenerateAttackFrames(baseSprite *graphics.Sprite, 
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createAttackFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
@@ -55,13 +55,13 @@ func (ag *AnimationGenerator) GenerateJumpFrames(baseSprite *graphics.Sprite, nu
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createJumpFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
@@ -70,62 +70,62 @@ func (ag *AnimationGenerator) GenerateIdleFrames(baseSprite *graphics.Sprite, nu
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createIdleFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
 // createWalkFrame creates a single walking frame with horizontal offset
 func (ag *AnimationGenerator) createWalkFrame(baseSprite *graphics.Sprite, frameIndex, totalFrames int) *graphics.Sprite {
 	newSprite := ag.copySprite(baseSprite)
-	
+
 	// Create bobbing effect (vertical offset)
 	progress := float64(frameIndex) / float64(totalFrames)
 	// Sin wave for smooth bobbing
 	bobOffset := int(2.0 * (1.0 - progress*progress*4.0))
-	
+
 	// Shift sprite vertically
 	if bobOffset != 0 {
 		ag.shiftSpriteVertical(newSprite, bobOffset)
 	}
-	
+
 	return newSprite
 }
 
 // createAttackFrame creates a single attack frame with forward lean
 func (ag *AnimationGenerator) createAttackFrame(baseSprite *graphics.Sprite, frameIndex, totalFrames int) *graphics.Sprite {
 	newSprite := ag.copySprite(baseSprite)
-	
+
 	// Progressive forward shift
 	progress := float64(frameIndex) / float64(totalFrames)
 	forwardShift := int(progress * 4.0)
-	
+
 	if forwardShift > 0 {
 		ag.shiftSpriteHorizontal(newSprite, forwardShift)
 	}
-	
+
 	return newSprite
 }
 
 // createJumpFrame creates a single jump frame
 func (ag *AnimationGenerator) createJumpFrame(baseSprite *graphics.Sprite, frameIndex, totalFrames int) *graphics.Sprite {
 	newSprite := ag.copySprite(baseSprite)
-	
+
 	// Compress/stretch effect
 	progress := float64(frameIndex) / float64(totalFrames)
-	
+
 	// Slight vertical stretch at beginning and end (preparing to jump/landing)
 	// Horizontal stretch in middle (mid-air)
 	if progress < 0.3 || progress > 0.7 {
 		// Crouch/landing - slight vertical compression
 		ag.shiftSpriteVertical(newSprite, 1)
 	}
-	
+
 	return newSprite
 }
 
@@ -134,18 +134,18 @@ func (ag *AnimationGenerator) createIdleFrame(baseSprite *graphics.Sprite, frame
 	// For idle, we use the base sprite mostly as-is
 	// Just create a slight variation for breathing effect
 	newSprite := ag.copySprite(baseSprite)
-	
+
 	// Very subtle vertical offset (breathing)
 	progress := float64(frameIndex) / float64(totalFrames)
 	breathOffset := 0
 	if progress > 0.25 && progress < 0.75 {
 		breathOffset = 1
 	}
-	
+
 	if breathOffset != 0 {
 		ag.shiftSpriteVertical(newSprite, breathOffset)
 	}
-	
+
 	return newSprite
 }
 
@@ -157,18 +157,18 @@ func (ag *AnimationGenerator) copySprite(sprite *graphics.Sprite) *graphics.Spri
 			Height: sprite.Height,
 		}
 	}
-	
+
 	// Create new image with same bounds
 	bounds := sprite.Image.Bounds()
 	newImage := image.NewRGBA(bounds)
-	
+
 	// Copy pixels
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			newImage.Set(x, y, sprite.Image.At(x, y))
 		}
 	}
-	
+
 	return &graphics.Sprite{
 		Image:  newImage,
 		Width:  sprite.Width,
@@ -181,10 +181,10 @@ func (ag *AnimationGenerator) shiftSpriteVertical(sprite *graphics.Sprite, offse
 	if sprite == nil || sprite.Image == nil || offset == 0 {
 		return
 	}
-	
+
 	bounds := sprite.Image.Bounds()
 	tempImage := image.NewRGBA(bounds)
-	
+
 	// Copy with offset
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
@@ -194,7 +194,7 @@ func (ag *AnimationGenerator) shiftSpriteVertical(sprite *graphics.Sprite, offse
 			}
 		}
 	}
-	
+
 	sprite.Image = tempImage
 }
 
@@ -203,10 +203,10 @@ func (ag *AnimationGenerator) shiftSpriteHorizontal(sprite *graphics.Sprite, off
 	if sprite == nil || sprite.Image == nil || offset == 0 {
 		return
 	}
-	
+
 	bounds := sprite.Image.Bounds()
 	tempImage := image.NewRGBA(bounds)
-	
+
 	// Copy with offset
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
@@ -216,7 +216,7 @@ func (ag *AnimationGenerator) shiftSpriteHorizontal(sprite *graphics.Sprite, off
 			}
 		}
 	}
-	
+
 	sprite.Image = tempImage
 }
 
@@ -225,29 +225,29 @@ func (ag *AnimationGenerator) GenerateHitFrames(baseSprite *graphics.Sprite, num
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createHitFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
 // createHitFrame creates a hit frame with color tinting
 func (ag *AnimationGenerator) createHitFrame(baseSprite *graphics.Sprite, frameIndex, totalFrames int) *graphics.Sprite {
 	newSprite := ag.copySprite(baseSprite)
-	
+
 	if newSprite.Image == nil {
 		return newSprite
 	}
-	
+
 	// Flash red on odd frames
 	if frameIndex%2 == 1 {
 		ag.tintSprite(newSprite, color.RGBA{255, 100, 100, 255})
 	}
-	
+
 	return newSprite
 }
 
@@ -256,24 +256,24 @@ func (ag *AnimationGenerator) tintSprite(sprite *graphics.Sprite, tint color.RGB
 	if sprite == nil || sprite.Image == nil {
 		return
 	}
-	
+
 	bounds := sprite.Image.Bounds()
-	
+
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			c := sprite.Image.At(x, y)
 			r, g, b, a := c.RGBA()
-			
+
 			// Skip transparent pixels
 			if a == 0 {
 				continue
 			}
-			
+
 			// Blend with tint
 			newR := uint8((uint32(r>>8) + uint32(tint.R)) / 2)
 			newG := uint8((uint32(g>>8) + uint32(tint.G)) / 2)
 			newB := uint8((uint32(b>>8) + uint32(tint.B)) / 2)
-			
+
 			sprite.Image.Set(x, y, color.RGBA{newR, newG, newB, uint8(a >> 8)})
 		}
 	}
@@ -284,13 +284,13 @@ func (ag *AnimationGenerator) GenerateEnemyIdleFrames(baseSprite *graphics.Sprit
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createIdleFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
@@ -299,13 +299,13 @@ func (ag *AnimationGenerator) GenerateEnemyPatrolFrames(baseSprite *graphics.Spr
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createWalkFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
@@ -314,13 +314,13 @@ func (ag *AnimationGenerator) GenerateEnemyAttackFrames(baseSprite *graphics.Spr
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createAttackFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
@@ -329,35 +329,35 @@ func (ag *AnimationGenerator) GenerateEnemyDeathFrames(baseSprite *graphics.Spri
 	if baseSprite == nil || numFrames <= 0 {
 		return nil
 	}
-	
+
 	frames := make([]*graphics.Sprite, numFrames)
-	
+
 	for i := 0; i < numFrames; i++ {
 		frames[i] = ag.createDeathFrame(baseSprite, i, numFrames)
 	}
-	
+
 	return frames
 }
 
 // createDeathFrame creates a death frame with fade out effect
 func (ag *AnimationGenerator) createDeathFrame(baseSprite *graphics.Sprite, frameIndex, totalFrames int) *graphics.Sprite {
 	newSprite := ag.copySprite(baseSprite)
-	
+
 	if newSprite.Image == nil {
 		return newSprite
 	}
-	
+
 	// Fade out over time
 	progress := float64(frameIndex) / float64(totalFrames)
 	alpha := uint8((1.0 - progress) * 255.0)
-	
+
 	ag.fadeSprite(newSprite, alpha)
-	
+
 	// Also rotate/fall effect
 	if frameIndex > 0 {
 		ag.shiftSpriteVertical(newSprite, frameIndex/2)
 	}
-	
+
 	return newSprite
 }
 
@@ -366,19 +366,19 @@ func (ag *AnimationGenerator) fadeSprite(sprite *graphics.Sprite, alpha uint8) {
 	if sprite == nil || sprite.Image == nil {
 		return
 	}
-	
+
 	bounds := sprite.Image.Bounds()
-	
+
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			c := sprite.Image.At(x, y)
 			r, g, b, a := c.RGBA()
-			
+
 			// Skip already transparent pixels
 			if a == 0 {
 				continue
 			}
-			
+
 			// Apply fade
 			newAlpha := uint8((uint32(a>>8) * uint32(alpha)) / 255)
 			sprite.Image.Set(x, y, color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), newAlpha})

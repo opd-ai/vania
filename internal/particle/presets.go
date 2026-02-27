@@ -11,7 +11,7 @@ import (
 type ParticlePresets struct{}
 
 // CreateHitEffect creates a hit spark effect at the specified position
-func (pp *ParticlePresets) CreateHitEffect(x, y float64, direction float64) *ParticleEmitter {
+func (pp *ParticlePresets) CreateHitEffect(x, y, direction float64) *ParticleEmitter {
 	emitter := NewParticleEmitter(x, y, HitSpark)
 	emitter.EmitRate = 20
 	emitter.Spread = math.Pi / 3 // 60 degrees
@@ -24,12 +24,12 @@ func (pp *ParticlePresets) CreateHitEffect(x, y float64, direction float64) *Par
 	emitter.Gravity = 0.1
 	emitter.Color = color.RGBA{255, 200, 100, 255} // Orange-yellow
 	emitter.OneShot = true
-	
+
 	// Adjust direction based on hit direction
 	if direction < 0 {
 		emitter.Spread = -emitter.Spread
 	}
-	
+
 	return emitter
 }
 
@@ -46,8 +46,8 @@ func (pp *ParticlePresets) CreateDashTrail(x, y float64) *ParticleEmitter {
 	emitter.SizeVariance = 1.0
 	emitter.Gravity = 0.05
 	emitter.Color = color.RGBA{100, 150, 255, 200} // Light blue, semi-transparent
-	emitter.OneShot = false // Continuous while dashing
-	
+	emitter.OneShot = false                        // Continuous while dashing
+
 	return emitter
 }
 
@@ -65,7 +65,7 @@ func (pp *ParticlePresets) CreateJumpDust(x, y float64) *ParticleEmitter {
 	emitter.Gravity = 0.15
 	emitter.Color = color.RGBA{150, 130, 100, 180} // Brownish dust
 	emitter.OneShot = true
-	
+
 	return emitter
 }
 
@@ -83,7 +83,7 @@ func (pp *ParticlePresets) CreateLandDust(x, y float64) *ParticleEmitter {
 	emitter.Gravity = 0.2
 	emitter.Color = color.RGBA{140, 120, 90, 200} // Brownish dust
 	emitter.OneShot = true
-	
+
 	return emitter
 }
 
@@ -101,12 +101,12 @@ func (pp *ParticlePresets) CreateWalkDust(x, y float64) *ParticleEmitter {
 	emitter.Gravity = 0.05
 	emitter.Color = color.RGBA{120, 110, 90, 100} // Light dust, very transparent
 	emitter.OneShot = true
-	
+
 	return emitter
 }
 
 // CreateBloodSplatter creates blood particles when enemy is hit
-func (pp *ParticlePresets) CreateBloodSplatter(x, y float64, direction float64) *ParticleEmitter {
+func (pp *ParticlePresets) CreateBloodSplatter(x, y, direction float64) *ParticleEmitter {
 	emitter := NewParticleEmitter(x, y, BloodSplatter)
 	emitter.EmitRate = 15
 	emitter.Spread = math.Pi / 2 // 90 degrees
@@ -119,12 +119,12 @@ func (pp *ParticlePresets) CreateBloodSplatter(x, y float64, direction float64) 
 	emitter.Gravity = 0.3
 	emitter.Color = color.RGBA{200, 50, 50, 255} // Red blood
 	emitter.OneShot = true
-	
+
 	return emitter
 }
 
 // CreateExplosion creates an explosion effect
-func (pp *ParticlePresets) CreateExplosion(x, y float64, size float64) *ParticleEmitter {
+func (pp *ParticlePresets) CreateExplosion(x, y, size float64) *ParticleEmitter {
 	emitter := NewParticleEmitter(x, y, Explosion)
 	emitter.EmitRate = 30
 	emitter.Spread = math.Pi * 2 // 360 degrees
@@ -137,7 +137,7 @@ func (pp *ParticlePresets) CreateExplosion(x, y float64, size float64) *Particle
 	emitter.Gravity = 0.1
 	emitter.Color = color.RGBA{255, 150, 50, 255} // Orange fire
 	emitter.OneShot = true
-	
+
 	return emitter
 }
 
@@ -152,10 +152,10 @@ func (pp *ParticlePresets) CreateSmoke(x, y float64, continuous bool) *ParticleE
 	emitter.LifeVariance = 20
 	emitter.Size = 6.0
 	emitter.SizeVariance = 2.0
-	emitter.Gravity = -0.05 // Rise upward
+	emitter.Gravity = -0.05                        // Rise upward
 	emitter.Color = color.RGBA{100, 100, 100, 150} // Gray smoke, semi-transparent
 	emitter.OneShot = !continuous
-	
+
 	return emitter
 }
 
@@ -172,8 +172,8 @@ func (pp *ParticlePresets) CreateRain(x, y float64) *ParticleEmitter {
 	emitter.SizeVariance = 0.5
 	emitter.Gravity = 0.3
 	emitter.Color = color.RGBA{150, 180, 220, 180} // Light blue water
-	emitter.OneShot = false // Continuous
-	
+	emitter.OneShot = false                        // Continuous
+
 	return emitter
 }
 
@@ -188,10 +188,10 @@ func (pp *ParticlePresets) CreateSnow(x, y float64) *ParticleEmitter {
 	emitter.LifeVariance = 60
 	emitter.Size = 3.0
 	emitter.SizeVariance = 1.0
-	emitter.Gravity = 0.02 // Very light
+	emitter.Gravity = 0.02                         // Very light
 	emitter.Color = color.RGBA{240, 240, 255, 220} // White snow
-	emitter.OneShot = false // Continuous
-	
+	emitter.OneShot = false                        // Continuous
+
 	return emitter
 }
 
@@ -206,10 +206,10 @@ func (pp *ParticlePresets) CreateEmbers(x, y float64) *ParticleEmitter {
 	emitter.LifeVariance = 30
 	emitter.Size = 2.5
 	emitter.SizeVariance = 1.0
-	emitter.Gravity = -0.1 // Rise upward
+	emitter.Gravity = -0.1                        // Rise upward
 	emitter.Color = color.RGBA{255, 100, 50, 200} // Orange-red embers
-	emitter.OneShot = false // Continuous
-	
+	emitter.OneShot = false                       // Continuous
+
 	return emitter
 }
 
@@ -224,10 +224,10 @@ func (pp *ParticlePresets) CreateSparkles(x, y float64) *ParticleEmitter {
 	emitter.LifeVariance = 15
 	emitter.Size = 2.0
 	emitter.SizeVariance = 0.5
-	emitter.Gravity = 0.0 // Float
+	emitter.Gravity = 0.0                          // Float
 	emitter.Color = color.RGBA{255, 255, 100, 255} // Bright yellow
-	emitter.OneShot = false // Continuous
-	
+	emitter.OneShot = false                        // Continuous
+
 	return emitter
 }
 
@@ -242,10 +242,10 @@ func (pp *ParticlePresets) CreateBubbles(x, y float64) *ParticleEmitter {
 	emitter.LifeVariance = 30
 	emitter.Size = 4.0
 	emitter.SizeVariance = 2.0
-	emitter.Gravity = -0.08 // Rise upward (buoyancy)
+	emitter.Gravity = -0.08                        // Rise upward (buoyancy)
 	emitter.Color = color.RGBA{150, 200, 255, 100} // Light blue bubbles, transparent
-	emitter.OneShot = false // Continuous
-	
+	emitter.OneShot = false                        // Continuous
+
 	return emitter
 }
 
@@ -263,7 +263,7 @@ func (pp *ParticlePresets) CreateLightning(x, y float64) *ParticleEmitter {
 	emitter.Gravity = 0.0
 	emitter.Color = color.RGBA{200, 220, 255, 255} // Electric blue-white
 	emitter.OneShot = true
-	
+
 	return emitter
 }
 
@@ -271,6 +271,6 @@ func (pp *ParticlePresets) CreateLightning(x, y float64) *ParticleEmitter {
 func (pp *ParticlePresets) CreateDamageNumber(x, y float64, damage int) *Particle {
 	particle := NewParticle(x, y, 0, -1.5, 60, 1.0, color.RGBA{255, 255, 255, 255}, DamageNumber)
 	particle.Data = damage // Store damage value
-	particle.AccelY = 0.0 // No gravity, just float up
+	particle.AccelY = 0.0  // No gravity, just float up
 	return particle
 }

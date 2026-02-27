@@ -37,20 +37,20 @@ type Achievement struct {
 	Description string
 	Category    string
 	Rarity      string
-	Hidden      bool   // Hidden until unlocked
-	Points      int    // Achievement points value
-	IconIndex   int    // Index for procedurally generated icon
-	
+	Hidden      bool // Hidden until unlocked
+	Points      int  // Achievement points value
+	IconIndex   int  // Index for procedurally generated icon
+
 	// Requirements (criteria for unlocking)
-	RequiresBosses     int     // Number of bosses to defeat
-	RequiresRooms      int     // Number of rooms to visit
-	RequiresItems      int     // Number of items to collect
-	RequiresAbilities  int     // Number of abilities to unlock
-	RequiresKills      int     // Number of enemies to kill
-	RequiresDamage     int     // Total damage to deal
-	RequiresNoDamage   bool    // Complete without taking damage
-	RequiresTimeLimit  int64   // Complete within time limit (seconds)
-	RequiresSpecial    string  // Special condition (custom logic)
+	RequiresBosses    int    // Number of bosses to defeat
+	RequiresRooms     int    // Number of rooms to visit
+	RequiresItems     int    // Number of items to collect
+	RequiresAbilities int    // Number of abilities to unlock
+	RequiresKills     int    // Number of enemies to kill
+	RequiresDamage    int    // Total damage to deal
+	RequiresNoDamage  bool   // Complete without taking damage
+	RequiresTimeLimit int64  // Complete within time limit (seconds)
+	RequiresSpecial   string // Special condition (custom logic)
 }
 
 // UnlockedAchievement represents an achievement that has been unlocked
@@ -62,11 +62,11 @@ type UnlockedAchievement struct {
 
 // AchievementProgress tracks progress toward an achievement
 type AchievementProgress struct {
-	AchievementID   AchievementID
-	CurrentValue    int     // Current progress value
-	TargetValue     int     // Target value needed
-	Progress        float64 // 0.0 to 1.0
-	LastUpdated     time.Time
+	AchievementID AchievementID
+	CurrentValue  int     // Current progress value
+	TargetValue   int     // Target value needed
+	Progress      float64 // 0.0 to 1.0
+	LastUpdated   time.Time
 }
 
 // AchievementTracker manages achievement tracking and unlocking
@@ -74,10 +74,10 @@ type AchievementTracker struct {
 	achievements map[AchievementID]*Achievement
 	unlocked     map[AchievementID]*UnlockedAchievement
 	progress     map[AchievementID]*AchievementProgress
-	
+
 	// Runtime statistics
 	stats Statistics
-	
+
 	// Event handlers
 	onUnlock func(achievement *Achievement)
 }
@@ -85,31 +85,31 @@ type AchievementTracker struct {
 // Statistics tracks player statistics for achievement calculations
 type Statistics struct {
 	// Combat
-	EnemiesDefeated    int
-	BossesDefeated     int
-	TotalDamageDealt   int
-	DamageTaken        int
-	PerfectKills       int  // Enemies killed without taking damage
-	
+	EnemiesDefeated  int
+	BossesDefeated   int
+	TotalDamageDealt int
+	DamageTaken      int
+	PerfectKills     int // Enemies killed without taking damage
+
 	// Exploration
-	RoomsVisited       int
-	BiomesExplored     int
-	SecretsFound       int
-	
+	RoomsVisited   int
+	BiomesExplored int
+	SecretsFound   int
+
 	// Collection
-	ItemsCollected     int
-	AbilitiesUnlocked  int
-	
+	ItemsCollected    int
+	AbilitiesUnlocked int
+
 	// Speed/Time
-	StartTime          time.Time
-	PlayTime           int64  // seconds
-	FastestBossKill    int64  // seconds
-	
+	StartTime       time.Time
+	PlayTime        int64 // seconds
+	FastestBossKill int64 // seconds
+
 	// Special
-	DeathCount         int
-	PerfectRooms       int  // Rooms cleared without damage
-	ConsecutiveKills   int
-	LongestCombo       int
+	DeathCount       int
+	PerfectRooms     int // Rooms cleared without damage
+	ConsecutiveKills int
+	LongestCombo     int
 }
 
 // NewAchievementTracker creates a new achievement tracker
@@ -118,14 +118,14 @@ func NewAchievementTracker() *AchievementTracker {
 		achievements: make(map[AchievementID]*Achievement),
 		unlocked:     make(map[AchievementID]*UnlockedAchievement),
 		progress:     make(map[AchievementID]*AchievementProgress),
-		stats:        Statistics{
+		stats: Statistics{
 			StartTime: time.Now(),
 		},
 	}
-	
+
 	// Register all achievements
 	tracker.registerDefaultAchievements()
-	
+
 	return tracker
 }
 
@@ -134,213 +134,213 @@ func (at *AchievementTracker) registerDefaultAchievements() {
 	achievements := []*Achievement{
 		// Combat Achievements
 		{
-			ID:          "first_blood",
-			Name:        "First Blood",
-			Description: "Defeat your first enemy",
-			Category:    CategoryCombat,
-			Rarity:      RarityCommon,
-			Points:      10,
-			IconIndex:   0,
+			ID:            "first_blood",
+			Name:          "First Blood",
+			Description:   "Defeat your first enemy",
+			Category:      CategoryCombat,
+			Rarity:        RarityCommon,
+			Points:        10,
+			IconIndex:     0,
 			RequiresKills: 1,
 		},
 		{
-			ID:          "slayer",
-			Name:        "Slayer",
-			Description: "Defeat 50 enemies",
-			Category:    CategoryCombat,
-			Rarity:      RarityUncommon,
-			Points:      25,
-			IconIndex:   1,
+			ID:            "slayer",
+			Name:          "Slayer",
+			Description:   "Defeat 50 enemies",
+			Category:      CategoryCombat,
+			Rarity:        RarityUncommon,
+			Points:        25,
+			IconIndex:     1,
 			RequiresKills: 50,
 		},
 		{
-			ID:          "destroyer",
-			Name:        "Destroyer",
-			Description: "Defeat 100 enemies",
-			Category:    CategoryCombat,
-			Rarity:      RarityRare,
-			Points:      50,
-			IconIndex:   2,
+			ID:            "destroyer",
+			Name:          "Destroyer",
+			Description:   "Defeat 100 enemies",
+			Category:      CategoryCombat,
+			Rarity:        RarityRare,
+			Points:        50,
+			IconIndex:     2,
 			RequiresKills: 100,
 		},
 		{
-			ID:          "boss_hunter",
-			Name:        "Boss Hunter",
-			Description: "Defeat your first boss",
-			Category:    CategoryCombat,
-			Rarity:      RarityCommon,
-			Points:      20,
-			IconIndex:   3,
+			ID:             "boss_hunter",
+			Name:           "Boss Hunter",
+			Description:    "Defeat your first boss",
+			Category:       CategoryCombat,
+			Rarity:         RarityCommon,
+			Points:         20,
+			IconIndex:      3,
 			RequiresBosses: 1,
 		},
 		{
-			ID:          "boss_slayer",
-			Name:        "Boss Slayer",
-			Description: "Defeat all bosses",
-			Category:    CategoryCombat,
-			Rarity:      RarityEpic,
-			Points:      100,
-			IconIndex:   4,
+			ID:             "boss_slayer",
+			Name:           "Boss Slayer",
+			Description:    "Defeat all bosses",
+			Category:       CategoryCombat,
+			Rarity:         RarityEpic,
+			Points:         100,
+			IconIndex:      4,
 			RequiresBosses: 10, // Will be adjusted based on actual boss count
 		},
 		{
-			ID:          "perfectionist",
-			Name:        "Perfectionist",
-			Description: "Defeat a boss without taking damage",
-			Category:    CategoryChallenge,
-			Rarity:      RarityRare,
-			Points:      75,
-			IconIndex:   5,
+			ID:               "perfectionist",
+			Name:             "Perfectionist",
+			Description:      "Defeat a boss without taking damage",
+			Category:         CategoryChallenge,
+			Rarity:           RarityRare,
+			Points:           75,
+			IconIndex:        5,
 			RequiresNoDamage: true,
-			RequiresBosses: 1,
+			RequiresBosses:   1,
 		},
-		
+
 		// Exploration Achievements
 		{
-			ID:          "explorer",
-			Name:        "Explorer",
-			Description: "Visit 10 different rooms",
-			Category:    CategoryExploration,
-			Rarity:      RarityCommon,
-			Points:      10,
-			IconIndex:   6,
+			ID:            "explorer",
+			Name:          "Explorer",
+			Description:   "Visit 10 different rooms",
+			Category:      CategoryExploration,
+			Rarity:        RarityCommon,
+			Points:        10,
+			IconIndex:     6,
 			RequiresRooms: 10,
 		},
 		{
-			ID:          "cartographer",
-			Name:        "Cartographer",
-			Description: "Visit 50 different rooms",
-			Category:    CategoryExploration,
-			Rarity:      RarityUncommon,
-			Points:      30,
-			IconIndex:   7,
+			ID:            "cartographer",
+			Name:          "Cartographer",
+			Description:   "Visit 50 different rooms",
+			Category:      CategoryExploration,
+			Rarity:        RarityUncommon,
+			Points:        30,
+			IconIndex:     7,
 			RequiresRooms: 50,
 		},
 		{
-			ID:          "master_explorer",
-			Name:        "Master Explorer",
-			Description: "Visit all rooms in the world",
-			Category:    CategoryExploration,
-			Rarity:      RarityEpic,
-			Points:      100,
-			IconIndex:   8,
+			ID:            "master_explorer",
+			Name:          "Master Explorer",
+			Description:   "Visit all rooms in the world",
+			Category:      CategoryExploration,
+			Rarity:        RarityEpic,
+			Points:        100,
+			IconIndex:     8,
 			RequiresRooms: 100, // Will be adjusted based on world size
 		},
-		
+
 		// Collection Achievements
 		{
-			ID:          "treasure_hunter",
-			Name:        "Treasure Hunter",
-			Description: "Collect 10 items",
-			Category:    CategoryCollection,
-			Rarity:      RarityCommon,
-			Points:      15,
-			IconIndex:   9,
+			ID:            "treasure_hunter",
+			Name:          "Treasure Hunter",
+			Description:   "Collect 10 items",
+			Category:      CategoryCollection,
+			Rarity:        RarityCommon,
+			Points:        15,
+			IconIndex:     9,
 			RequiresItems: 10,
 		},
 		{
-			ID:          "hoarder",
-			Name:        "Hoarder",
-			Description: "Collect 25 items",
-			Category:    CategoryCollection,
-			Rarity:      RarityUncommon,
-			Points:      35,
-			IconIndex:   10,
+			ID:            "hoarder",
+			Name:          "Hoarder",
+			Description:   "Collect 25 items",
+			Category:      CategoryCollection,
+			Rarity:        RarityUncommon,
+			Points:        35,
+			IconIndex:     10,
 			RequiresItems: 25,
 		},
 		{
-			ID:          "ability_master",
-			Name:        "Ability Master",
-			Description: "Unlock all abilities",
-			Category:    CategoryCollection,
-			Rarity:      RarityRare,
-			Points:      80,
-			IconIndex:   11,
+			ID:                "ability_master",
+			Name:              "Ability Master",
+			Description:       "Unlock all abilities",
+			Category:          CategoryCollection,
+			Rarity:            RarityRare,
+			Points:            80,
+			IconIndex:         11,
 			RequiresAbilities: 8, // Will be adjusted based on ability count
 		},
-		
+
 		// Speed Achievements
 		{
-			ID:          "speedrunner",
-			Name:        "Speedrunner",
-			Description: "Complete the game in under 30 minutes",
-			Category:    CategorySpeed,
-			Rarity:      RarityEpic,
-			Points:      150,
-			IconIndex:   12,
+			ID:                "speedrunner",
+			Name:              "Speedrunner",
+			Description:       "Complete the game in under 30 minutes",
+			Category:          CategorySpeed,
+			Rarity:            RarityEpic,
+			Points:            150,
+			IconIndex:         12,
 			RequiresTimeLimit: 1800, // 30 minutes
-			RequiresBosses: 10,
+			RequiresBosses:    10,
 		},
 		{
-			ID:          "flash",
-			Name:        "Flash",
-			Description: "Defeat a boss in under 60 seconds",
-			Category:    CategorySpeed,
-			Rarity:      RarityRare,
-			Points:      60,
-			IconIndex:   13,
+			ID:                "flash",
+			Name:              "Flash",
+			Description:       "Defeat a boss in under 60 seconds",
+			Category:          CategorySpeed,
+			Rarity:            RarityRare,
+			Points:            60,
+			IconIndex:         13,
 			RequiresTimeLimit: 60,
-			RequiresBosses: 1,
+			RequiresBosses:    1,
 		},
-		
+
 		// Challenge Achievements
 		{
-			ID:          "untouchable",
-			Name:        "Untouchable",
-			Description: "Clear 10 rooms without taking damage",
-			Category:    CategoryChallenge,
-			Rarity:      RarityRare,
-			Points:      90,
-			IconIndex:   14,
+			ID:              "untouchable",
+			Name:            "Untouchable",
+			Description:     "Clear 10 rooms without taking damage",
+			Category:        CategoryChallenge,
+			Rarity:          RarityRare,
+			Points:          90,
+			IconIndex:       14,
 			RequiresSpecial: "perfect_rooms_10",
 		},
 		{
-			ID:          "combo_master",
-			Name:        "Combo Master",
-			Description: "Achieve a 20-hit combo",
-			Category:    CategoryChallenge,
-			Rarity:      RarityUncommon,
-			Points:      40,
-			IconIndex:   15,
+			ID:              "combo_master",
+			Name:            "Combo Master",
+			Description:     "Achieve a 20-hit combo",
+			Category:        CategoryChallenge,
+			Rarity:          RarityUncommon,
+			Points:          40,
+			IconIndex:       15,
 			RequiresSpecial: "combo_20",
 		},
 		{
-			ID:          "survivor",
-			Name:        "Survivor",
-			Description: "Complete the game without dying",
-			Category:    CategoryChallenge,
-			Rarity:      RarityLegendary,
-			Points:      200,
-			IconIndex:   16,
+			ID:              "survivor",
+			Name:            "Survivor",
+			Description:     "Complete the game without dying",
+			Category:        CategoryChallenge,
+			Rarity:          RarityLegendary,
+			Points:          200,
+			IconIndex:       16,
 			RequiresSpecial: "no_deaths",
-			RequiresBosses: 10,
+			RequiresBosses:  10,
 		},
-		
+
 		// Secret Achievements
 		{
-			ID:          "secret_finder",
-			Name:        "Secret Finder",
-			Description: "Discover a hidden secret",
-			Category:    CategorySecret,
-			Rarity:      RarityUncommon,
-			Points:      30,
-			IconIndex:   17,
-			Hidden:      true,
+			ID:              "secret_finder",
+			Name:            "Secret Finder",
+			Description:     "Discover a hidden secret",
+			Category:        CategorySecret,
+			Rarity:          RarityUncommon,
+			Points:          30,
+			IconIndex:       17,
+			Hidden:          true,
 			RequiresSpecial: "secret_1",
 		},
 		{
-			ID:          "completionist",
-			Name:        "Completionist",
-			Description: "Unlock all achievements",
-			Category:    CategorySecret,
-			Rarity:      RarityLegendary,
-			Points:      250,
-			IconIndex:   18,
-			Hidden:      true,
+			ID:              "completionist",
+			Name:            "Completionist",
+			Description:     "Unlock all achievements",
+			Category:        CategorySecret,
+			Rarity:          RarityLegendary,
+			Points:          250,
+			IconIndex:       18,
+			Hidden:          true,
 			RequiresSpecial: "all_achievements",
 		},
 	}
-	
+
 	for _, achievement := range achievements {
 		at.RegisterAchievement(achievement)
 	}
@@ -349,7 +349,7 @@ func (at *AchievementTracker) registerDefaultAchievements() {
 // RegisterAchievement registers a new achievement
 func (at *AchievementTracker) RegisterAchievement(achievement *Achievement) {
 	at.achievements[achievement.ID] = achievement
-	
+
 	// Initialize progress tracking
 	at.progress[achievement.ID] = &AchievementProgress{
 		AchievementID: achievement.ID,
@@ -401,12 +401,12 @@ func (at *AchievementTracker) RecordBossKill(timeTaken int64, wasPerfect bool) {
 	if wasPerfect {
 		at.stats.PerfectKills++
 	}
-	
+
 	// Track fastest boss kill
 	if at.stats.FastestBossKill == 0 || timeTaken < at.stats.FastestBossKill {
 		at.stats.FastestBossKill = timeTaken
 	}
-	
+
 	at.checkAchievements()
 }
 
@@ -432,7 +432,7 @@ func (at *AchievementTracker) RecordAbilityUnlocked() {
 }
 
 // RecordDamage records damage dealt or taken
-func (at *AchievementTracker) RecordDamage(dealt int, taken int) {
+func (at *AchievementTracker) RecordDamage(dealt, taken int) {
 	at.stats.TotalDamageDealt += dealt
 	at.stats.DamageTaken += taken
 	at.checkAchievements()
@@ -459,7 +459,7 @@ func (at *AchievementTracker) checkAchievements() {
 		if at.IsUnlocked(id) {
 			continue
 		}
-		
+
 		// Check if requirements are met
 		if at.checkRequirements(achievement) {
 			at.UnlockAchievement(id)
@@ -476,27 +476,27 @@ func (at *AchievementTracker) checkRequirements(achievement *Achievement) bool {
 	if achievement.RequiresKills > 0 && at.stats.EnemiesDefeated < achievement.RequiresKills {
 		return false
 	}
-	
+
 	// Check boss requirements
 	if achievement.RequiresBosses > 0 && at.stats.BossesDefeated < achievement.RequiresBosses {
 		return false
 	}
-	
+
 	// Check room requirements
 	if achievement.RequiresRooms > 0 && at.stats.RoomsVisited < achievement.RequiresRooms {
 		return false
 	}
-	
+
 	// Check item requirements
 	if achievement.RequiresItems > 0 && at.stats.ItemsCollected < achievement.RequiresItems {
 		return false
 	}
-	
+
 	// Check ability requirements
 	if achievement.RequiresAbilities > 0 && at.stats.AbilitiesUnlocked < achievement.RequiresAbilities {
 		return false
 	}
-	
+
 	// Check time limit
 	if achievement.RequiresTimeLimit > 0 {
 		playTime := at.stats.PlayTime
@@ -507,12 +507,12 @@ func (at *AchievementTracker) checkRequirements(achievement *Achievement) bool {
 			return false
 		}
 	}
-	
+
 	// Check special requirements
 	if achievement.RequiresSpecial != "" {
 		return at.checkSpecialRequirement(achievement)
 	}
-	
+
 	return true
 }
 
@@ -542,7 +542,7 @@ func (at *AchievementTracker) updateProgress(achievement *Achievement) {
 	if progress == nil {
 		return
 	}
-	
+
 	// Determine current value based on achievement type
 	var currentValue int
 	if achievement.RequiresKills > 0 {
@@ -556,7 +556,7 @@ func (at *AchievementTracker) updateProgress(achievement *Achievement) {
 	} else if achievement.RequiresAbilities > 0 {
 		currentValue = at.stats.AbilitiesUnlocked
 	}
-	
+
 	progress.CurrentValue = currentValue
 	progress.Progress = float64(currentValue) / float64(progress.TargetValue)
 	if progress.Progress > 1.0 {
@@ -571,32 +571,32 @@ func (at *AchievementTracker) UnlockAchievement(id AchievementID) error {
 	if !exists {
 		return fmt.Errorf("achievement not found: %s", id)
 	}
-	
+
 	// Check if already unlocked
 	if at.IsUnlocked(id) {
 		return nil
 	}
-	
+
 	// Create unlocked achievement record
 	unlocked := &UnlockedAchievement{
 		AchievementID: id,
 		UnlockedAt:    time.Now(),
 		Progress:      1.0,
 	}
-	
+
 	at.unlocked[id] = unlocked
-	
+
 	// Update progress to complete
 	if progress := at.progress[id]; progress != nil {
 		progress.Progress = 1.0
 		progress.CurrentValue = progress.TargetValue
 	}
-	
+
 	// Trigger unlock callback
 	if at.onUnlock != nil {
 		at.onUnlock(achievement)
 	}
-	
+
 	return nil
 }
 

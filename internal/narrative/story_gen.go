@@ -13,21 +13,21 @@ import (
 type StoryTheme string
 
 const (
-	FantasyTheme    StoryTheme = "fantasy"
-	SciFiTheme      StoryTheme = "scifi"
-	HorrorTheme     StoryTheme = "horror"
-	MysticalTheme   StoryTheme = "mystical"
-	PostApocTheme   StoryTheme = "postapoc"
+	FantasyTheme  StoryTheme = "fantasy"
+	SciFiTheme    StoryTheme = "scifi"
+	HorrorTheme   StoryTheme = "horror"
+	MysticalTheme StoryTheme = "mystical"
+	PostApocTheme StoryTheme = "postapoc"
 )
 
 // Mood represents emotional tone
 type Mood string
 
 const (
-	DarkMood      Mood = "dark"
-	HopefulMood   Mood = "hopeful"
+	DarkMood       Mood = "dark"
+	HopefulMood    Mood = "hopeful"
 	MysteriousMood Mood = "mysterious"
-	EpicMood      Mood = "epic"
+	EpicMood       Mood = "epic"
 )
 
 // WorldContext represents the generated world setting
@@ -58,9 +58,9 @@ type Character struct {
 
 // StoryElement represents a piece of narrative
 type StoryElement struct {
-	Type        string
-	Content     string
-	Context     map[string]string
+	Type    string
+	Content string
+	Context map[string]string
 }
 
 // NarrativeGenerator generates procedural stories
@@ -78,10 +78,10 @@ func NewNarrativeGenerator(seed int64) *NarrativeGenerator {
 // Generate creates a complete narrative context
 func (ng *NarrativeGenerator) Generate(seed int64) *WorldContext {
 	ng.rng = rand.New(rand.NewSource(seed))
-	
+
 	theme := ng.selectTheme()
 	mood := ng.selectMood()
-	
+
 	ctx := &WorldContext{
 		Theme:            theme,
 		Mood:             mood,
@@ -91,12 +91,12 @@ func (ng *NarrativeGenerator) Generate(seed int64) *WorldContext {
 		PlayerMotivation: ng.generatePlayerMotivation(theme),
 		WorldConstraints: make(map[string]interface{}),
 	}
-	
+
 	// Set constraints based on theme
 	ctx.WorldConstraints["dangerLevel"] = ng.rng.Intn(5) + 3
 	ctx.WorldConstraints["mysteryLevel"] = ng.rng.Intn(5) + 3
 	ctx.WorldConstraints["techLevel"] = ng.getTechLevel(theme)
-	
+
 	return ctx
 }
 
@@ -157,7 +157,7 @@ func (ng *NarrativeGenerator) generateCivilizationType(theme StoryTheme) string 
 			"mutant tribes",
 		},
 	}
-	
+
 	options := civilizations[theme]
 	return options[ng.rng.Intn(len(options))]
 }
@@ -196,7 +196,7 @@ func (ng *NarrativeGenerator) generateCatastrophe(theme StoryTheme) string {
 			"the machines turned against their makers",
 		},
 	}
-	
+
 	options := catastrophes[theme]
 	return options[ng.rng.Intn(len(options))]
 }
@@ -204,7 +204,7 @@ func (ng *NarrativeGenerator) generateCatastrophe(theme StoryTheme) string {
 // generateFactions creates factions for the world
 func (ng *NarrativeGenerator) generateFactions(theme StoryTheme, count int) []Faction {
 	factions := make([]Faction, count)
-	
+
 	nameTemplates := map[StoryTheme][]string{
 		FantasyTheme:  {"Order of", "Brotherhood of", "Circle of", "Guild of"},
 		SciFiTheme:    {"The", "Sector", "Division", "Protocol"},
@@ -212,7 +212,7 @@ func (ng *NarrativeGenerator) generateFactions(theme StoryTheme, count int) []Fa
 		MysticalTheme: {"Seekers of", "Keepers of", "Guardians of", "Watchers of"},
 		PostApocTheme: {"The", "New", "Free", "United"},
 	}
-	
+
 	nouns := map[StoryTheme][]string{
 		FantasyTheme:  {"the Phoenix", "the Silver Moon", "the Iron Crown", "the Ancient Oak"},
 		SciFiTheme:    {"Nexus", "Genesis", "Vanguard", "Horizon"},
@@ -220,23 +220,23 @@ func (ng *NarrativeGenerator) generateFactions(theme StoryTheme, count int) []Fa
 		MysticalTheme: {"True Sight", "the Eternal Flame", "Cosmic Balance", "Hidden Knowledge"},
 		PostApocTheme: {"Survivors", "Resistance", "Haven", "Outcasts"},
 	}
-	
+
 	relationships := []string{"ally", "enemy", "neutral"}
-	
+
 	templates := nameTemplates[theme]
 	nounList := nouns[theme]
-	
+
 	for i := 0; i < count; i++ {
 		template := templates[ng.rng.Intn(len(templates))]
 		noun := nounList[ng.rng.Intn(len(nounList))]
-		
+
 		factions[i] = Faction{
 			Name:         fmt.Sprintf("%s %s", template, noun),
 			Description:  ng.generateFactionDescription(theme),
 			Relationship: relationships[ng.rng.Intn(len(relationships))],
 		}
 	}
-	
+
 	return factions
 }
 
@@ -286,7 +286,7 @@ func (ng *NarrativeGenerator) generatePlayerMotivation(theme StoryTheme) string 
 			"discover the truth about the apocalypse",
 		},
 	}
-	
+
 	options := motivations[theme]
 	return options[ng.rng.Intn(len(options))]
 }
@@ -309,17 +309,17 @@ func (ng *NarrativeGenerator) GenerateCharacter(role string) *Character {
 		"Aria", "Kael", "Zara", "Theron", "Lyra",
 		"Drake", "Nova", "Cipher", "Echo", "Raven",
 	}
-	
+
 	lastNames := []string{
 		"Shadowbane", "Ironheart", "Stormwind", "Nightshade",
 		"Brightblade", "Darkwater", "Swiftfoot", "Firebrand",
 	}
-	
+
 	traits := []string{
 		"brave", "cunning", "wise", "fierce", "mysterious",
 		"loyal", "ambitious", "skilled", "ruthless", "compassionate",
 	}
-	
+
 	motivations := []string{
 		"seeking redemption",
 		"protecting loved ones",
@@ -327,16 +327,16 @@ func (ng *NarrativeGenerator) GenerateCharacter(role string) *Character {
 		"gaining power",
 		"escaping the past",
 	}
-	
+
 	firstName := firstNames[ng.rng.Intn(len(firstNames))]
 	lastName := lastNames[ng.rng.Intn(len(lastNames))]
-	
+
 	numTraits := 2 + ng.rng.Intn(2)
 	selectedTraits := make([]string, numTraits)
 	for i := 0; i < numTraits; i++ {
 		selectedTraits[i] = traits[ng.rng.Intn(len(traits))]
 	}
-	
+
 	return &Character{
 		Name:       fmt.Sprintf("%s %s", firstName, lastName),
 		Traits:     selectedTraits,
@@ -354,7 +354,7 @@ func (ng *NarrativeGenerator) GenerateItemDescription(itemType string, theme Sto
 		MysticalTheme: {"ethereal", "transcendent", "sacred", "cosmic"},
 		PostApocTheme: {"salvaged", "modified", "reinforced", "makeshift"},
 	}
-	
+
 	templates := map[string][]string{
 		"weapon": {
 			"A %s blade forged in the fires of the %s.",
@@ -372,27 +372,27 @@ func (ng *NarrativeGenerator) GenerateItemDescription(itemType string, theme Sto
 			"The %s properties make it invaluable.",
 		},
 	}
-	
+
 	// Use default if theme not found
 	adjList, ok := adjectives[theme]
 	if !ok || len(adjList) == 0 {
 		adjList = []string{"mysterious", "powerful", "rare", "valuable"}
 	}
-	
+
 	// Use default if item type not found
 	tmplList, ok := templates[itemType]
 	if !ok || len(tmplList) == 0 {
 		return "A remarkable item of unknown origin."
 	}
-	
+
 	adj := adjList[ng.rng.Intn(len(adjList))]
 	tmpl := tmplList[ng.rng.Intn(len(tmplList))]
-	
+
 	if strings.Contains(tmpl, "fires of the %s") {
 		locations := []string{"ancients", "fallen kingdom", "first age", "old world"}
 		return fmt.Sprintf(tmpl, adj, locations[ng.rng.Intn(len(locations))])
 	}
-	
+
 	return fmt.Sprintf(tmpl, adj)
 }
 
@@ -415,10 +415,10 @@ func (ng *NarrativeGenerator) GenerateRoomDescription(roomType string, theme Sto
 			"The room holds secrets waiting to be unraveled.",
 		},
 	}
-	
+
 	if descs, ok := descriptions[roomType]; ok {
 		return descs[ng.rng.Intn(len(descs))]
 	}
-	
+
 	return "A mysterious chamber awaits exploration."
 }

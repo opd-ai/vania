@@ -299,25 +299,25 @@ func (mm *MenuManager) drawScaledColoredText(screen *ebiten.Image, text string, 
 	textWidth := len(text) * CharWidth
 	textHeight := CharHeight
 	textImg := ebiten.NewImage(textWidth, textHeight)
-	
+
 	// Draw text to temporary image
 	for i, char := range text {
 		charX := i * CharWidth
 		mm.drawChar(textImg, char, charX, 0, CharWidth, CharHeight, col)
 	}
-	
+
 	// Apply scaling transformation and draw to screen
 	opts := &ebiten.DrawImageOptions{}
-	
+
 	// Scale around center point for better visual effect
 	centerX := float64(textWidth) / 2
 	centerY := float64(textHeight) / 2
-	
+
 	opts.GeoM.Translate(-centerX, -centerY)
 	opts.GeoM.Scale(scale, scale)
 	opts.GeoM.Translate(centerX, centerY)
 	opts.GeoM.Translate(float64(x), float64(y))
-	
+
 	screen.DrawImage(textImg, opts)
 }
 
@@ -326,23 +326,23 @@ func (mm *MenuManager) drawChar(screen *ebiten.Image, char rune, x, y, width, he
 	// Create character image and set all pixels at once for performance
 	charImg := ebiten.NewImage(width, height)
 	pixels := make([]byte, width*height*4) // RGBA format
-	
+
 	pattern := mm.getCharPattern(char, width, height)
 	r, g, b, a := col.RGBA()
-	
+
 	// Convert to 8-bit values
 	r8, g8, b8, a8 := byte(r>>8), byte(g>>8), byte(b>>8), byte(a>>8)
-	
+
 	// Batch set all pixels for the character
 	for py := 0; py < height; py++ {
 		for px := 0; px < width; px++ {
 			offset := (py*width + px) * 4
 			if py < len(pattern) && px < len(pattern[py]) && pattern[py][px] {
 				// Set pixel to character color
-				pixels[offset] = r8     // Red
-				pixels[offset+1] = g8   // Green
-				pixels[offset+2] = b8   // Blue
-				pixels[offset+3] = a8   // Alpha
+				pixels[offset] = r8   // Red
+				pixels[offset+1] = g8 // Green
+				pixels[offset+2] = b8 // Blue
+				pixels[offset+3] = a8 // Alpha
 			} else {
 				// Set pixel to transparent
 				pixels[offset] = 0
@@ -352,10 +352,10 @@ func (mm *MenuManager) drawChar(screen *ebiten.Image, char rune, x, y, width, he
 			}
 		}
 	}
-	
+
 	// Apply all pixels in a single operation
 	charImg.WritePixels(pixels)
-	
+
 	// Single draw call per character
 	opts := &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(x), float64(y))

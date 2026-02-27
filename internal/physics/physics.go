@@ -8,13 +8,13 @@ import (
 
 const (
 	// Physics constants
-	Gravity          = 0.5
-	MaxFallSpeed     = 10.0
-	PlayerSpeed      = 4.0
-	PlayerJumpSpeed  = -12.0
-	PlayerDashSpeed  = 8.0
-	PlayerWidth      = 32
-	PlayerHeight     = 32
+	Gravity         = 0.5
+	MaxFallSpeed    = 10.0
+	PlayerSpeed     = 4.0
+	PlayerJumpSpeed = -12.0
+	PlayerDashSpeed = 8.0
+	PlayerWidth     = 32
+	PlayerHeight    = 32
 )
 
 // AABB represents an axis-aligned bounding box
@@ -25,11 +25,11 @@ type AABB struct {
 
 // Body represents a physics body
 type Body struct {
-	Position   AABB
-	Velocity   Vector2D
-	OnGround   bool
-	OnWall     bool
-	WallSide   int // -1 for left, 1 for right, 0 for none
+	Position AABB
+	Velocity Vector2D
+	OnGround bool
+	OnWall   bool
+	WallSide int // -1 for left, 1 for right, 0 for none
 }
 
 // Vector2D represents a 2D vector
@@ -84,7 +84,7 @@ func (b *Body) ResolveCollisionWithPlatforms(platforms []world.Platform) {
 	b.OnGround = false
 	b.OnWall = false
 	b.WallSide = 0
-	
+
 	for _, platform := range platforms {
 		platformAABB := AABB{
 			X:      float64(platform.X),
@@ -92,7 +92,7 @@ func (b *Body) ResolveCollisionWithPlatforms(platforms []world.Platform) {
 			Width:  float64(platform.Width),
 			Height: float64(platform.Height),
 		}
-		
+
 		if CheckCollision(b.Position, platformAABB) {
 			// Determine collision direction
 			// Check if player was above the platform (landed on top)
@@ -120,14 +120,14 @@ func (b *Body) ResolveCollisionWithPlatforms(platforms []world.Platform) {
 			}
 		}
 	}
-	
+
 	// Check screen boundaries (floor at bottom)
 	if b.Position.Y+b.Position.Height >= 640 {
 		b.Position.Y = 640 - b.Position.Height
 		b.Velocity.Y = 0
 		b.OnGround = true
 	}
-	
+
 	// Keep player on screen (left/right boundaries)
 	if b.Position.X < 0 {
 		b.Position.X = 0
@@ -137,7 +137,7 @@ func (b *Body) ResolveCollisionWithPlatforms(platforms []world.Platform) {
 		b.Position.X = 960 - b.Position.Width
 		b.Velocity.X = 0
 	}
-	
+
 	// Landing detection (just landed)
 	if !wasOnGround && b.OnGround {
 		// Could trigger landing sound/animation here

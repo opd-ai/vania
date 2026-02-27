@@ -25,15 +25,15 @@ type EnemyInstance struct {
 	AggroRange     float64
 	AttackRange    float64
 	AnimController *animation.AnimationController
-	
+
 	// Advanced AI fields
-	Memory         *AIMemory      // Learning and pattern recognition
-	TacticalState  TacticalState  // Current tactical decision state
-	Group          *EnemyGroup    // Group coordination (nil if solo)
-	FormationX     float64        // Target X position in formation
-	FormationY     float64        // Target Y position in formation
-	LastPlayerX    float64        // Track player position for learning
-	LastPlayerY    float64
+	Memory        *AIMemory     // Learning and pattern recognition
+	TacticalState TacticalState // Current tactical decision state
+	Group         *EnemyGroup   // Group coordination (nil if solo)
+	FormationX    float64       // Target X position in formation
+	FormationY    float64       // Target Y position in formation
+	LastPlayerX   float64       // Track player position for learning
+	LastPlayerY   float64
 }
 
 // EnemyState represents current enemy state
@@ -53,22 +53,22 @@ func NewEnemyInstance(enemy *Enemy, x, y float64) *EnemyInstance {
 	// Set aggro and attack ranges based on enemy size and behavior
 	aggroRange := 200.0
 	attackRange := 32.0
-	
+
 	if enemy.Size == LargeEnemy || enemy.Size == BossEnemy {
 		aggroRange = 300.0
 		attackRange = 48.0
 	}
-	
+
 	if enemy.Behavior == FlyingBehavior {
 		aggroRange = 250.0
 	}
-	
+
 	// Create animation controller if sprite data is available
 	var animController *animation.AnimationController
 	if sprite, ok := enemy.SpriteData.(*graphics.Sprite); ok && sprite != nil {
 		animController = CreateEnemyAnimController(sprite, enemy)
 	}
-	
+
 	return &EnemyInstance{
 		Enemy:          enemy,
 		X:              x,
@@ -109,35 +109,35 @@ func (ei *EnemyInstance) Update(playerX, playerY float64) {
 		}
 		return
 	}
-	
+
 	// Update AI memory with player observations
 	// Detect if player did actions (simplified detection for now)
 	playerDidJump := math.Abs(playerY-ei.LastPlayerY) > 5.0 && playerY < ei.LastPlayerY
 	playerDidAttack := false // Would need actual attack detection from game state
 	playerDidDash := math.Abs(playerX-ei.LastPlayerX) > 10.0
-	
+
 	ei.Memory.UpdateMemory(playerX, playerY, playerDidJump, playerDidAttack, playerDidDash)
 	ei.LastPlayerX = playerX
 	ei.LastPlayerY = playerY
-	
+
 	// Decrease attack cooldown
 	if ei.AttackCooldown > 0 {
 		ei.AttackCooldown--
 	}
-	
+
 	// Calculate distance to player
 	dx := playerX - ei.X
 	dy := playerY - ei.Y
 	distToPlayer := math.Sqrt(dx*dx + dy*dy)
-	
+
 	// Determine tactical state based on AI memory
 	healthPercent := float64(ei.CurrentHealth) / float64(ei.Enemy.Health)
 	hasAllies := ei.Group != nil && len(ei.Group.Members) > 1
 	ei.TacticalState = ei.Memory.GetTacticalState(healthPercent, hasAllies, distToPlayer)
-	
+
 	// Apply tactical state modifications to behavior
 	ei.applyTacticalBehavior(distToPlayer, dx, dy, playerX, playerY)
-	
+
 	// Update behavior based on pattern
 	switch ei.Enemy.Behavior {
 	case PatrolBehavior:
@@ -153,12 +153,12 @@ func (ei *EnemyInstance) Update(playerX, playerY float64) {
 	case JumpingBehavior:
 		ei.updateJumpingBehavior(distToPlayer, dx, dy)
 	}
-	
+
 	// Apply formation movement if in a group
 	if ei.Group != nil && ei.Group.Formation != NoFormation {
 		ei.applyFormationMovement()
 	}
-	
+
 	// Apply velocity limits
 	maxSpeed := ei.Enemy.Speed
 	if ei.VelX > maxSpeed {
@@ -166,7 +166,7 @@ func (ei *EnemyInstance) Update(playerX, playerY float64) {
 	} else if ei.VelX < -maxSpeed {
 		ei.VelX = -maxSpeed
 	}
-	
+
 	// Apply gravity for ground-based enemies
 	if ei.Enemy.Behavior != FlyingBehavior && !ei.OnGround {
 		ei.VelY += 0.5 // Gravity
@@ -174,14 +174,14 @@ func (ei *EnemyInstance) Update(playerX, playerY float64) {
 			ei.VelY = 10.0
 		}
 	}
-	
+
 	// Update animation controller
 	if ei.AnimController != nil {
 		ei.AnimController.Update()
-		
+
 		// Set animation based on state
 		currentAnim := ei.AnimController.GetCurrentAnimation()
-		
+
 		switch ei.State {
 		case AttackState:
 			if currentAnim != "attack" {
@@ -207,11 +207,11 @@ func (ei *EnemyInstance) updatePatrolBehavior(distToPlayer, dx, dy float64) {
 		ei.chasePlayer(dx, dy)
 		return
 	}
-	
+
 	// Patrol between min and max X
 	ei.State = PatrolState
 	ei.VelX = ei.Enemy.Speed * ei.PatrolDir
-	
+
 	// Reverse direction at boundaries
 	if ei.X >= ei.PatrolMaxX {
 		ei.PatrolDir = -1.0
@@ -228,7 +228,7 @@ func (ei *EnemyInstance) updateChaseBehavior(distToPlayer, dx, dy float64) {
 		ei.AttackCooldown = 60 // 1 second cooldown at 60 FPS
 		return
 	}
-	
+
 	ei.State = ChaseState
 	ei.chasePlayer(dx, dy)
 }
@@ -252,7 +252,7 @@ func (ei *EnemyInstance) updateFleeBehavior(distToPlayer, dx, dy float64) {
 // updateStationaryBehavior implements stationary AI
 func (ei *EnemyInstance) updateStationaryBehavior(distToPlayer, dx, dy float64) {
 	ei.VelX = 0
-	
+
 	if distToPlayer < ei.AttackRange && ei.AttackCooldown <= 0 {
 		ei.State = AttackState
 		ei.AttackCooldown = 90 // Longer cooldown for stationary
@@ -270,7 +270,7 @@ func (ei *EnemyInstance) updateFlyingBehavior(distToPlayer, dx, dy float64) {
 		ei.AttackCooldown = 60
 		return
 	}
-	
+
 	if distToPlayer < ei.AggroRange {
 		ei.State = ChaseState
 		// Move toward player in both X and Y
@@ -281,7 +281,7 @@ func (ei *EnemyInstance) updateFlyingBehavior(distToPlayer, dx, dy float64) {
 		// Hover slowly
 		ei.VelX = ei.Enemy.Speed * 0.3 * ei.PatrolDir
 		ei.VelY = math.Sin(ei.X*0.1) * 0.5
-		
+
 		if ei.X >= ei.PatrolMaxX || ei.X <= ei.PatrolMinX {
 			ei.PatrolDir *= -1
 		}
@@ -295,11 +295,11 @@ func (ei *EnemyInstance) updateJumpingBehavior(distToPlayer, dx, dy float64) {
 		ei.AttackCooldown = 60
 		return
 	}
-	
+
 	if distToPlayer < ei.AggroRange {
 		ei.State = ChaseState
 		ei.chasePlayer(dx, dy)
-		
+
 		// Jump toward player if on ground
 		if ei.OnGround && ei.AttackCooldown <= 0 {
 			ei.VelY = -8.0
@@ -308,7 +308,7 @@ func (ei *EnemyInstance) updateJumpingBehavior(distToPlayer, dx, dy float64) {
 	} else {
 		ei.State = PatrolState
 		ei.VelX = ei.Enemy.Speed * ei.PatrolDir
-		
+
 		if ei.X >= ei.PatrolMaxX || ei.X <= ei.PatrolMinX {
 			ei.PatrolDir *= -1
 		}
@@ -327,17 +327,17 @@ func (ei *EnemyInstance) chasePlayer(dx, dy float64) {
 // TakeDamage applies damage to enemy
 func (ei *EnemyInstance) TakeDamage(damage int) {
 	ei.CurrentHealth -= damage
-	
+
 	// Record combat event in memory
 	if ei.Memory != nil {
 		ei.Memory.RecordCombatEvent(false, true, damage, 0)
 	}
-	
+
 	// Play hit animation
 	if ei.AnimController != nil && ei.CurrentHealth > 0 {
 		ei.AnimController.Play("hit", true)
 	}
-	
+
 	if ei.CurrentHealth < 0 {
 		ei.CurrentHealth = 0
 	}
@@ -352,12 +352,12 @@ func (ei *EnemyInstance) applyTacticalBehavior(distToPlayer, dx, dy, playerX, pl
 		if distToPlayer < ei.AggroRange {
 			ei.State = ChaseState
 		}
-		
+
 	case TacticalDefensive:
 		// Increase attack range, reduce aggro range when defensive
 		ei.AggroRange *= 0.8
 		ei.AttackRange *= 1.3
-		
+
 	case TacticalFlanking:
 		// Try to get behind or beside player
 		if ei.Group != nil && len(ei.Group.Members) > 1 {
@@ -368,7 +368,7 @@ func (ei *EnemyInstance) applyTacticalBehavior(distToPlayer, dx, dy, playerX, pl
 		angle := math.Atan2(dy, dx) + math.Pi/2 // 90 degrees offset
 		targetX := playerX + math.Cos(angle)*100
 		targetY := playerY + math.Sin(angle)*100
-		
+
 		fdx := targetX - ei.X
 		_ = targetY - ei.Y // fdy unused for ground-based flanking
 		if math.Abs(fdx) > 10 {
@@ -378,7 +378,7 @@ func (ei *EnemyInstance) applyTacticalBehavior(distToPlayer, dx, dy, playerX, pl
 				ei.VelX = -ei.Enemy.Speed
 			}
 		}
-		
+
 	case TacticalKiting:
 		// Hit and run: attack then retreat
 		if distToPlayer < ei.AttackRange && ei.AttackCooldown <= 0 {
@@ -392,7 +392,7 @@ func (ei *EnemyInstance) applyTacticalBehavior(distToPlayer, dx, dy, playerX, pl
 				ei.VelX = ei.Enemy.Speed
 			}
 		}
-		
+
 	case TacticalRetreating:
 		// Move away from player
 		ei.State = FleeState
@@ -401,7 +401,7 @@ func (ei *EnemyInstance) applyTacticalBehavior(distToPlayer, dx, dy, playerX, pl
 		} else {
 			ei.VelX = ei.Enemy.Speed * 1.2
 		}
-		
+
 	case TacticalRegrouping:
 		// Move toward group center if we have a group
 		if ei.Group != nil && len(ei.Group.Members) > 1 {
@@ -417,10 +417,10 @@ func (ei *EnemyInstance) applyTacticalBehavior(distToPlayer, dx, dy, playerX, pl
 			if count > 0 {
 				centerX /= float64(count)
 				centerY /= float64(count)
-				
+
 				gdx := centerX - ei.X
 				_ = centerY - ei.Y // gdy unused for horizontal regrouping
-				
+
 				if math.Abs(gdx) > 10 {
 					if gdx > 0 {
 						ei.VelX = ei.Enemy.Speed
@@ -439,17 +439,17 @@ func (ei *EnemyInstance) applyFormationMovement() {
 	dx := ei.FormationX - ei.X
 	dy := ei.FormationY - ei.Y
 	dist := math.Sqrt(dx*dx + dy*dy)
-	
+
 	// Only apply formation movement if we're far from position
 	if dist > 30.0 {
 		// Blend formation movement with current velocity
 		formationInfluence := 0.3
-		
+
 		targetVelX := (dx / dist) * ei.Enemy.Speed
 		targetVelY := (dy / dist) * ei.Enemy.Speed
-		
+
 		ei.VelX = ei.VelX*(1.0-formationInfluence) + targetVelX*formationInfluence
-		
+
 		// Only apply Y velocity for flying enemies
 		if ei.Enemy.Behavior == FlyingBehavior {
 			ei.VelY = ei.VelY*(1.0-formationInfluence) + targetVelY*formationInfluence
@@ -488,7 +488,7 @@ func (ei *EnemyInstance) GetAttackDamage() int {
 func (ei *EnemyInstance) GetBounds() (x, y, width, height float64) {
 	width = 32.0
 	height = 32.0
-	
+
 	switch ei.Enemy.Size {
 	case SmallEnemy:
 		width, height = 16.0, 16.0
@@ -499,7 +499,7 @@ func (ei *EnemyInstance) GetBounds() (x, y, width, height float64) {
 	case BossEnemy:
 		width, height = 128.0, 128.0
 	}
-	
+
 	return ei.X, ei.Y, width, height
 }
 
@@ -512,16 +512,16 @@ func CreateEnemyAnimController(baseSprite *graphics.Sprite, enemy *Enemy) *anima
 			seed += int64(c)
 		}
 	}
-	
+
 	animGen := animation.NewAnimationGenerator(seed)
-	
+
 	// Generate animation frames
 	idleFrames := animGen.GenerateEnemyIdleFrames(baseSprite, 4)
 	patrolFrames := animGen.GenerateEnemyPatrolFrames(baseSprite, 4)
 	attackFrames := animGen.GenerateEnemyAttackFrames(baseSprite, 3)
 	deathFrames := animGen.GenerateEnemyDeathFrames(baseSprite, 4)
 	hitFrames := animGen.GenerateHitFrames(baseSprite, 2)
-	
+
 	// Create animation controller with idle as default
 	animController := animation.NewAnimationController("idle")
 	animController.AddAnimation(animation.NewAnimation("idle", idleFrames, 15, true))
@@ -529,6 +529,6 @@ func CreateEnemyAnimController(baseSprite *graphics.Sprite, enemy *Enemy) *anima
 	animController.AddAnimation(animation.NewAnimation("attack", attackFrames, 5, false))
 	animController.AddAnimation(animation.NewAnimation("death", deathFrames, 10, false))
 	animController.AddAnimation(animation.NewAnimation("hit", hitFrames, 3, false))
-	
+
 	return animController
 }

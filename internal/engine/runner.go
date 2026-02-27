@@ -991,7 +991,7 @@ func createItemInstancesForRoom(room *world.Room, allItems []*entity.Item) []*en
 }
 
 // renderMessageWithProgress renders a message with a progress bar showing remaining time
-func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message string, currentTimer, maxDuration int, x, y int, bgColor color.Color) {
+func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message string, currentTimer, maxDuration, x, y int, bgColor color.Color) {
 	messageWidth := render.MessageWidth
 	messageHeight := render.MessageHeight
 	progressHeight := render.ProgressBarHeight

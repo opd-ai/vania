@@ -13,8 +13,7 @@ type Biome struct {
 }
 
 // BiomeGenerator creates biome definitions
-type BiomeGenerator struct {
-}
+type BiomeGenerator struct{}
 
 // NewBiomeGenerator creates a new biome generator
 func NewBiomeGenerator() *BiomeGenerator {
@@ -30,7 +29,7 @@ func (bg *BiomeGenerator) Generate(name string, seed int64) *Biome {
 		EnemyTypes:  []string{},
 		Hazards:     []string{},
 	}
-	
+
 	// Set biome-specific properties
 	switch name {
 	case "cave":
@@ -40,7 +39,7 @@ func (bg *BiomeGenerator) Generate(name string, seed int64) *Biome {
 		biome.ColorScheme = []string{"#2a2a3a", "#3a3a4a", "#4a4550"}
 		biome.EnemyTypes = []string{"bat", "slime", "spider"}
 		biome.Hazards = []string{"spike", "pit"}
-		
+
 	case "forest":
 		biome.Temperature = 20
 		biome.Moisture = 70
@@ -48,7 +47,7 @@ func (bg *BiomeGenerator) Generate(name string, seed int64) *Biome {
 		biome.ColorScheme = []string{"#2a5a2a", "#3a6a3a", "#4a7a4a"}
 		biome.EnemyTypes = []string{"wolf", "plant", "insect"}
 		biome.Hazards = []string{"thorns", "poison"}
-		
+
 	case "ruins":
 		biome.Temperature = 15
 		biome.Moisture = 40
@@ -56,7 +55,7 @@ func (bg *BiomeGenerator) Generate(name string, seed int64) *Biome {
 		biome.ColorScheme = []string{"#5a5a50", "#6a6a60", "#7a7a70"}
 		biome.EnemyTypes = []string{"golem", "ghost", "construct"}
 		biome.Hazards = []string{"trap", "curse"}
-		
+
 	case "crystal":
 		biome.Temperature = 5
 		biome.Moisture = 30
@@ -64,7 +63,7 @@ func (bg *BiomeGenerator) Generate(name string, seed int64) *Biome {
 		biome.ColorScheme = []string{"#4a5a7a", "#5a6a8a", "#6a7a9a"}
 		biome.EnemyTypes = []string{"elemental", "crystal_beast", "wisp"}
 		biome.Hazards = []string{"ice", "energy"}
-		
+
 	case "abyss":
 		biome.Temperature = -10
 		biome.Moisture = 20
@@ -72,7 +71,7 @@ func (bg *BiomeGenerator) Generate(name string, seed int64) *Biome {
 		biome.ColorScheme = []string{"#1a1a2a", "#2a2a3a", "#3a3a4a"}
 		biome.EnemyTypes = []string{"shadow", "demon", "horror"}
 		biome.Hazards = []string{"void", "corruption"}
-		
+
 	case "sky":
 		biome.Temperature = 10
 		biome.Moisture = 60
@@ -80,7 +79,7 @@ func (bg *BiomeGenerator) Generate(name string, seed int64) *Biome {
 		biome.ColorScheme = []string{"#6a8aaa", "#7a9aba", "#8aaaca"}
 		biome.EnemyTypes = []string{"bird", "cloud_beast", "aerial"}
 		biome.Hazards = []string{"wind", "lightning"}
-		
+
 	default:
 		// Generic biome
 		biome.Temperature = 15
@@ -90,7 +89,7 @@ func (bg *BiomeGenerator) Generate(name string, seed int64) *Biome {
 		biome.EnemyTypes = []string{"basic_enemy"}
 		biome.Hazards = []string{"generic"}
 	}
-	
+
 	return biome
 }
 

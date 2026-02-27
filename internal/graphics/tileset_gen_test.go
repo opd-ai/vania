@@ -19,7 +19,7 @@ func TestNewTilesetGenerator_CreatesValidGenerator(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tg := NewTilesetGenerator(tt.tileSize, tt.biome)
-			
+
 			if tg == nil {
 				t.Fatal("NewTilesetGenerator returned nil")
 			}
@@ -102,10 +102,10 @@ func TestGenerate_TilesHaveImages(t *testing.T) {
 // TestGenerate_DeterministicTileset tests that same seed produces same tileset
 func TestGenerate_DeterministicTileset(t *testing.T) {
 	seed := int64(202)
-	
+
 	tg1 := NewTilesetGenerator(16, "cave")
 	tileset1 := tg1.Generate(seed)
-	
+
 	tg2 := NewTilesetGenerator(16, "cave")
 	tileset2 := tg2.Generate(seed)
 
@@ -125,7 +125,7 @@ func TestGenerate_DeterministicTileset(t *testing.T) {
 // TestGenerate_DifferentBiomes tests different biome generation
 func TestGenerate_DifferentBiomes(t *testing.T) {
 	biomes := []string{"cave", "forest", "ruins"}
-	
+
 	for _, biome := range biomes {
 		t.Run(biome, func(t *testing.T) {
 			tg := NewTilesetGenerator(16, biome)
@@ -349,14 +349,14 @@ func TestGenerate_ImageBoundsCorrect(t *testing.T) {
 // TestGenerate_MultipleGenerations tests generating multiple tilesets
 func TestGenerate_MultipleGenerations(t *testing.T) {
 	tg := NewTilesetGenerator(16, "cave")
-	
+
 	for i := 0; i < 5; i++ {
 		tileset := tg.Generate(int64(1500 + i))
-		
+
 		if tileset == nil {
 			t.Fatalf("Generation %d failed", i)
 		}
-		
+
 		if len(tileset.Tiles) == 0 {
 			t.Errorf("Generation %d produced no tiles", i)
 		}
@@ -398,7 +398,7 @@ func TestGenerate_LargeTileSize(t *testing.T) {
 // TestGenerate_AllBiomesAllTiles tests all biomes generate all tiles
 func TestGenerate_AllBiomesAllTiles(t *testing.T) {
 	biomes := []string{"cave", "forest", "ruins", "crystal", "abyss"}
-	
+
 	for _, biome := range biomes {
 		t.Run(biome, func(t *testing.T) {
 			tg := NewTilesetGenerator(16, biome)
@@ -460,7 +460,7 @@ func TestGenerate_ConsistentSeedConsistentOutput(t *testing.T) {
 // TestGenerate_DifferentSeedsDifferentVariation tests seed variation
 func TestGenerate_DifferentSeedsDifferentVariation(t *testing.T) {
 	tg := NewTilesetGenerator(16, "cave")
-	
+
 	tileset1 := tg.Generate(111)
 	tileset2 := tg.Generate(222)
 

@@ -6,7 +6,7 @@ import (
 
 func TestNewInputHandler(t *testing.T) {
 	ih := NewInputHandler()
-	
+
 	if ih == nil {
 		t.Fatal("NewInputHandler returned nil")
 	}
@@ -14,12 +14,12 @@ func TestNewInputHandler(t *testing.T) {
 
 func TestInputStateInitialization(t *testing.T) {
 	state := InputState{}
-	
+
 	// All fields should be false initially
 	if state.MoveLeft || state.MoveRight || state.Jump || state.Attack {
 		t.Error("InputState should initialize with all false values")
 	}
-	
+
 	if state.JumpPress || state.AttackPress || state.DashPress || state.PausePress {
 		t.Error("InputState press flags should initialize as false")
 	}

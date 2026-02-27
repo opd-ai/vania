@@ -232,7 +232,7 @@ func TestGenerate_AllBiomes_TableDriven(t *testing.T) {
 // TestGenerate_ConsistentOutput tests that same input produces same output
 func TestGenerate_ConsistentOutput(t *testing.T) {
 	bg := NewBiomeGenerator()
-	
+
 	biome1 := bg.Generate("cave", 555)
 	biome2 := bg.Generate("cave", 555)
 
@@ -510,7 +510,7 @@ func TestBiome_MoistureRange(t *testing.T) {
 // TestBiome_SpecificEnemies tests that biomes have appropriate enemies
 func TestBiome_SpecificEnemies(t *testing.T) {
 	bg := NewBiomeGenerator()
-	
+
 	cave := bg.Generate("cave", 1)
 	if !contains(cave.EnemyTypes, "bat") {
 		t.Error("Cave should have bat enemy")
@@ -530,7 +530,7 @@ func TestBiome_SpecificEnemies(t *testing.T) {
 // TestBiome_SpecificHazards tests that biomes have appropriate hazards
 func TestBiome_SpecificHazards(t *testing.T) {
 	bg := NewBiomeGenerator()
-	
+
 	cave := bg.Generate("cave", 1)
 	if !contains(cave.Hazards, "spike") {
 		t.Error("Cave should have spike hazard")

@@ -51,7 +51,7 @@ func NewSpriteGenerator(width, height int, symmetry SymmetryType) *SpriteGenerat
 	if height <= 0 {
 		height = 32 // Default height
 	}
-	
+
 	return &SpriteGenerator{
 		Width:    width,
 		Height:   height,
@@ -68,27 +68,27 @@ func NewSpriteGenerator(width, height int, symmetry SymmetryType) *SpriteGenerat
 // Generate creates a sprite from a seed
 func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
 	rng := rand.New(rand.NewSource(seed))
-	
+
 	// Create base shape using cellular automata
 	grid := sg.generateBaseShape(rng)
-	
+
 	// Apply symmetry
 	grid = sg.applySymmetry(grid)
-	
+
 	// Generate color palette
 	palette := sg.generatePalette(rng, sg.Constraints.ColorCount)
-	
+
 	// Flood fill regions with colors
 	colored := sg.floodFillColors(grid, palette, rng)
-	
+
 	// Add shading
 	shaded := sg.applyShading(colored, palette)
-	
+
 	// Add outline if required
 	if sg.Constraints.RequireOutline {
 		shaded = sg.addOutline(shaded)
 	}
-	
+
 	return shaded
 }
 
@@ -101,12 +101,12 @@ func (sg *SpriteGenerator) generateBaseShape(rng *rand.Rand) [][]bool {
 			grid[y][x] = rng.Float64() < 0.5
 		}
 	}
-	
+
 	// Run cellular automata iterations
 	for i := 0; i < 3; i++ {
 		grid = sg.cellularAutomataStep(grid)
 	}
-	
+
 	return grid
 }
 
@@ -198,23 +198,23 @@ func (sg *SpriteGenerator) applyRadialSymmetry(grid [][]bool) [][]bool {
 // generatePalette creates a color palette
 func (sg *SpriteGenerator) generatePalette(rng *rand.Rand, count int) []color.RGBA {
 	palette := make([]color.RGBA, count)
-	
+
 	// Generate base hue
 	baseHue := rng.Float64() * 360.0
-	
+
 	for i := range palette {
 		// Create complementary and analogous colors
 		hue := baseHue + float64(i)*30.0
 		for hue >= 360.0 {
 			hue -= 360.0
 		}
-		
+
 		saturation := 0.6 + rng.Float64()*0.3
 		value := 0.4 + float64(i)*0.1
-		
+
 		palette[i] = hsvToRGB(hue, saturation, value)
 	}
-	
+
 	return palette
 }
 
@@ -223,9 +223,9 @@ func hsvToRGB(h, s, v float64) color.RGBA {
 	c := v * s
 	x := c * (1.0 - abs((mod(h/60.0, 2.0) - 1.0)))
 	m := v - c
-	
+
 	var r, g, b float64
-	
+
 	switch {
 	case h < 60:
 		r, g, b = c, x, 0
@@ -240,7 +240,7 @@ func hsvToRGB(h, s, v float64) color.RGBA {
 	default:
 		r, g, b = c, 0, x
 	}
-	
+
 	return color.RGBA{
 		R: uint8((r + m) * 255),
 		G: uint8((g + m) * 255),
@@ -267,7 +267,7 @@ func (sg *SpriteGenerator) floodFillColors(grid [][]bool, palette []color.RGBA, 
 		Width:  sg.Width,
 		Height: sg.Height,
 	}
-	
+
 	for y := range grid {
 		for x := range grid[y] {
 			if grid[y][x] {
@@ -278,7 +278,7 @@ func (sg *SpriteGenerator) floodFillColors(grid [][]bool, palette []color.RGBA, 
 			}
 		}
 	}
-	
+
 	return sprite
 }
 
@@ -303,14 +303,14 @@ func (sg *SpriteGenerator) applyShading(sprite *Sprite, palette []color.RGBA) *S
 // addOutline adds outline to sprite for clarity
 func (sg *SpriteGenerator) addOutline(sprite *Sprite) *Sprite {
 	outlined := image.NewRGBA(sprite.Image.Bounds())
-	
+
 	// Copy original
 	for y := 0; y < sprite.Height; y++ {
 		for x := 0; x < sprite.Width; x++ {
 			outlined.Set(x, y, sprite.Image.At(x, y))
 		}
 	}
-	
+
 	// Add outline where transparent meets opaque
 	black := color.RGBA{0, 0, 0, 255}
 	for y := 0; y < sprite.Height; y++ {
@@ -324,7 +324,7 @@ func (sg *SpriteGenerator) addOutline(sprite *Sprite) *Sprite {
 			}
 		}
 	}
-	
+
 	sprite.Image = outlined
 	return sprite
 }

@@ -19,13 +19,13 @@ type PCGContext struct {
 
 // GenerationRules defines constraints for PCG quality
 type GenerationRules struct {
-	MinQualityScore     float64
-	MaxGenerationTime   int64 // milliseconds
-	EnableValidation    bool
-	DifficultyPreset    string
-	ThemeBias           string
-	ArtisticStyle       string
-	MusicalGenre        string
+	MinQualityScore   float64
+	MaxGenerationTime int64 // milliseconds
+	EnableValidation  bool
+	DifficultyPreset  string
+	ThemeBias         string
+	ArtisticStyle     string
+	MusicalGenre      string
 }
 
 // NewPCGContext creates a new PCG context with the given seed

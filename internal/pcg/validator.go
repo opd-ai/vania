@@ -57,12 +57,12 @@ func (v *Validator) CalculateQualityScore(metrics *QualityMetrics) float64 {
 		"narrative": 0.20,
 		"playable":  0.35,
 	}
-	
+
 	score := (metrics.VisualCoherence * weights["visual"]) +
 		(metrics.AudioHarmony * weights["audio"]) +
 		(metrics.NarrativeScore * weights["narrative"]) +
 		(metrics.Completability * 10.0 * weights["playable"])
-	
+
 	return score
 }
 

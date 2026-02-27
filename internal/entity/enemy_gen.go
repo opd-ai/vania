@@ -9,27 +9,27 @@ import (
 
 // Enemy represents a generated enemy
 type Enemy struct {
-	Name          string
-	Health        int
-	Damage        int
-	Speed         float64
-	Size          EnemySize
-	Behavior      BehaviorPattern
-	AttackType    AttackType
-	SpriteData    interface{} // Will hold generated sprite
-	SoundData     interface{} // Will hold generated sounds
-	DangerLevel   int
-	BiomeType     string
+	Name        string
+	Health      int
+	Damage      int
+	Speed       float64
+	Size        EnemySize
+	Behavior    BehaviorPattern
+	AttackType  AttackType
+	SpriteData  interface{} // Will hold generated sprite
+	SoundData   interface{} // Will hold generated sounds
+	DangerLevel int
+	BiomeType   string
 }
 
 // EnemySize defines enemy dimensions
 type EnemySize int
 
 const (
-	SmallEnemy EnemySize = iota  // 16x16
-	MediumEnemy                   // 32x32
-	LargeEnemy                    // 64x64
-	BossEnemy                     // 128x128
+	SmallEnemy  EnemySize = iota // 16x16
+	MediumEnemy                  // 32x32
+	LargeEnemy                   // 64x64
+	BossEnemy                    // 128x128
 )
 
 // BehaviorPattern defines movement patterns
@@ -123,21 +123,21 @@ func NewEnemyGenerator(seed int64) *EnemyGenerator {
 // Generate creates an enemy for a biome and danger level
 func (eg *EnemyGenerator) Generate(biome string, dangerLevel int, seed int64) *Enemy {
 	eg.rng = rand.New(rand.NewSource(seed))
-	
+
 	enemy := &Enemy{
 		Name:        eg.generateName(biome),
 		BiomeType:   biome,
 		DangerLevel: dangerLevel,
 	}
-	
+
 	// Scale stats based on danger level
 	baseHealth := 10 + dangerLevel*5
 	baseDamage := 5 + dangerLevel*2
-	
+
 	enemy.Health = baseHealth + eg.rng.Intn(baseHealth/2)
 	enemy.Damage = baseDamage + eg.rng.Intn(baseDamage/2)
 	enemy.Speed = 1.0 + float64(dangerLevel)*0.1 + eg.rng.Float64()*0.3
-	
+
 	// Assign size
 	sizeRoll := eg.rng.Float64()
 	if sizeRoll < 0.6 {
@@ -147,13 +147,13 @@ func (eg *EnemyGenerator) Generate(biome string, dangerLevel int, seed int64) *E
 	} else {
 		enemy.Size = LargeEnemy
 	}
-	
+
 	// Assign behavior based on biome
 	enemy.Behavior = eg.selectBehavior(biome)
-	
+
 	// Assign attack type
 	enemy.AttackType = eg.selectAttackType(enemy.Size)
-	
+
 	return enemy
 }
 
@@ -167,21 +167,21 @@ func (eg *EnemyGenerator) generateName(biome string) string {
 		"abyss":   {"Void", "Abyssal", "Corrupted", "Nightmare"},
 		"sky":     {"Sky", "Storm", "Cloud", "Wind"},
 	}
-	
+
 	suffixes := []string{
 		"Crawler", "Beast", "Horror", "Fiend", "Wraith",
 		"Spawn", "Stalker", "Guardian", "Shade", "Terror",
 	}
-	
+
 	// Use default if biome not found
 	prefixList, ok := prefixes[biome]
 	if !ok || len(prefixList) == 0 {
 		prefixList = []string{"Unknown", "Strange", "Mysterious", "Enigmatic"}
 	}
-	
+
 	prefix := prefixList[eg.rng.Intn(len(prefixList))]
 	suffix := suffixes[eg.rng.Intn(len(suffixes))]
-	
+
 	return prefix + " " + suffix
 }
 
@@ -195,13 +195,13 @@ func (eg *EnemyGenerator) selectBehavior(biome string) BehaviorPattern {
 		"abyss":   {ChaseBehavior, FlyingBehavior},
 		"sky":     {FlyingBehavior, PatrolBehavior},
 	}
-	
+
 	// Use default behavior if biome not found
 	options, ok := behaviors[biome]
 	if !ok || len(options) == 0 {
 		options = []BehaviorPattern{PatrolBehavior, ChaseBehavior}
 	}
-	
+
 	return options[eg.rng.Intn(len(options))]
 }
 
@@ -237,7 +237,7 @@ func NewBossGenerator(seed int64) *BossGenerator {
 // Generate creates a boss enemy
 func (bg *BossGenerator) Generate(biome string, seed int64) *Boss {
 	bg.rng = rand.New(rand.NewSource(seed))
-	
+
 	// Create base enemy with boss stats
 	baseEnemy := Enemy{
 		Name:        bg.generateBossName(biome),
@@ -248,12 +248,12 @@ func (bg *BossGenerator) Generate(biome string, seed int64) *Boss {
 		BiomeType:   biome,
 		DangerLevel: 10,
 	}
-	
+
 	boss := &Boss{
 		Enemy:  baseEnemy,
 		Phases: make([]BossPhase, 2+bg.rng.Intn(2)),
 	}
-	
+
 	// Generate phases
 	for i := range boss.Phases {
 		threshold := 1.0 - float64(i+1)/float64(len(boss.Phases)+1)
@@ -264,21 +264,21 @@ func (bg *BossGenerator) Generate(biome string, seed int64) *Boss {
 			SpeedModifier:   1.0 + float64(i)*0.2,
 		}
 	}
-	
+
 	// Generate unique attacks
 	attackCount := 2 + bg.rng.Intn(2)
 	boss.UniqueAttacks = make([]string, attackCount)
 	for i := range boss.UniqueAttacks {
 		boss.UniqueAttacks[i] = bg.generateUniqueAttack(biome)
 	}
-	
+
 	return boss
 }
 
 // generateBossName creates a boss name
 func (bg *BossGenerator) generateBossName(biome string) string {
 	titles := []string{"Lord", "Master", "King", "Queen", "Overlord", "Eternal"}
-	
+
 	names := map[string][]string{
 		"cave":    {"Darkness", "Depths", "Stone", "Shadow"},
 		"forest":  {"Thorns", "Wild", "Green", "Nature"},
@@ -287,17 +287,17 @@ func (bg *BossGenerator) generateBossName(biome string) string {
 		"abyss":   {"Void", "Nightmare", "Terror", "Despair"},
 		"sky":     {"Storms", "Winds", "Skies", "Clouds"},
 	}
-	
+
 	title := titles[bg.rng.Intn(len(titles))]
-	
+
 	// Use default if biome not found
 	nameList, ok := names[biome]
 	if !ok || len(nameList) == 0 {
 		nameList = []string{"the Unknown", "Mystery", "Secrets", "the Beyond"}
 	}
-	
+
 	name := nameList[bg.rng.Intn(len(nameList))]
-	
+
 	return title + " of " + name
 }
 
@@ -324,13 +324,13 @@ func (bg *BossGenerator) generateUniqueAttack(biome string) string {
 		"abyss":   {"void_rift", "corruption_beam", "shadow_clone"},
 		"sky":     {"lightning_strike", "tornado", "wind_blade"},
 	}
-	
+
 	// Use default if biome not found
 	options, ok := attacks[biome]
 	if !ok || len(options) == 0 {
 		options = []string{"energy_blast", "power_strike", "devastating_blow"}
 	}
-	
+
 	return options[bg.rng.Intn(len(options))]
 }
 
@@ -349,7 +349,7 @@ func NewAbilityGenerator(seed int64) *AbilityGenerator {
 // GenerateProgression creates ability unlock order
 func (ag *AbilityGenerator) GenerateProgression(seed int64) []Ability {
 	ag.rng = rand.New(rand.NewSource(seed))
-	
+
 	// Define available abilities
 	abilities := []Ability{
 		{Name: "Double Jump", Type: MovementAbility, Description: "Jump again in mid-air"},
@@ -361,17 +361,17 @@ func (ag *AbilityGenerator) GenerateProgression(seed int64) []Ability {
 		{Name: "Projectile", Type: CombatAbility, Description: "Ranged attack"},
 		{Name: "Shield", Type: UtilityAbility, Description: "Temporary invulnerability"},
 	}
-	
+
 	// Shuffle for random unlock order
 	ag.rng.Shuffle(len(abilities), func(i, j int) {
 		abilities[i], abilities[j] = abilities[j], abilities[i]
 	})
-	
+
 	// Assign unlock order
 	for i := range abilities {
 		abilities[i].UnlockOrder = i
 	}
-	
+
 	return abilities
 }
 
@@ -390,53 +390,53 @@ func NewItemGenerator(seed int64) *ItemGenerator {
 // Generate creates an item
 func (ig *ItemGenerator) Generate(itemType ItemType, seed int64) *Item {
 	ig.rng = rand.New(rand.NewSource(seed))
-	
+
 	item := &Item{
 		Type: itemType,
 	}
-	
+
 	switch itemType {
 	case WeaponItem:
 		item.Name = ig.generateWeaponName()
 		item.Description = "A powerful weapon"
 		item.Effect = "increase_damage"
 		item.Value = 50 + ig.rng.Intn(100)
-		
+
 	case ConsumableItem:
 		item.Name = ig.generatePotionName()
 		item.Description = "Restores health"
 		item.Effect = "heal"
 		item.Value = 10 + ig.rng.Intn(20)
-		
+
 	case KeyItem:
 		item.Name = ig.generateKeyName()
 		item.Description = "Opens new paths"
 		item.Effect = "unlock"
 		item.Value = 0
-		
+
 	case UpgradeItem:
 		item.Name = "Upgrade Stone"
 		item.Description = "Enhances abilities"
 		item.Effect = "upgrade"
 		item.Value = 100
-		
+
 	case CurrencyItem:
 		item.Name = "Crystal Shard"
 		item.Description = "Currency"
 		item.Effect = "currency"
 		item.Value = 1 + ig.rng.Intn(10)
 	}
-	
+
 	return item
 }
 
 func (ig *ItemGenerator) generateWeaponName() string {
 	adjectives := []string{"Blazing", "Frozen", "Shadow", "Holy", "Ancient"}
 	nouns := []string{"Sword", "Blade", "Axe", "Spear", "Dagger"}
-	
+
 	adj := adjectives[ig.rng.Intn(len(adjectives))]
 	noun := nouns[ig.rng.Intn(len(nouns))]
-	
+
 	return adj + " " + noun
 }
 

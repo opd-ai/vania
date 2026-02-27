@@ -4,7 +4,7 @@ package engine
 
 import (
 	"math"
-	
+
 	"github.com/opd-ai/vania/internal/entity"
 )
 
@@ -35,7 +35,7 @@ func (cs *CombatSystem) Update() {
 	if cs.playerAttackCooldown > 0 {
 		cs.playerAttackCooldown--
 	}
-	
+
 	if cs.playerAttacking {
 		cs.playerAttackFrame++
 		if cs.playerAttackFrame > 15 { // Attack lasts 15 frames
@@ -43,7 +43,7 @@ func (cs *CombatSystem) Update() {
 			cs.playerAttackFrame = 0
 		}
 	}
-	
+
 	if cs.invulnerableFrames > 0 {
 		cs.invulnerableFrames--
 	}
@@ -70,19 +70,19 @@ func (cs *CombatSystem) GetAttackHitbox(playerX, playerY, facingDir float64) (x,
 	if !cs.playerAttacking || cs.playerAttackFrame < 3 || cs.playerAttackFrame > 10 {
 		return 0, 0, 0, 0 // No hitbox outside active frames
 	}
-	
+
 	// Attack hitbox in front of player
 	width = 40.0
 	height = 32.0
 	x = playerX
 	y = playerY
-	
+
 	if facingDir >= 0 {
 		x = playerX + 32 // Right side
 	} else {
 		x = playerX - 40 // Left side
 	}
-	
+
 	return x, y, width, height
 }
 
@@ -91,9 +91,9 @@ func (cs *CombatSystem) CheckEnemyHit(attackX, attackY, attackW, attackH float64
 	if attackW <= 0 || attackH <= 0 {
 		return false
 	}
-	
+
 	ex, ey, ew, eh := enemy.GetBounds()
-	
+
 	// AABB collision check
 	return attackX < ex+ew &&
 		attackX+attackW > ex &&
@@ -104,13 +104,13 @@ func (cs *CombatSystem) CheckEnemyHit(attackX, attackY, attackW, attackH float64
 // ApplyDamageToEnemy applies damage and knockback to enemy
 func (cs *CombatSystem) ApplyDamageToEnemy(enemy *entity.EnemyInstance, damage int, playerX float64) {
 	enemy.TakeDamage(damage)
-	
+
 	// Apply knockback
 	knockbackDir := 1.0
 	if enemy.X < playerX {
 		knockbackDir = -1.0
 	}
-	
+
 	enemy.VelX = knockbackDir * 5.0
 	enemy.VelY = -3.0
 }
@@ -120,9 +120,9 @@ func (cs *CombatSystem) CheckPlayerEnemyCollision(playerX, playerY, playerW, pla
 	if cs.invulnerableFrames > 0 {
 		return false // Player is invulnerable
 	}
-	
+
 	ex, ey, ew, eh := enemy.GetBounds()
-	
+
 	return playerX < ex+ew &&
 		playerX+playerW > ex &&
 		playerY < ey+eh &&
@@ -134,21 +134,21 @@ func (cs *CombatSystem) ApplyDamageToPlayer(player *Player, damage int, enemyX f
 	if cs.invulnerableFrames > 0 {
 		return // Player is invulnerable
 	}
-	
+
 	player.Health -= damage
 	if player.Health < 0 {
 		player.Health = 0
 	}
-	
+
 	// Apply knockback
 	knockbackDir := 1.0
 	if player.X < enemyX {
 		knockbackDir = -1.0
 	}
-	
+
 	cs.knockbackVelX = knockbackDir * 8.0
 	cs.knockbackVelY = -5.0
-	
+
 	// Invulnerability frames
 	cs.invulnerableFrames = 60 // 1 second of invulnerability
 }
@@ -157,18 +157,18 @@ func (cs *CombatSystem) ApplyDamageToPlayer(player *Player, damage int, enemyX f
 func (cs *CombatSystem) GetKnockback() (float64, float64) {
 	vx := cs.knockbackVelX
 	vy := cs.knockbackVelY
-	
+
 	// Decay knockback
 	cs.knockbackVelX *= 0.8
 	cs.knockbackVelY *= 0.8
-	
+
 	if math.Abs(cs.knockbackVelX) < 0.1 {
 		cs.knockbackVelX = 0
 	}
 	if math.Abs(cs.knockbackVelY) < 0.1 {
 		cs.knockbackVelY = 0
 	}
-	
+
 	return vx, vy
 }
 

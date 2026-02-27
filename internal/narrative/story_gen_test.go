@@ -90,10 +90,10 @@ func TestGenerate_CreatesCompleteWorldContext(t *testing.T) {
 // TestGenerate_DeterministicOutput tests that same seed produces same output
 func TestGenerate_DeterministicOutput(t *testing.T) {
 	seed := int64(54321)
-	
+
 	ng1 := NewNarrativeGenerator(seed)
 	ctx1 := ng1.Generate(seed)
-	
+
 	ng2 := NewNarrativeGenerator(seed)
 	ctx2 := ng2.Generate(seed)
 
@@ -249,7 +249,7 @@ func TestGenerateFactions_CreatesCorrectCount(t *testing.T) {
 // TestGenerateFactionDescription_ReturnsNonEmpty tests faction description generation
 func TestGenerateFactionDescription_ReturnsNonEmpty(t *testing.T) {
 	ng := NewNarrativeGenerator(303)
-	
+
 	for i := 0; i < 10; i++ {
 		desc := ng.generateFactionDescription(FantasyTheme)
 		if desc == "" {
@@ -352,10 +352,10 @@ func TestGenerateCharacter_CreatesValidCharacter(t *testing.T) {
 func TestGenerateCharacter_DeterministicOutput(t *testing.T) {
 	seed := int64(707)
 	role := "hero"
-	
+
 	ng1 := NewNarrativeGenerator(seed)
 	char1 := ng1.GenerateCharacter(role)
-	
+
 	ng2 := NewNarrativeGenerator(seed)
 	char2 := ng2.GenerateCharacter(role)
 
@@ -459,7 +459,7 @@ func TestGenerateRoomDescription_UnknownType(t *testing.T) {
 // TestWorldContext_ConstraintRanges tests that world constraints are within expected ranges
 func TestWorldContext_ConstraintRanges(t *testing.T) {
 	ng := NewNarrativeGenerator(1313)
-	
+
 	// Generate multiple contexts to check ranges
 	for i := 0; i < 20; i++ {
 		ctx := ng.Generate(int64(1313 + i))
@@ -493,7 +493,7 @@ func TestWorldContext_ConstraintRanges(t *testing.T) {
 // TestFactionVariety_MultipleCalls tests that faction generation produces variety
 func TestFactionVariety_MultipleCalls(t *testing.T) {
 	ng := NewNarrativeGenerator(1414)
-	
+
 	// Generate multiple faction sets
 	factionNames := make(map[string]bool)
 	for i := 0; i < 10; i++ {
@@ -512,7 +512,7 @@ func TestFactionVariety_MultipleCalls(t *testing.T) {
 // TestCharacterTraitsVariety tests that character traits show variety
 func TestCharacterTraitsVariety(t *testing.T) {
 	ng := NewNarrativeGenerator(1515)
-	
+
 	allTraits := make(map[string]bool)
 	for i := 0; i < 10; i++ {
 		char := ng.GenerateCharacter("test")
@@ -530,7 +530,7 @@ func TestCharacterTraitsVariety(t *testing.T) {
 // TestStoryThemeConstants_ValidValues tests that theme constants are properly defined
 func TestStoryThemeConstants_ValidValues(t *testing.T) {
 	themes := []StoryTheme{FantasyTheme, SciFiTheme, HorrorTheme, MysticalTheme, PostApocTheme}
-	
+
 	for _, theme := range themes {
 		if theme == "" {
 			t.Error("Found empty theme constant")
@@ -541,7 +541,7 @@ func TestStoryThemeConstants_ValidValues(t *testing.T) {
 // TestMoodConstants_ValidValues tests that mood constants are properly defined
 func TestMoodConstants_ValidValues(t *testing.T) {
 	moods := []Mood{DarkMood, HopefulMood, MysteriousMood, EpicMood}
-	
+
 	for _, mood := range moods {
 		if mood == "" {
 			t.Error("Found empty mood constant")
@@ -553,11 +553,11 @@ func TestMoodConstants_ValidValues(t *testing.T) {
 func TestGenerateSeedConsistency_MultipleGenerations(t *testing.T) {
 	seed := int64(1616)
 	ng := NewNarrativeGenerator(seed)
-	
+
 	// Generate multiple contexts with same seed - should be identical
 	ctx1 := ng.Generate(seed)
 	ctx2 := ng.Generate(seed)
-	
+
 	if ctx1.Theme != ctx2.Theme {
 		t.Error("Theme inconsistent with same seed")
 	}

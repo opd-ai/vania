@@ -9,17 +9,17 @@ import (
 
 // InputState represents the current input state
 type InputState struct {
-	MoveLeft   bool
-	MoveRight  bool
-	Jump       bool
-	JumpPress  bool // True only on the frame jump was pressed
-	Attack     bool
+	MoveLeft    bool
+	MoveRight   bool
+	Jump        bool
+	JumpPress   bool // True only on the frame jump was pressed
+	Attack      bool
 	AttackPress bool
-	Dash       bool
-	DashPress  bool
-	UseAbility bool
-	Pause      bool
-	PausePress bool
+	Dash        bool
+	DashPress   bool
+	UseAbility  bool
+	Pause       bool
+	PausePress  bool
 }
 
 // InputHandler manages input processing
@@ -37,33 +37,33 @@ func NewInputHandler() *InputHandler {
 // Update reads current input state
 func (ih *InputHandler) Update() InputState {
 	state := InputState{}
-	
+
 	// Movement
 	state.MoveLeft = ebiten.IsKeyPressed(ebiten.KeyA) || ebiten.IsKeyPressed(ebiten.KeyArrowLeft)
 	state.MoveRight = ebiten.IsKeyPressed(ebiten.KeyD) || ebiten.IsKeyPressed(ebiten.KeyArrowRight)
-	
+
 	// Jump
 	state.Jump = ebiten.IsKeyPressed(ebiten.KeySpace) || ebiten.IsKeyPressed(ebiten.KeyW) || ebiten.IsKeyPressed(ebiten.KeyArrowUp)
 	state.JumpPress = inpututil.IsKeyJustPressed(ebiten.KeySpace) || inpututil.IsKeyJustPressed(ebiten.KeyW) || inpututil.IsKeyJustPressed(ebiten.KeyArrowUp)
-	
+
 	// Attack
 	state.Attack = ebiten.IsKeyPressed(ebiten.KeyJ) || ebiten.IsKeyPressed(ebiten.KeyZ)
 	state.AttackPress = inpututil.IsKeyJustPressed(ebiten.KeyJ) || inpututil.IsKeyJustPressed(ebiten.KeyZ)
-	
+
 	// Dash
 	state.Dash = ebiten.IsKeyPressed(ebiten.KeyK) || ebiten.IsKeyPressed(ebiten.KeyX)
 	state.DashPress = inpututil.IsKeyJustPressed(ebiten.KeyK) || inpututil.IsKeyJustPressed(ebiten.KeyX)
-	
+
 	// Use ability
 	state.UseAbility = ebiten.IsKeyPressed(ebiten.KeyL) || ebiten.IsKeyPressed(ebiten.KeyC)
-	
+
 	// Pause
 	state.Pause = ebiten.IsKeyPressed(ebiten.KeyEscape) || ebiten.IsKeyPressed(ebiten.KeyP)
 	state.PausePress = inpututil.IsKeyJustPressed(ebiten.KeyEscape) || inpututil.IsKeyJustPressed(ebiten.KeyP)
-	
+
 	// Update previous state
 	ih.prevState = state
-	
+
 	return state
 }
 

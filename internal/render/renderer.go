@@ -63,7 +63,7 @@ type Renderer struct {
 	tileImages  map[string]*ebiten.Image
 	bgColor     color.Color
 	textManager *TextRenderManager
-	
+
 	// Ability icon caching to prevent regeneration every frame
 	abilityIconCache map[string]*ebiten.Image
 	lastAbilities    map[string]bool
@@ -365,7 +365,7 @@ func (r *Renderer) renderAbilityIcons(screen *ebiten.Image, abilities map[string
 	for i, abilityName := range abilityNames {
 		hasAbility := abilities[abilityName]
 		x := startX + i*(abilitySize+abilitySpacing)
-		
+
 		// Get cache key including unlock status
 		cacheKey := r.getAbilityCacheKey(abilityName, hasAbility)
 		if cachedIcon, exists := r.abilityIconCache[cacheKey]; exists {
@@ -576,7 +576,7 @@ func (r *Renderer) abilitiesChanged(abilities map[string]bool) bool {
 	if len(r.lastAbilities) == 0 {
 		return true // First time, need to generate cache
 	}
-	
+
 	for ability, hasAbility := range abilities {
 		if lastState, exists := r.lastAbilities[ability]; !exists || lastState != hasAbility {
 			return true
@@ -589,11 +589,11 @@ func (r *Renderer) abilitiesChanged(abilities map[string]bool) bool {
 func (r *Renderer) regenerateAbilityIcons(abilities map[string]bool, size int) {
 	// Clear existing cache
 	r.abilityIconCache = make(map[string]*ebiten.Image)
-	
+
 	abilityNames := []string{"double_jump", "dash", "wall_jump", "glide"}
 	for _, abilityName := range abilityNames {
 		hasAbility := abilities[abilityName]
-		
+
 		// Generate icons for both locked and unlocked states
 		for _, unlocked := range []bool{false, true} {
 			if unlocked == hasAbility || (!hasAbility && !unlocked) {

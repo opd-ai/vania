@@ -6,10 +6,10 @@ import (
 
 // CheckpointManager handles automatic checkpoint saves
 type CheckpointManager struct {
-	saveManager     *SaveManager
-	lastCheckpoint  time.Time
+	saveManager        *SaveManager
+	lastCheckpoint     time.Time
 	checkpointInterval time.Duration
-	autoSaveEnabled bool
+	autoSaveEnabled    bool
 }
 
 // NewCheckpointManager creates a new checkpoint manager
@@ -45,7 +45,7 @@ func (cm *CheckpointManager) CreateCheckpoint(data *SaveData) error {
 	if !cm.autoSaveEnabled {
 		return nil
 	}
-	
+
 	err := cm.saveManager.AutoSave(data)
 	if err == nil {
 		cm.lastCheckpoint = time.Now()

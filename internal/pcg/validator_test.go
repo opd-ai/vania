@@ -189,7 +189,7 @@ func TestCalculateQualityScore_BasicMetrics(t *testing.T) {
 	validator := NewValidator(5.0)
 
 	metrics := &QualityMetrics{
-		Completability:   0.8,  // 80% beatable
+		Completability:   0.8, // 80% beatable
 		GenerationTime:   100,
 		VisualCoherence:  8.0,
 		AudioHarmony:     7.0,
@@ -213,7 +213,7 @@ func TestCalculateQualityScore_PerfectMetrics(t *testing.T) {
 	validator := NewValidator(5.0)
 
 	metrics := &QualityMetrics{
-		Completability:   1.0,   // 100% beatable
+		Completability:   1.0, // 100% beatable
 		GenerationTime:   50,
 		VisualCoherence:  10.0,
 		AudioHarmony:     10.0,
@@ -310,10 +310,10 @@ func TestMeetsThreshold_PassingScore(t *testing.T) {
 	validator := NewValidator(5.0)
 
 	metrics := &QualityMetrics{
-		Completability:   0.8,
-		VisualCoherence:  8.0,
-		AudioHarmony:     7.0,
-		NarrativeScore:   6.0,
+		Completability:  0.8,
+		VisualCoherence: 8.0,
+		AudioHarmony:    7.0,
+		NarrativeScore:  6.0,
 	}
 
 	result := validator.MeetsThreshold(metrics)
@@ -328,10 +328,10 @@ func TestMeetsThreshold_FailingScore(t *testing.T) {
 	validator := NewValidator(8.0)
 
 	metrics := &QualityMetrics{
-		Completability:   0.2,
-		VisualCoherence:  3.0,
-		AudioHarmony:     2.0,
-		NarrativeScore:   1.0,
+		Completability:  0.2,
+		VisualCoherence: 3.0,
+		AudioHarmony:    2.0,
+		NarrativeScore:  1.0,
 	}
 
 	result := validator.MeetsThreshold(metrics)
@@ -379,10 +379,10 @@ func TestMeetsThreshold_ExactThreshold(t *testing.T) {
 // TestMeetsThreshold_VariousThresholds tests different threshold values
 func TestMeetsThreshold_VariousThresholds(t *testing.T) {
 	tests := []struct {
-		name           string
-		threshold      float64
-		metrics        *QualityMetrics
-		shouldPass     bool
+		name       string
+		threshold  float64
+		metrics    *QualityMetrics
+		shouldPass bool
 	}{
 		{
 			name:      "low threshold passes",

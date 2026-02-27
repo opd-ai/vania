@@ -154,7 +154,7 @@ func (c *Camera) StartShake(intensity, duration float64) {
 }
 
 // FollowTarget smoothly moves camera towards target with dead zone and look ahead
-func (c *Camera) FollowTarget(targetX, targetY, velocityX, velocityY float64, deltaTime float64) {
+func (c *Camera) FollowTarget(targetX, targetY, velocityX, velocityY, deltaTime float64) {
 	// Update look ahead based on target velocity
 	targetLookAheadX := velocityX * c.lookAheadDistance
 	targetLookAheadY := velocityY * c.lookAheadDistance * 0.5 // Less vertical look ahead

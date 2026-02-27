@@ -147,7 +147,7 @@ func TestGenerate_DeterministicPalette(t *testing.T) {
 // TestGenerate_DifferentSeeds tests that different seeds produce different colors
 func TestGenerate_DifferentSeeds(t *testing.T) {
 	pg := NewPaletteGenerator(ComplementaryScheme)
-	
+
 	palette1 := pg.Generate(111, 4)
 	palette2 := pg.Generate(222, 4)
 
@@ -222,7 +222,7 @@ func TestGenerateHeroicPalette_ReturnsValidPalette(t *testing.T) {
 // TestGenerateHeroicPalette_Deterministic tests heroic palette determinism
 func TestGenerateHeroicPalette_Deterministic(t *testing.T) {
 	seed := int64(808)
-	
+
 	palette1 := GenerateHeroicPalette(seed)
 	palette2 := GenerateHeroicPalette(seed)
 
@@ -287,7 +287,7 @@ func TestGenerateEnemyPalette_DangerLevelAffectsColors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			palette := GenerateEnemyPalette(1010, tt.dangerLevel)
-			
+
 			if len(palette) != 6 {
 				t.Errorf("Expected 6 colors, got %d", len(palette))
 			}
@@ -302,7 +302,7 @@ func TestGenerateEnemyPalette_DangerLevelAffectsColors(t *testing.T) {
 func TestGenerateEnemyPalette_Deterministic(t *testing.T) {
 	seed := int64(1111)
 	danger := 5
-	
+
 	palette1 := GenerateEnemyPalette(seed, danger)
 	palette2 := GenerateEnemyPalette(seed, danger)
 
@@ -393,7 +393,7 @@ func TestGenerate_ColorsHaveFullAlpha(t *testing.T) {
 
 		for i, color := range palette {
 			if color.A != 255 {
-				t.Errorf("Scheme %v, color %d has alpha %d, expected 255", 
+				t.Errorf("Scheme %v, color %d has alpha %d, expected 255",
 					scheme, i, color.A)
 			}
 		}
