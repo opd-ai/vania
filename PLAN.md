@@ -184,16 +184,35 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - **Bufferable actions**: jump ✅, attack ✅, dash ✅
   - **Non-bufferable actions**: movement direction, pause ✅
 
-### Step 8 — Camera transition animations
+### Step 8 — Camera transition animations ✅ (2026-02-27)
 - **Deliverable**: Polished room-change camera transitions (fade, slide, or iris effects)
 - **Dependencies**: Existing `RoomTransitionHandler`
+- **Status**: COMPLETE — Implemented comprehensive transition system with:
+  - Three transition types: fade, slide, and iris wipe
+  - Configurable duration (0.3-0.8 seconds, clamped automatically)
+  - Fade transition: Two-phase fade-to-black and fade-from-black
+  - Slide transition: Directional slide based on door direction (east/west/north/south)
+  - Iris transition: Circular wipe effect with close/open animation
+  - `SetTransitionType()` and `SetTransitionDuration()` methods for customization
+  - Automatic direction mapping from door properties for slide transitions
+  - Source/target room tracking for advanced transition effects
+  - Enhanced renderer with three separate rendering methods for each transition type
+  - Comprehensive test coverage with 4 new test cases covering:
+    - Transition type configuration and retrieval
+    - Duration clamping to valid range (0.3-0.8s)
+    - Slide direction mapping from door direction
+    - Source and target room tracking during transitions
+  - Example tests demonstrating usage patterns
+  - Documentation in `docs/systems/TRANSITIONS.md`
+  - All existing tests pass, no regressions
+  - Gameplay freezing during transitions already implemented in previous work
 - **Details**:
-  - Enhance existing fade transition with configurable duration
-  - Add slide transition option (camera slides from old room to new room)
-  - Transition type selectable per door/connection or globally
-  - **Transition types**: fade-to-black (default), directional slide, iris wipe
-  - **Duration range**: 0.3–0.8 seconds (configurable)
-  - **Gameplay during transition**: freeze all gameplay (player, enemies, physics); resume on completion
+  - Enhance existing fade transition with configurable duration ✅
+  - Add slide transition option (camera slides from old room to new room) ✅
+  - Transition type selectable per door/connection or globally ✅
+  - **Transition types**: fade-to-black (default) ✅, directional slide ✅, iris wipe ✅
+  - **Duration range**: 0.3–0.8 seconds (configurable) ✅
+  - **Gameplay during transition**: freeze all gameplay (player, enemies, physics); resume on completion ✅ (already implemented)
 
 ### Step 9 — Genre infrastructure: SetGenre() on renderer, audio, and level gen
 - **Deliverable**: `SetGenre()` implementation on rendering system (palette/tileset swap), audio system (instrument preset swap), and level generator (room tile vocabulary swap)

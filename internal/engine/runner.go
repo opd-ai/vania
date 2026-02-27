@@ -602,7 +602,9 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	// Render transition effect if transitioning
 	if gr.transitionHandler.IsTransitioning() {
 		progress := gr.transitionHandler.GetTransitionProgress()
-		gr.renderer.RenderTransitionEffect(screen, progress)
+		transitionType := string(gr.transitionHandler.GetTransitionType())
+		slideDirection := gr.transitionHandler.GetSlideDirection()
+		gr.renderer.RenderTransitionEffect(screen, progress, transitionType, slideDirection)
 	}
 
 	// Show locked door message if active

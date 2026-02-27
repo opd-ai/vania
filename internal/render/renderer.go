@@ -781,18 +781,112 @@ func (r *Renderer) RenderAttackEffect(screen *ebiten.Image, x, y, width, height 
 	screen.DrawImage(attackImg, opts)
 }
 
-// RenderTransitionEffect renders a fade transition effect
-func (r *Renderer) RenderTransitionEffect(screen *ebiten.Image, progress float64) {
+// RenderTransitionEffect renders the active transition effect
+func (r *Renderer) RenderTransitionEffect(screen *ebiten.Image, progress float64, transitionType, slideDirection string) {
 	if progress <= 0 {
 		return
 	}
 
-	// Fade to black during transition
-	alpha := uint8(progress * 255)
-	fadeImg := ebiten.NewImage(ScreenWidth, ScreenHeight)
-	fadeImg.Fill(color.RGBA{0, 0, 0, alpha})
+	switch transitionType {
+	case "fade":
+		r.renderFadeTransition(screen, progress)
+	case "slide":
+		r.renderSlideTransition(screen, progress, slideDirection)
+	case "iris":
+		r.renderIrisTransition(screen, progress)
+	default:
+		r.renderFadeTransition(screen, progress)
+	}
+}
 
+// renderFadeTransition renders a fade-to-black transition
+func (r *Renderer) renderFadeTransition(screen *ebiten.Image, progress float64) {
+	// Fade to black during first half, fade from black during second half
+	var alpha float64
+	if progress < 0.5 {
+		alpha = progress * 2.0 // 0.0 -> 1.0 in first half
+	} else {
+		alpha = (1.0 - progress) * 2.0 // 1.0 -> 0.0 in second half
+	}
+
+	alphaValue := uint8(alpha * 255)
+	fadeImg := ebiten.NewImage(ScreenWidth, ScreenHeight)
+	fadeImg.Fill(color.RGBA{0, 0, 0, alphaValue})
 	screen.DrawImage(fadeImg, &ebiten.DrawImageOptions{})
+}
+
+// renderSlideTransition renders a directional slide transition
+func (r *Renderer) renderSlideTransition(screen *ebiten.Image, progress float64, direction string) {
+	// Create overlay that slides across screen
+	slideImg := ebiten.NewImage(ScreenWidth, ScreenHeight)
+	slideImg.Fill(color.RGBA{0, 0, 0, 255})
+
+	opts := &ebiten.DrawImageOptions{}
+
+	// Calculate slide position based on direction
+	switch direction {
+	case "left", "west":
+		// Slide from right to left
+		offsetX := float64(ScreenWidth) * (1.0 - progress)
+		opts.GeoM.Translate(offsetX, 0)
+	case "right", "east":
+		// Slide from left to right
+		offsetX := -float64(ScreenWidth) * (1.0 - progress)
+		opts.GeoM.Translate(offsetX, 0)
+	case "up", "north":
+		// Slide from bottom to top
+		offsetY := float64(ScreenHeight) * (1.0 - progress)
+		opts.GeoM.Translate(0, offsetY)
+	case "down", "south":
+		// Slide from top to bottom
+		offsetY := -float64(ScreenHeight) * (1.0 - progress)
+		opts.GeoM.Translate(0, offsetY)
+	default:
+		// Default to right slide
+		offsetX := -float64(ScreenWidth) * (1.0 - progress)
+		opts.GeoM.Translate(offsetX, 0)
+	}
+
+	screen.DrawImage(slideImg, opts)
+}
+
+// renderIrisTransition renders an iris wipe transition
+func (r *Renderer) renderIrisTransition(screen *ebiten.Image, progress float64) {
+	// Create full black overlay
+	irisImg := ebiten.NewImage(ScreenWidth, ScreenHeight)
+	irisImg.Fill(color.RGBA{0, 0, 0, 255})
+
+	// Calculate iris radius (closes during first half, opens during second half)
+	centerX := float64(ScreenWidth) / 2.0
+	centerY := float64(ScreenHeight) / 2.0
+	maxRadius := float64(ScreenWidth) // Large enough to cover entire screen
+
+	var radius float64
+	if progress < 0.5 {
+		// Close iris during first half
+		radius = maxRadius * (1.0 - progress*2.0)
+	} else {
+		// Open iris during second half
+		radius = maxRadius * ((progress - 0.5) * 2.0)
+	}
+
+	// Clear circular area in center (simple approximation using rectangles)
+	// For a true iris effect, we'd use a circular mask, but this is simpler
+	// and good enough for the effect
+	for y := 0; y < ScreenHeight; y++ {
+		for x := 0; x < ScreenWidth; x++ {
+			dx := float64(x) - centerX
+			dy := float64(y) - centerY
+			distance := dx*dx + dy*dy
+
+			if distance < radius*radius {
+				// Inside iris - make transparent
+				irisImg.Set(x, y, color.RGBA{0, 0, 0, 0})
+			}
+		}
+	}
+
+	screen.DrawImage(irisImg, &ebiten.DrawImageOptions{})
 }
 
 // RenderParticles draws all particles on the screen

@@ -6,6 +6,131 @@ import (
 	"github.com/opd-ai/vania/internal/world"
 )
 
+func TestRoomTransitionHandler_TransitionTypes(t *testing.T) {
+	game := &Game{
+		CurrentRoom: &world.Room{ID: 1},
+	}
+	handler := NewRoomTransitionHandler(game)
+
+	tests := []struct {
+		name           string
+		transitionType TransitionType
+	}{
+		{"Fade transition", TransitionFade},
+		{"Slide transition", TransitionSlide},
+		{"Iris transition", TransitionIris},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler.SetTransitionType(tt.transitionType)
+			if handler.GetTransitionType() != tt.transitionType {
+				t.Errorf("SetTransitionType() = %v, want %v", handler.GetTransitionType(), tt.transitionType)
+			}
+		})
+	}
+}
+
+func TestRoomTransitionHandler_SetTransitionDuration(t *testing.T) {
+	game := &Game{
+		CurrentRoom: &world.Room{ID: 1},
+	}
+	handler := NewRoomTransitionHandler(game)
+
+	tests := []struct {
+		name        string
+		duration    float64
+		wantFrames  int
+		description string
+	}{
+		{"Min duration clamped", 0.1, 18, "should clamp to 0.3s = 18 frames"},
+		{"Valid duration 0.3s", 0.3, 18, "0.3s = 18 frames at 60 FPS"},
+		{"Valid duration 0.5s", 0.5, 30, "0.5s = 30 frames at 60 FPS"},
+		{"Valid duration 0.8s", 0.8, 48, "0.8s = 48 frames at 60 FPS"},
+		{"Max duration clamped", 1.5, 48, "should clamp to 0.8s = 48 frames"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			handler.SetTransitionDuration(tt.duration)
+			if handler.maxTransitionTime != tt.wantFrames {
+				t.Errorf("SetTransitionDuration(%v) = %d frames, want %d frames (%s)",
+					tt.duration, handler.maxTransitionTime, tt.wantFrames, tt.description)
+			}
+		})
+	}
+}
+
+func TestRoomTransitionHandler_SlideDirection(t *testing.T) {
+	room1 := &world.Room{ID: 1}
+	room2 := &world.Room{ID: 2}
+
+	game := &Game{
+		CurrentRoom: room1,
+		Player:      &Player{X: 100, Y: 200},
+	}
+
+	handler := NewRoomTransitionHandler(game)
+
+	tests := []struct {
+		name      string
+		direction string
+	}{
+		{"East door", "east"},
+		{"West door", "west"},
+		{"North door", "north"},
+		{"South door", "south"},
+		{"Empty defaults to right", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			door := &world.Door{
+				Direction: tt.direction,
+				LeadsTo:   room2,
+			}
+
+			handler.StartTransition(door)
+
+			expectedDir := tt.direction
+			if expectedDir == "" {
+				expectedDir = "right"
+			}
+
+			if handler.GetSlideDirection() != expectedDir {
+				t.Errorf("StartTransition with direction %q resulted in %q, want %q",
+					tt.direction, handler.GetSlideDirection(), expectedDir)
+			}
+		})
+	}
+}
+
+func TestRoomTransitionHandler_GetSourceAndTargetRooms(t *testing.T) {
+	room1 := &world.Room{ID: 1, Type: world.CombatRoom}
+	room2 := &world.Room{ID: 2, Type: world.TreasureRoom}
+
+	game := &Game{
+		CurrentRoom: room1,
+		Player:      &Player{X: 100, Y: 200},
+	}
+
+	handler := NewRoomTransitionHandler(game)
+
+	door := &world.Door{
+		LeadsTo: room2,
+	}
+
+	handler.StartTransition(door)
+
+	if handler.GetSourceRoom() != room1 {
+		t.Errorf("GetSourceRoom() = %v, want room1 (ID=%d)", handler.GetSourceRoom(), room1.ID)
+	}
+
+	if handler.GetTargetRoom() != room2 {
+		t.Errorf("GetTargetRoom() = %v, want room2 (ID=%d)", handler.GetTargetRoom(), room2.ID)
+	}
+}
+
 func TestRoomTransitionHandler_CheckDoorCollision(t *testing.T) {
 	// Create a simple game with a room
 	game := &Game{

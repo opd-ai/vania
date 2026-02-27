@@ -9,23 +9,60 @@ import (
 	"github.com/opd-ai/vania/internal/world"
 )
 
+// TransitionType represents the visual style of room transitions
+type TransitionType string
+
+const (
+	// TransitionFade fades to black between rooms
+	TransitionFade TransitionType = "fade"
+	// TransitionSlide slides camera from old room to new room
+	TransitionSlide TransitionType = "slide"
+	// TransitionIris uses an iris wipe effect
+	TransitionIris TransitionType = "iris"
+)
+
+// DefaultTransitionDuration is the default transition time in frames at 60 FPS (0.5 seconds)
+const DefaultTransitionDuration = 30
+
 // RoomTransitionHandler manages room transitions
 type RoomTransitionHandler struct {
-	game             *Game
-	transitionActive bool
-	transitionTimer  int
-	targetRoom       *world.Room
-	transitionEffect string // "fade", "slide", etc.
+	game              *Game
+	transitionActive  bool
+	transitionTimer   int
+	maxTransitionTime int
+	targetRoom        *world.Room
+	sourceRoom        *world.Room
+	transitionType    TransitionType
+	slideDirection    string // Direction for slide transitions: "left", "right", "up", "down"
 }
 
 // NewRoomTransitionHandler creates a new room transition handler
 func NewRoomTransitionHandler(game *Game) *RoomTransitionHandler {
 	return &RoomTransitionHandler{
-		game:             game,
-		transitionActive: false,
-		transitionTimer:  0,
-		transitionEffect: "fade",
+		game:              game,
+		transitionActive:  false,
+		transitionTimer:   0,
+		maxTransitionTime: DefaultTransitionDuration,
+		transitionType:    TransitionFade,
+		slideDirection:    "right",
 	}
+}
+
+// SetTransitionType sets the type of transition to use
+func (rth *RoomTransitionHandler) SetTransitionType(transitionType TransitionType) {
+	rth.transitionType = transitionType
+}
+
+// SetTransitionDuration sets the transition duration in seconds
+func (rth *RoomTransitionHandler) SetTransitionDuration(seconds float64) {
+	// Clamp to 0.3-0.8 seconds as specified
+	if seconds < 0.3 {
+		seconds = 0.3
+	}
+	if seconds > 0.8 {
+		seconds = 0.8
+	}
+	rth.maxTransitionTime = int(seconds * 60.0) // Convert to frames at 60 FPS
 }
 
 // CheckDoorCollision checks if player is touching a door
@@ -122,8 +159,15 @@ func (rth *RoomTransitionHandler) StartTransition(door *world.Door) {
 	}
 
 	rth.transitionActive = true
-	rth.transitionTimer = 30 // 0.5 seconds at 60 FPS
+	rth.transitionTimer = rth.maxTransitionTime
+	rth.sourceRoom = rth.game.CurrentRoom
 	rth.targetRoom = door.LeadsTo
+
+	// Determine slide direction based on door direction
+	rth.slideDirection = door.Direction
+	if rth.slideDirection == "" {
+		rth.slideDirection = "right" // Default direction
+	}
 }
 
 // Update updates the transition state
@@ -174,8 +218,7 @@ func (rth *RoomTransitionHandler) GetTransitionProgress() float64 {
 		return 0.0
 	}
 
-	maxTime := 30.0
-	progress := 1.0 - (float64(rth.transitionTimer) / maxTime)
+	progress := 1.0 - (float64(rth.transitionTimer) / float64(rth.maxTransitionTime))
 	if progress < 0 {
 		progress = 0
 	}
@@ -183,6 +226,26 @@ func (rth *RoomTransitionHandler) GetTransitionProgress() float64 {
 		progress = 1
 	}
 	return progress
+}
+
+// GetTransitionType returns the current transition type
+func (rth *RoomTransitionHandler) GetTransitionType() TransitionType {
+	return rth.transitionType
+}
+
+// GetSlideDirection returns the direction for slide transitions
+func (rth *RoomTransitionHandler) GetSlideDirection() string {
+	return rth.slideDirection
+}
+
+// GetSourceRoom returns the room we're transitioning from
+func (rth *RoomTransitionHandler) GetSourceRoom() *world.Room {
+	return rth.sourceRoom
+}
+
+// GetTargetRoom returns the room we're transitioning to
+func (rth *RoomTransitionHandler) GetTargetRoom() *world.Room {
+	return rth.targetRoom
 }
 
 // SpawnEnemiesForRoom creates enemy instances for the current room
