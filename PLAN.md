@@ -27,6 +27,7 @@ Several ROADMAP items are already partially or fully addressed by existing code 
 ### Step 2 — ECS Framework: Interfaces and GenreSwitcher
 - **Deliverable**: `internal/engine/ecs/` package with `Component`, `Entity`, `System` interfaces; `GenreSwitcher` interface (`SetGenre(genreID string)`); genre ID constants (`fantasy`, `scifi`, `horror`, `cyberpunk`, `postapoc`)
 - **Dependencies**: None
+- **Scope decision**: Genre switching is **startup-only** for v1.0 — `SetGenre()` is called once at game initialization from the `--genre` flag or seed-derived genre. Runtime mid-game genre switching is deferred to v2.0+.
 - **Details**:
   - Define `System` interface: `Update(dt float64)`, `Draw(screen)`, `SetGenre(genreID string)`
   - Define `Component` interface: `Type() ComponentType`
@@ -65,7 +66,8 @@ Several ROADMAP items are already partially or fully addressed by existing code 
 - **Details**:
   - Glide: When ability unlocked and glide-button held while falling, cap fall speed to `GlideFallSpeed` (e.g., 1.5)
   - Grapple: Requires anchor-point tiles in rooms; rope physics with pendulum swing; launch toward nearest anchor within range
-  - Grapple is the most complex new physics feature — may need a `Rope` struct with length, angle, angular velocity
+  - Grapple is the most complex new physics feature — requires a `Rope` struct with length, angle, angular velocity
+  - **Grapple placeholder parameters** (tune iteratively): max rope length 8 tiles, swing damping 0.98, launch velocity 12.0, anchor detection range 6 tiles, detach on ground contact or button release
 
 ### Step 7 — Input system: Rebindable controls and input buffering
 - **Deliverable**: Key rebinding via settings menu; input buffer system for jump/attack/dash
@@ -74,6 +76,9 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - `ControlSettings` already stores key bindings — wire `InputHandler.Update()` to read from `ControlSettings` instead of hardcoded keys
   - Add rebind UI flow in `SettingsMenu`: select action → press new key → save
   - Input buffer: generalize jump-buffer from Step 5 to cover attack and dash
+  - **Buffer window**: 6 frames at 60fps (~100ms) as industry-standard starting point
+  - **Bufferable actions**: jump, attack, dash
+  - **Non-bufferable actions**: movement direction, pause
 
 ### Step 8 — Camera transition animations
 - **Deliverable**: Polished room-change camera transitions (fade, slide, or iris effects)
@@ -82,10 +87,14 @@ Several ROADMAP items are already partially or fully addressed by existing code 
   - Enhance existing fade transition with configurable duration
   - Add slide transition option (camera slides from old room to new room)
   - Transition type selectable per door/connection or globally
+  - **Transition types**: fade-to-black (default), directional slide, iris wipe
+  - **Duration range**: 0.3–0.8 seconds (configurable)
+  - **Gameplay during transition**: freeze all gameplay (player, enemies, physics); resume on completion
 
 ### Step 9 — Genre infrastructure: SetGenre() on renderer, audio, and level gen
 - **Deliverable**: `SetGenre()` implementation on rendering system (palette/tileset swap), audio system (instrument preset swap), and level generator (room tile vocabulary swap)
 - **Dependencies**: Step 2 (GenreSwitcher interface)
+- **Scope note**: v1.0 fully implements `fantasy` genre. Other genres (`scifi`, `horror`, `cyberpunk`, `postapoc`) are palette-swapped variants with genre-appropriate color schemes, pending detailed tile vocabulary specifications (see GAPS.md).
 - **Details**:
   - Renderer: Map genre ID → palette preset + tileset theme; call on genre selection
   - Audio: Map genre ID → instrument pack + SFX variants; call on genre selection
@@ -106,10 +115,10 @@ Several ROADMAP items are already partially or fully addressed by existing code 
 - **Details**:
   - Verify `SaveLoadMenu` displays slot info (seed, play time, progress); add empty-slot handling
   - World gen: After ability unlock, generate shortcut edges in room graph connecting distant explored areas back to hub
-  - Shortcut doors: one-way until first traversal, then bidirectional
+  - **Shortcut placement rules**: (1) shortcuts connect rooms separated by ≥5 edges on the critical path, (2) shortcuts require an ability gained after the destination room, (3) maximum 3–5 shortcuts per world, (4) shortcuts are one-way until first traversal, then bidirectional
 
 ## Technical Specifications
-- **ECS pattern**: Lightweight ECS using interfaces, not a full archetype/sparse-set ECS. Systems own their logic; entities are ID-indexed component bags. This wraps the existing `GameRunner` monolith incrementally rather than replacing it wholesale.
+- **ECS pattern**: Lightweight ECS using interfaces, not a full archetype/sparse-set ECS. Systems own their logic; entities are ID-indexed component bags. **Integration strategy**: Incremental wrapping (option a from GAPS.md) — ECS systems delegate to existing `GameRunner` methods, gradually migrating logic into discrete systems. This minimizes regression risk for v1.0. A clean rewrite is deferred to a future milestone if needed.
 - **GenreSwitcher dispatch**: A central `GenreManager` calls `SetGenre()` on all registered systems. Genre changes happen at game-start (from `--genre` flag or seed-derived); mid-game genre switching is out of scope for v1.0.
 - **Physics constants**: All new physics values (wall-slide speed, coyote frames, glide fall speed, grapple rope length) defined as named constants in `internal/physics/` with doc comments explaining units and tuning rationale.
 - **Input rebinding**: Uses existing `ControlSettings` struct; settings are persisted to `~/.config/vania/settings.json` via existing `SettingsManager`.
