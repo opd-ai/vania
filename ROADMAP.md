@@ -46,26 +46,26 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 
 #### Input System
 - [x] Keyboard / gamepad mapping
-- [ ] Rebindable controls (stored in config)
-- [ ] Input buffering for responsive platformer feel
+- [x] Rebindable controls (stored in config)
+- [x] Input buffering for responsive platformer feel
 
 #### Platforming Physics
 - [x] Gravity (`ApplyGravity()` in `internal/physics`)
 - [x] Double-jump (supported in `Jump()`)
 - [x] Wall-jump (supported in `Jump()` when `OnWall` is set)
 - [x] Dash (horizontal burst via `Dash()`)
-- [ ] Variable-height jump (hold-to-rise — shorten jump on early button release)
-- [ ] Wall-slide (slow downward slide on wall contact)
-- [ ] Glide (slow-fall toggle)
-- [ ] Grapple hook (swing to anchor point)
-- [ ] Coyote-time and jump-buffer tolerances
+- [x] Variable-height jump (hold-to-rise — shorten jump on early button release)
+- [x] Wall-slide (slow downward slide on wall contact)
+- [x] Glide (slow-fall toggle)
+- [x] Grapple hook (swing to anchor point)
+- [x] Coyote-time and jump-buffer tolerances
 
 #### Rendering — Sprites & Animation
 - [x] Ebiten sprite batcher
 - [x] Frame-based animation state machine
 - [x] Procedural pixel-art sprite generation (cellular automata + symmetry)
 - [x] Tileset generation with biome themes
-- [ ] `SetGenre()` on renderer to swap palette/tileset presets
+- [x] `SetGenre()` on renderer to swap palette/tileset presets
 
 #### Camera System
 - [x] Smooth follow camera with room-lock
@@ -76,19 +76,19 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 - [x] Graph-based world (80–150 rooms, 4–6 biomes)
 - [x] Critical path with ability gates every ~5 rooms
 - [x] Side branches (optional exploration)
-- [ ] Backtracking shortcuts that unlock as abilities are gained
-- [ ] Per-genre room tile vocabulary via `SetGenre()`
+- [x] Backtracking shortcuts that unlock as abilities are gained
+- [x] Per-genre room tile vocabulary via `SetGenre()`
 
 #### Audio — Waveform Synthesis & SFX
 - [x] Sine / square / sawtooth / triangle / noise waveforms
 - [x] ADSR envelope system
 - [x] SFX generation (jump, land, attack, hit, pickup, door, ambient)
-- [ ] `SetGenre()` on audio to select thematic instrument packs
+- [x] `SetGenre()` on audio to select thematic instrument packs
 
 #### UI / HUD / Menus
 - [x] Health bar, ability indicators, seed display
 - [x] Main menu, pause menu, options screen
-- [ ] Genre-themed UI skin switchable via `SetGenre()`
+- [x] Genre-themed UI skin switchable via `SetGenre()`
 
 #### Save / Load
 - [x] Multiple save slots with checkpoint autosave
@@ -97,8 +97,7 @@ This applies to all ECS Systems (renderer, audio, AI, physics-hazard, HUD, narra
 
 #### Config / Settings
 - [x] Resolution, volume, key bindings persisted to disk
-- [x] CLI flags (`--seed`, `--play`)
-- [ ] CLI flag `--genre`
+- [x] CLI flags (`--seed`, `--play`, `--genre`)
 
 ---
 

@@ -97,6 +97,8 @@ type GraphEdge struct {
 	To          int
 	Requirement string // "double_jump", "dash", etc.
 	IsShortcut  bool
+	OneWay      bool // True for shortcuts until first traversal
+	Traversed   bool // Tracks if player has used this connection
 }
 
 // WorldGenerator generates game worlds
@@ -204,6 +206,8 @@ func (wg *WorldGenerator) generateGraph(world *World) {
 			To:          roomID,
 			Requirement: requirement,
 			IsShortcut:  false,
+			OneWay:      false,
+			Traversed:   false,
 		})
 
 		currentNode = roomID
@@ -222,6 +226,8 @@ func (wg *WorldGenerator) generateGraph(world *World) {
 		To:          bossRoomID,
 		Requirement: "",
 		IsShortcut:  false,
+		OneWay:      false,
+		Traversed:   false,
 	})
 	roomID++
 
@@ -247,6 +253,8 @@ func (wg *WorldGenerator) generateGraph(world *World) {
 				To:          roomID,
 				Requirement: "",
 				IsShortcut:  false,
+				OneWay:      false,
+				Traversed:   false,
 			})
 
 			currentBranch = roomID
@@ -461,37 +469,127 @@ func (wg *WorldGenerator) generateDoors(room *Room) {
 	}
 }
 
-// addShortcuts creates backtracking shortcuts
+// addShortcuts creates backtracking shortcuts following these rules:
+// 1. Connect rooms separated by ≥5 edges on the critical path
+// 2. Require an ability gained after the destination room
+// 3. Maximum 3-5 shortcuts per world
+// 4. One-way until first traversal, then bidirectional
 func (wg *WorldGenerator) addShortcuts(world *World) {
-	shortcutCount := 2 + wg.rng.Intn(2)
+	if len(world.Rooms) < 10 {
+		return // Not enough rooms for meaningful shortcuts
+	}
 
-	for i := 0; i < shortcutCount; i++ {
-		// Connect a deep room back to an early room
-		if len(world.Rooms) < 10 {
+	// Calculate critical path depths for all nodes
+	criticalPathNodes := wg.getCriticalPathNodes(world)
+	if len(criticalPathNodes) < 6 {
+		return // Critical path too short for shortcuts
+	}
+
+	// Determine number of shortcuts (3-5)
+	shortcutCount := 3 + wg.rng.Intn(3)
+
+	// Available abilities for gating shortcuts
+	abilities := []string{"double_jump", "dash", "wall_climb", "glide"}
+
+	addedShortcuts := 0
+	maxAttempts := shortcutCount * 3 // Try up to 3x to find valid shortcuts
+
+	for attempt := 0; attempt < maxAttempts && addedShortcuts < shortcutCount; attempt++ {
+		// Select source node from later in critical path
+		sourceIdx := len(criticalPathNodes)/2 + wg.rng.Intn(len(criticalPathNodes)/2)
+		if sourceIdx >= len(criticalPathNodes) {
+			sourceIdx = len(criticalPathNodes) - 1
+		}
+		sourceNodeID := criticalPathNodes[sourceIdx]
+		sourceNode := world.Graph.Nodes[sourceNodeID]
+
+		// Select destination node from earlier in critical path
+		destIdx := wg.rng.Intn(len(criticalPathNodes) / 3)
+		destNodeID := criticalPathNodes[destIdx]
+		destNode := world.Graph.Nodes[destNodeID]
+
+		// Check distance requirement: ≥5 edges apart
+		distance := sourceNode.Depth - destNode.Depth
+		if distance < 5 {
+			continue // Too close, try another pair
+		}
+
+		// Check if this shortcut already exists
+		if wg.shortcutExists(world, sourceNodeID, destNodeID) {
 			continue
 		}
 
-		// Pick random rooms by index
-		fromIdx := len(world.Rooms)/2 + wg.rng.Intn(len(world.Rooms)/2)
-		toIdx := wg.rng.Intn(len(world.Rooms) / 4)
+		// Select ability requirement based on destination depth
+		// Ability should be gained after destination but before source
+		abilityIdx := (destNode.Depth / 5) % len(abilities)
+		requirement := abilities[abilityIdx]
 
-		// Get the actual room IDs (not indices!)
-		fromRoomID := world.Rooms[fromIdx].ID
-		toRoomID := world.Rooms[toIdx].ID
-
+		// Add the shortcut edge
 		world.Graph.Edges = append(world.Graph.Edges, GraphEdge{
-			From:        fromRoomID, // Use room ID, not index
-			To:          toRoomID,   // Use room ID, not index
-			Requirement: "",
+			From:        sourceNodeID,
+			To:          destNodeID,
+			Requirement: requirement,
 			IsShortcut:  true,
+			OneWay:      true,  // One-way until first traversal
+			Traversed:   false, // Not yet used
 		})
 
-		// Directly connect the rooms
-		world.Rooms[fromIdx].Connections = append(
-			world.Rooms[fromIdx].Connections,
-			world.Rooms[toIdx],
-		)
+		// Find room indices by ID
+		sourceRoomIdx := wg.findRoomIndexByID(world, sourceNodeID)
+		destRoomIdx := wg.findRoomIndexByID(world, destNodeID)
+
+		if sourceRoomIdx >= 0 && destRoomIdx >= 0 {
+			// Add connection between rooms
+			world.Rooms[sourceRoomIdx].Connections = append(
+				world.Rooms[sourceRoomIdx].Connections,
+				world.Rooms[destRoomIdx],
+			)
+		}
+
+		addedShortcuts++
 	}
+}
+
+// getCriticalPathNodes returns room IDs of all nodes on the critical path
+func (wg *WorldGenerator) getCriticalPathNodes(world *World) []int {
+	criticalNodes := make([]int, 0)
+
+	for _, node := range world.Graph.Nodes {
+		if node.Required {
+			criticalNodes = append(criticalNodes, node.RoomID)
+		}
+	}
+
+	// Sort by depth for deterministic ordering
+	for i := 0; i < len(criticalNodes)-1; i++ {
+		for j := i + 1; j < len(criticalNodes); j++ {
+			if world.Graph.Nodes[criticalNodes[i]].Depth > world.Graph.Nodes[criticalNodes[j]].Depth {
+				criticalNodes[i], criticalNodes[j] = criticalNodes[j], criticalNodes[i]
+			}
+		}
+	}
+
+	return criticalNodes
+}
+
+// shortcutExists checks if a shortcut already connects the given nodes
+func (wg *WorldGenerator) shortcutExists(world *World, fromID, toID int) bool {
+	for _, edge := range world.Graph.Edges {
+		if edge.IsShortcut && edge.From == fromID && edge.To == toID {
+			return true
+		}
+	}
+	return false
+}
+
+// findRoomIndexByID finds the index of a room in the Rooms slice by its ID
+func (wg *WorldGenerator) findRoomIndexByID(world *World, roomID int) int {
+	for idx, room := range world.Rooms {
+		if room.ID == roomID {
+			return idx
+		}
+	}
+	return -1
 }
 
 // generateBiome creates a biome
