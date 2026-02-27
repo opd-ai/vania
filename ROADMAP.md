@@ -431,3 +431,9 @@ The following portable packages from **venture** can be reused or ported directl
 | Post-processing shader stubs  | Port genre preset definitions; implement Ebiten shader equivalents                      |
 | Behavior tree framework       | Port and adapt for platformer AI (add ledge-detection, altitude nodes)                 |
 | Federation / cross-server     | Port identity and portal-room protocol unchanged                                        |
+
+---
+
+## Plan History
+
+- 2026-02-27 PLAN.md created for v1.0 Completion — Core Engine + Playable Single-Player (archived to docs/PLAN-20260227.md)
