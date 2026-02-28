@@ -4,6 +4,7 @@
 package world
 
 import (
+	"math"
 	"math/rand"
 )
 
@@ -250,8 +251,8 @@ func (pg *PlatformGenerator) generateScatteredPlatforms(room *Room, difficulty P
 			angle := pg.rng.Float64() * 2 * 3.14159 // Random angle
 			distance := 80 + pg.rng.Float64()*float64(maxJumpDistance-80)
 
-			x := fromPlatform.X + int(float64(distance)*cos(angle))
-			y := fromPlatform.Y + int(float64(distance)*sin(angle))
+			x := fromPlatform.X + int(float64(distance)*math.Cos(angle))
+			y := fromPlatform.Y + int(float64(distance)*math.Sin(angle))
 
 			// Clamp to room bounds
 			if x < 50 || x > roomWidth-150 || y < 100 || y > roomHeight-100 {
@@ -516,17 +517,4 @@ func min(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// Helper function for cosine (missing in simplified math)
-func cos(x float64) float64 {
-	// Simple approximation - in real code you'd import math package
-	// but avoiding import conflicts for this generation
-	return float64(1.0 - x*x*0.5)
-}
-
-// Helper function for sine (missing in simplified math)
-func sin(x float64) float64 {
-	// Simple approximation
-	return x * (1.0 - x*x*0.166)
 }

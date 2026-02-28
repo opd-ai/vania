@@ -503,6 +503,26 @@ func (ei *EnemyInstance) GetBounds() (x, y, width, height float64) {
 	return ei.X, ei.Y, width, height
 }
 
+// GetEnemySizeBounds returns width and height for an enemy based on its size,
+// without requiring an instance. Useful for spawn position calculation.
+func GetEnemySizeBounds(enemy *Enemy) (x, y, width, height float64) {
+	width = 32.0
+	height = 32.0
+
+	switch enemy.Size {
+	case SmallEnemy:
+		width, height = 16.0, 16.0
+	case MediumEnemy:
+		width, height = 32.0, 32.0
+	case LargeEnemy:
+		width, height = 64.0, 64.0
+	case BossEnemy:
+		width, height = 128.0, 128.0
+	}
+
+	return 0, 0, width, height
+}
+
 // CreateEnemyAnimController creates an animation controller for an enemy
 func CreateEnemyAnimController(baseSprite *graphics.Sprite, enemy *Enemy) *animation.AnimationController {
 	// Use enemy's biome and danger level as seed for animation generation

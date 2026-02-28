@@ -75,13 +75,17 @@ func NewGameRunner(game *Game) *GameRunner {
 	// Create enemy instances for current room
 	var enemyInstances []*entity.EnemyInstance
 	if game.CurrentRoom != nil && len(game.Entities) > 0 {
+		// Find ground platform Y for spawning
+		groundY := findGroundY(game.CurrentRoom)
+
 		// Spawn enemies in room (3-5 enemies per combat room)
 		enemyCount := 3
 		for i := 0; i < enemyCount && i < len(game.Entities); i++ {
 			enemy := game.Entities[i]
-			// Position enemies across the room
+			// Position enemies across the room on the ground platform
 			enemyX := 300.0 + float64(i*150)
-			enemyY := 500.0
+			_, _, _, eh := entity.GetEnemySizeBounds(enemy)
+			enemyY := groundY - eh
 			enemyInstances = append(enemyInstances, entity.NewEnemyInstance(enemy, enemyX, enemyY))
 		}
 	}
@@ -607,16 +611,20 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		gr.renderer.RenderTransitionEffect(screen, progress, transitionType, slideDirection)
 	}
 
-	// Show locked door message if active
+	// Show locked door message if active (centered on screen)
 	if gr.lockedDoorTimer > 0 && gr.lockedDoorMessage != "" {
+		msgX := (render.ScreenWidth - render.MessageWidth) / 2
+		msgY := (render.ScreenHeight - render.MessageHeight) / 2
 		gr.renderMessageWithProgress(screen, gr.lockedDoorMessage, gr.lockedDoorTimer, lockedDoorMessageDuration,
-			render.ScreenWidth/2-100, render.ScreenHeight/2-20, color.RGBA{0, 0, 0, 180})
+			msgX, msgY, color.RGBA{0, 0, 0, 180})
 	}
 
-	// Show item collection message if active
+	// Show item collection message if active (below HUD area)
 	if gr.itemMessageTimer > 0 && gr.itemMessage != "" {
+		msgX := (render.ScreenWidth - render.MessageWidth) / 2
+		msgY := render.AbilityIconY + render.AbilityIconSize + render.UIMargin
 		gr.renderMessageWithProgress(screen, gr.itemMessage, gr.itemMessageTimer, itemMessageDuration,
-			render.ScreenWidth/2-100, 80, color.RGBA{255, 215, 0, 200})
+			msgX, msgY, color.RGBA{255, 215, 0, 200})
 	}
 
 	// Show debug info if enabled (positioned below UI to avoid overlap)
@@ -650,9 +658,9 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 			debugInfo = "PAUSED\nPress P to resume\n\n" + debugInfo
 		}
 
-		// Position debug info below health bar and abilities (start at Y=120)
-		debugX := 10
-		debugY := 120
+		// Position debug info below health bar and abilities
+		debugX := render.UIMargin
+		debugY := render.AbilityIconY + render.AbilityIconSize + render.UIMargin + render.MessageHeight + render.UIMargin
 		// Use text rendering abstraction with fallback to debug text
 		if gr.renderer != nil {
 			gr.renderer.RenderText(screen, debugInfo, debugX, debugY, color.RGBA{255, 255, 255, 255})
@@ -664,8 +672,9 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 	// Always show minimal controls hint in top-right corner if debug is off
 	if !gr.showDebugInfo {
 		controlsHint := "F3=Debug Info"
-		hintX := render.ScreenWidth - 100
-		hintY := 10
+		hintWidth := len(controlsHint) * 8 // 8px per char (standardized font metrics)
+		hintX := render.ScreenWidth - hintWidth - render.UIMargin
+		hintY := render.UIMargin
 		if gr.renderer != nil {
 			gr.renderer.RenderText(screen, controlsHint, hintX, hintY, color.RGBA{200, 200, 200, 255})
 		} else {
@@ -1039,6 +1048,9 @@ func createItemInstancesForRoom(room *world.Room, allItems []*entity.Item) []*en
 		return instances
 	}
 
+	// Find ground platform Y for spawning
+	groundY := findGroundY(room)
+
 	// Place 2-4 items in treasure rooms
 	itemCount := 2 + (room.ID % 3) // 2-4 items based on room ID
 	if itemCount > len(allItems) {
@@ -1049,9 +1061,9 @@ func createItemInstancesForRoom(room *world.Room, allItems []*entity.Item) []*en
 		// Generate unique item ID based on room and position
 		itemID := room.ID*1000 + i
 
-		// Position items across the room (spread horizontally)
+		// Position items across the room on the ground platform
 		itemX := 200.0 + float64(i*150)
-		itemY := 500.0 // Ground level
+		itemY := groundY - 16.0 // Items are 16px tall
 
 		instance := entity.NewItemInstance(allItems[i%len(allItems)], itemID, itemX, itemY)
 		instances = append(instances, instance)
@@ -1060,25 +1072,28 @@ func createItemInstancesForRoom(room *world.Room, allItems []*entity.Item) []*en
 	return instances
 }
 
+// findGroundY returns the Y coordinate of the ground platform surface in a room.
+// Falls back to screen-bottom floor if no ground platform is found.
+func findGroundY(room *world.Room) float64 {
+	if room == nil {
+		return float64(render.ScreenHeight - 32)
+	}
+	// Look for the lowest full-width platform (ground platform)
+	groundY := float64(render.ScreenHeight) // Default: screen bottom
+	for _, p := range room.Platforms {
+		if p.Width >= render.ScreenWidth/2 && float64(p.Y) < groundY {
+			// Found a wide platform — use its top surface
+			groundY = float64(p.Y)
+		}
+	}
+	return groundY
+}
+
 // renderMessageWithProgress renders a message with a progress bar showing remaining time
 func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message string, currentTimer, maxDuration, x, y int, bgColor color.Color) {
 	messageWidth := render.MessageWidth
 	messageHeight := render.MessageHeight
 	progressHeight := render.ProgressBarHeight
-
-	// Draw main message background
-	messageImg := ebiten.NewImage(messageWidth, messageHeight)
-	messageImg.Fill(bgColor)
-	opts := &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(x), float64(y))
-	screen.DrawImage(messageImg, opts)
-
-	// Draw text using renderer's text system if available
-	if gr.renderer != nil {
-		gr.renderer.RenderText(screen, message, x+10, y+12, color.RGBA{255, 255, 255, 255})
-	} else {
-		ebitenutil.DebugPrintAt(screen, message, x+10, y+12)
-	}
 
 	// Calculate progress (0.0 to 1.0)
 	progress := float64(currentTimer) / float64(maxDuration)
@@ -1089,14 +1104,30 @@ func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message st
 		progress = 0.0
 	}
 
-	// Draw progress bar background (darker)
+	// Draw in correct order: border → background → progress → text
+
+	// 1. Draw subtle border for better definition
+	borderImg := ebiten.NewImage(messageWidth+2, messageHeight+2)
+	borderImg.Fill(color.RGBA{255, 255, 255, 50})
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(x-1), float64(y-1))
+	screen.DrawImage(borderImg, opts)
+
+	// 2. Draw main message background
+	messageImg := ebiten.NewImage(messageWidth, messageHeight)
+	messageImg.Fill(bgColor)
+	opts = &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(x), float64(y))
+	screen.DrawImage(messageImg, opts)
+
+	// 3. Draw progress bar background (darker)
 	progressBgImg := ebiten.NewImage(messageWidth-4, progressHeight)
 	progressBgImg.Fill(color.RGBA{0, 0, 0, 100})
 	opts = &ebiten.DrawImageOptions{}
 	opts.GeoM.Translate(float64(x+2), float64(y+messageHeight-progressHeight-2))
 	screen.DrawImage(progressBgImg, opts)
 
-	// Draw progress bar fill (progress remaining)
+	// 4. Draw progress bar fill (progress remaining)
 	progressWidth := int(float64(messageWidth-4) * progress)
 	if progressWidth > 0 {
 		progressImg := ebiten.NewImage(progressWidth, progressHeight)
@@ -1120,17 +1151,12 @@ func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message st
 		screen.DrawImage(progressImg, opts)
 	}
 
-	// Add subtle border for better definition
-	borderImg := ebiten.NewImage(messageWidth+2, messageHeight+2)
-	borderImg.Fill(color.RGBA{255, 255, 255, 50})
-	opts = &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(x-1), float64(y-1))
-	screen.DrawImage(borderImg, opts)
-
-	// Redraw main background on top of border
-	opts = &ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(float64(x), float64(y))
-	screen.DrawImage(messageImg, opts)
+	// 5. Draw text last so it's visible on top of background
+	if gr.renderer != nil {
+		gr.renderer.RenderText(screen, message, x+10, y+12, color.RGBA{255, 255, 255, 255})
+	} else {
+		ebitenutil.DebugPrintAt(screen, message, x+10, y+12)
+	}
 }
 
 // updateMusicContext updates the music context based on current game state

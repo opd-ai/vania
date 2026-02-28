@@ -273,9 +273,11 @@ func (rth *RoomTransitionHandler) SpawnEnemiesForRoom(room *world.Room) []*entit
 	for i := 0; i < enemyCount && i < len(rth.game.Entities); i++ {
 		enemy := rth.game.Entities[i]
 
-		// Position enemies across the room
+		// Position enemies across the room on the ground platform
 		enemyX := 300.0 + float64(i*150)
-		enemyY := 500.0
+		_, _, _, eh := entity.GetEnemySizeBounds(enemy)
+		groundY := findGroundY(room)
+		enemyY := groundY - eh
 
 		enemyInstances = append(enemyInstances, entity.NewEnemyInstance(enemy, enemyX, enemyY))
 	}

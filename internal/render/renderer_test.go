@@ -34,16 +34,14 @@ func TestUpdateCamera(t *testing.T) {
 	targetY := 300.0
 	r.UpdateCamera(targetX, targetY)
 
-	// Camera should center on target
-	expectedX := targetX - float64(r.camera.Width)/2
-	expectedY := targetY - float64(r.camera.Height)/2
-
-	if r.camera.X != expectedX {
-		t.Errorf("Expected camera X=%f, got %f", expectedX, r.camera.X)
+	// Camera is clamped to [0,0] for screen-sized rooms
+	// Any computed position is clamped to 0
+	if r.camera.X != 0 {
+		t.Errorf("Expected camera X=0 (clamped to room bounds), got %f", r.camera.X)
 	}
 
-	if r.camera.Y != expectedY {
-		t.Errorf("Expected camera Y=%f, got %f", expectedY, r.camera.Y)
+	if r.camera.Y != 0 {
+		t.Errorf("Expected camera Y=0 (clamped to room bounds), got %f", r.camera.Y)
 	}
 }
 

@@ -205,9 +205,17 @@ func (r *Renderer) renderPlatforms(screen *ebiten.Image, room *world.Room, tiles
 
 	// Render each platform
 	for _, platform := range room.Platforms {
-		// Draw platform tiles
-		for px := 0; px < platform.Width; px++ {
-			for py := 0; py < platform.Height; py++ {
+		// Platform Width/Height are in pixels; convert to tile count for rendering
+		tilesWide := platform.Width / TileSize
+		if tilesWide < 1 {
+			tilesWide = 1
+		}
+		tilesTall := platform.Height / TileSize
+		if tilesTall < 1 {
+			tilesTall = 1
+		}
+		for px := 0; px < tilesWide; px++ {
+			for py := 0; py < tilesTall; py++ {
 				opts := &ebiten.DrawImageOptions{}
 				opts.GeoM.Translate(
 					float64(platform.X+px*TileSize),
@@ -695,11 +703,26 @@ func (r *Renderer) generateAbilityIcon(ability string, size int, unlocked bool) 
 	return iconImg
 }
 
-// UpdateCamera updates camera position to follow target
+// UpdateCamera updates camera position to follow target, clamped to room bounds
 func (r *Renderer) UpdateCamera(targetX, targetY float64) {
 	// Simple camera that centers on target
 	r.camera.X = targetX - float64(r.camera.Width)/2
 	r.camera.Y = targetY - float64(r.camera.Height)/2
+
+	// Clamp camera to room bounds (rooms are screen-sized 960×640)
+	if r.camera.X < 0 {
+		r.camera.X = 0
+	}
+	if r.camera.Y < 0 {
+		r.camera.Y = 0
+	}
+	// For screen-sized rooms, camera should not exceed 0
+	if r.camera.X > 0 {
+		r.camera.X = 0
+	}
+	if r.camera.Y > 0 {
+		r.camera.Y = 0
+	}
 }
 
 // GetCameraOffset returns the camera offset for positioning
@@ -722,8 +745,8 @@ func (r *Renderer) MeasureText(text string) (width, height int) {
 	if r.textManager != nil {
 		return r.textManager.MeasureText(text)
 	}
-	// Fallback measurements for debug text
-	return len(text) * 6, 16
+	// Fallback measurements matching standardized 8×12 font metrics
+	return len(text) * 8, 12
 }
 
 // SetTextColorMode enables or disables colored text rendering
@@ -735,9 +758,9 @@ func (r *Renderer) SetTextColorMode(enabled bool) {
 
 // RenderEnemy draws an enemy to the screen
 func (r *Renderer) RenderEnemy(screen *ebiten.Image, x, y, width, height float64, health, maxHealth int, isInvulnerable bool, sprite *graphics.Sprite) {
-	// Apply camera offset
-	screenX := x + r.camera.X
-	screenY := y + r.camera.Y
+	// Apply camera offset (world-to-screen: subtract camera position)
+	screenX := x - r.camera.X
+	screenY := y - r.camera.Y
 
 	// Don't render if off screen
 	if screenX+width < 0 || screenX > float64(ScreenWidth) ||
@@ -805,9 +828,9 @@ func (r *Renderer) RenderAttackEffect(screen *ebiten.Image, x, y, width, height 
 		return
 	}
 
-	// Apply camera offset
-	screenX := x + r.camera.X
-	screenY := y + r.camera.Y
+	// Apply camera offset (world-to-screen: subtract camera position)
+	screenX := x - r.camera.X
+	screenY := y - r.camera.Y
 
 	// Create attack effect image (semi-transparent yellow)
 	attackImg := ebiten.NewImage(int(width), int(height))
