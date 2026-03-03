@@ -262,10 +262,10 @@ Potential improvements for future versions:
 2. **Biome Particles** - Environmental particles per biome (rain, snow, embers)
 3. **Damage Numbers** - Render floating damage text
 4. **Trail Optimization** - Better trail effect management
-5. **Particle Sprites** - Use actual sprites instead of squares
+5. **Particle Sprites** - Use procedurally generated sprites instead of squares (no bundled image assets)
 6. **Blend Modes** - Additive blending for glowing effects
 7. **Collision** - Particles interact with world geometry
-8. **Sound Integration** - Play sounds with particle effects
+8. **Sound Integration** - Procedurally synthesized sounds paired with particle effects (no bundled audio files)
 
 ## Credits
 

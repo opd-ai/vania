@@ -227,10 +227,10 @@ go test ./internal/pcg ./internal/physics ./internal/entity -v
    - Block/parry mechanics
 
 3. **Visual Polish**
-   - Sprite animations
-   - Particle effects
+   - Procedurally generated sprite animations
+   - Procedurally generated particle effects
    - Screen shake on hits
-   - Blood/impact effects
+   - Blood/impact effects (all rendered algorithmically at runtime)
 
 4. **Boss Battles**
    - Multi-phase boss fights

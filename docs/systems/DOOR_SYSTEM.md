@@ -274,9 +274,9 @@ To test the door system:
 3. **Timed Doors**: Doors that open/close based on timer
 4. **Switch-Activated Doors**: Doors controlled by room switches/puzzles
 5. **Multi-Requirement Doors**: Doors requiring multiple abilities
-6. **Visual Door States**: Different sprites for locked/unlocked doors
-7. **Door Animations**: Animated opening/closing sequences
-8. **Sound Effects**: Audio feedback for locked doors and unlocking
+6. **Visual Door States**: Procedurally generated sprites for locked/unlocked doors (no bundled image assets)
+7. **Door Animations**: Procedurally generated opening/closing animation sequences
+8. **Sound Effects**: Procedurally synthesized audio feedback for locked doors and unlocking (no bundled audio files)
 
 ### Extensibility
 

@@ -93,9 +93,9 @@ For most games, the performance difference is negligible, but on lower-end syste
 
 Potential improvements for future versions:
 - Custom transition curves (ease-in, ease-out, elastic)
-- Transition-specific sound effects
+- Procedurally synthesized transition-specific sound effects (no bundled audio files)
 - Per-door transition type overrides stored in world data
-- Animated sprite-based transitions (curtain, dissolve, etc.)
+- Procedurally generated animated sprite-based transitions (curtain, dissolve, etc.) — no pre-rendered image assets
 - GPU-accelerated shader-based transitions
 
 ## Implementation Notes

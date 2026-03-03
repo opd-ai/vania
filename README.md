@@ -4,12 +4,14 @@ A fully procedurally-generated retro Metroidvania game written in pure Go, where
 
 ## 🎮 Overview
 
-VANIA is an advanced procedural content generation (PCG) project that eliminates traditional asset creation entirely. Instead of loading pre-made sprites, sounds, or story text, the game generates:
+VANIA is an advanced procedural content generation (PCG) project that eliminates traditional asset creation entirely. Instead of loading pre-made sprites, sounds, or story text, the game generates everything algorithmically at runtime:
 
 - **Pixel art sprites** through algorithmic drawing
-- **Sound effects and music** through synthesis
-- **Narrative elements** through procedural story generation
+- **Sound effects and music** through waveform synthesis
+- **Narrative elements** (dialogue, lore, quests, character backstories) through procedural story generation
 - **World layouts and progression** through algorithmic level design
+
+No pre-rendered images, bundled audio files, or static narrative content are permitted in the project. All output is deterministic: identical seeds produce identical results.
 
 Each game is generated from a single seed value, providing infinite unique, playable experiences.
 
@@ -141,9 +143,9 @@ Master Seed: 42
 ## 🎯 Key Technical Achievements
 
 ### Zero External Assets
-- No sprite files, sound files, or text files
-- Everything generated from mathematical algorithms
-- Reproducible: same seed = same game
+- **No pre-rendered, embedded, or bundled asset files of any kind** — no `.png`, `.jpg`, `.svg`, `.gif`, `.mp3`, `.wav`, `.ogg`, no static dialogue, no pre-written story scripts, and no fixed narrative text
+- 100% of gameplay assets — audio, visual, and narrative/story-driven components — are procedurally generated at runtime using deterministic algorithms
+- Reproducible: same seed = same game, identical output given identical inputs
 
 ### Deterministic Generation
 - Single master seed derives all subsystem seeds
@@ -207,7 +209,7 @@ Master Seed (user input or timestamp)
 - **Layered Composition**: Mixes melody, harmony, bass, drums
 
 ### Narrative
-- **Template-based Generation**: Fills story templates
+- **Procedural Story Assembly**: Algorithmically constructs quests, dialogue, lore, character backstories, and plot progression at runtime — no pre-authored text files or hardcoded narrative content
 - **Constraint-based Selection**: Ensures thematic consistency
 - **Markov-like Chains**: Creates varied text
 - **Name Generation**: Produces pronounceable names
