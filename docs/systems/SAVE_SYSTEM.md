@@ -323,7 +323,7 @@ Potential improvements for the save system:
 4. **Backup System**: Automatic backup of recent saves
 5. **Save Import/Export**: Share saves with other players
 6. **Quick Save/Load**: F5/F9 hotkeys
-7. **Save Screenshots**: Procedurally rendered visual preview of each save (no static image files stored)
+7. **Save Screenshots**: Procedurally rendered visual preview of each save (rendered from procedural world state; no pre-authored/bundled image assets)
 8. **Statistics Tracking**: Detailed play statistics per save
 
 ### Advanced State Tracking

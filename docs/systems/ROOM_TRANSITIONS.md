@@ -233,7 +233,7 @@ PASS
 **1. Ability-Gated Doors**
 - Lock doors based on required abilities
 - Show lock icon on locked doors
-- Play "locked" sound effect
+- Play procedurally synthesized "locked" sound effect (no bundled audio files)
 - Display "Need [ability]" message
 
 **2. Door Animations**

@@ -4,7 +4,7 @@
 
 The VANIA rendering system uses Ebiten, which requires graphics libraries (X11 on Linux, native on macOS/Windows). This means:
 
-> **Note**: VANIA has zero bundled asset files. All visual, audio, and narrative content is procedurally generated at runtime from a deterministic seed. No `.png`, `.jpg`, `.mp3`, `.wav`, or static text files are required or permitted.
+> **Note**: VANIA has zero bundled asset files. All visual, audio, and narrative content is procedurally generated at runtime from a deterministic seed. No pre-authored asset files such as `.png`, `.jpg`, `.svg`, `.gif`, `.mp3`, `.wav`, `.ogg`, or other static narrative/text assets used by the game runtime (e.g., story scripts, dialogue files, hand-authored level layouts) are required or permitted. See the "Assets" section of `README.md` for the canonical list of disallowed bundled asset types.
 
 ### ✅ What Works in CI/Headless Environments
 - All existing tests (PCG, graphics generation, audio synthesis)
