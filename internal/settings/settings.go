@@ -65,6 +65,7 @@ const (
 	QualityUltra
 )
 
+// String returns a human-readable name for the graphics quality level.
 func (q GraphicsQuality) String() string {
 	switch q {
 	case QualityLow:
