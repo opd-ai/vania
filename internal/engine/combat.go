@@ -9,6 +9,15 @@ import (
 )
 
 const (
+	// ProjectileSpeed is the base travel speed for player projectiles (pixels per frame).
+	ProjectileSpeed = 10.0
+
+	// ProjectileMaxRange is the maximum travel distance before a projectile expires (pixels).
+	ProjectileMaxRange = 400.0
+
+	// ProjectileCooldownFrames is the minimum delay between ranged attacks.
+	ProjectileCooldownFrames = 25
+
 	// ParryWindowFrames is the active frame window during which parry can deflect attacks.
 	// At 60fps, 8 frames = ~133ms, requiring precise timing from the player.
 	ParryWindowFrames = 8
@@ -30,6 +39,16 @@ type DamageNumber struct {
 	IsCrit   bool
 }
 
+// Projectile represents a ranged attack projectile in flight.
+// Damage falls off linearly with distance traveled.
+type Projectile struct {
+	X, Y        float64
+	VelX, VelY  float64
+	Damage      int
+	DistTraveled float64
+	Active      bool
+}
+
 // CombatSystem manages all combat interactions
 type CombatSystem struct {
 	playerAttackCooldown int
@@ -38,6 +57,10 @@ type CombatSystem struct {
 	knockbackVelX        float64
 	knockbackVelY        float64
 	invulnerableFrames   int
+
+	// Ranged attack
+	rangedCooldown int
+	projectiles    []Projectile
 
 	// Parry system
 	playerParrying     bool
@@ -62,6 +85,8 @@ func NewCombatSystem() *CombatSystem {
 		knockbackVelX:        0,
 		knockbackVelY:        0,
 		invulnerableFrames:   0,
+		rangedCooldown:       0,
+		projectiles:          make([]Projectile, 0),
 		playerParrying:       false,
 		parryFrame:           0,
 		parryCooldown:        0,
@@ -109,6 +134,27 @@ func (cs *CombatSystem) Update() {
 		cs.playerStaggerTime--
 		if cs.playerStaggerTime <= 0 {
 			cs.playerStaggered = false
+		}
+	}
+
+	// Update ranged cooldown
+	if cs.rangedCooldown > 0 {
+		cs.rangedCooldown--
+	}
+
+	// Update projectiles
+	for i := len(cs.projectiles) - 1; i >= 0; i-- {
+		p := &cs.projectiles[i]
+		if !p.Active {
+			cs.projectiles = append(cs.projectiles[:i], cs.projectiles[i+1:]...)
+			continue
+		}
+		speed := math.Sqrt(p.VelX*p.VelX + p.VelY*p.VelY)
+		p.X += p.VelX
+		p.Y += p.VelY
+		p.DistTraveled += speed
+		if p.DistTraveled >= ProjectileMaxRange {
+			p.Active = false
 		}
 	}
 
@@ -346,4 +392,65 @@ func (cs *CombatSystem) LastParrySucceeded() bool {
 // ClearLastParrySuccess clears the last parry success flag
 func (cs *CombatSystem) ClearLastParrySuccess() {
 	cs.lastParrySucceeded = false
+}
+
+// PlayerRangedAttack spawns a projectile in the player's facing direction.
+// Damage falls off linearly: full damage at range 0, zero damage at ProjectileMaxRange.
+// Returns false if the ranged attack is on cooldown or the player is staggered.
+func (cs *CombatSystem) PlayerRangedAttack(playerX, playerY, facingDir float64, baseDamage int) bool {
+	if cs.rangedCooldown > 0 || cs.playerStaggered {
+		return false
+	}
+	cs.projectiles = append(cs.projectiles, Projectile{
+		X:           playerX + 16, // centre of player sprite
+		Y:           playerY + 12,
+		VelX:        ProjectileSpeed * facingDir,
+		VelY:        0,
+		Damage:      baseDamage,
+		DistTraveled: 0,
+		Active:      true,
+	})
+	cs.rangedCooldown = ProjectileCooldownFrames
+	return true
+}
+
+// CanRangedAttack returns true when the ranged attack cooldown has elapsed
+// and the player is not staggered.
+func (cs *CombatSystem) CanRangedAttack() bool {
+	return cs.rangedCooldown <= 0 && !cs.playerStaggered
+}
+
+// GetProjectiles returns the slice of currently active projectiles for rendering
+// and external collision checks.
+func (cs *CombatSystem) GetProjectiles() []Projectile {
+	return cs.projectiles
+}
+
+// CheckProjectileEnemyHit tests every active projectile against the given enemy.
+// On first hit the projectile is deactivated and damage (with distance falloff)
+// is applied to the enemy.  Returns the damage dealt, or 0 if no hit occurred.
+func (cs *CombatSystem) CheckProjectileEnemyHit(enemy *entity.EnemyInstance) int {
+	ex, ey, ew, eh := enemy.GetBounds()
+	for i := range cs.projectiles {
+		p := &cs.projectiles[i]
+		if !p.Active {
+			continue
+		}
+		// Simple point-in-AABB check (projectile centre vs enemy bounds)
+		if p.X >= ex && p.X <= ex+ew && p.Y >= ey && p.Y <= ey+eh {
+			// Linear damage falloff: full damage at distance 0, 0 at max range
+			falloff := 1.0 - (p.DistTraveled / ProjectileMaxRange)
+			if falloff < 0 {
+				falloff = 0
+			}
+			damage := int(math.Round(float64(p.Damage) * falloff))
+			if damage < 1 {
+				damage = 1
+			}
+			p.Active = false
+			cs.ApplyDamageToEnemy(enemy, damage, p.X-p.VelX)
+			return damage
+		}
+	}
+	return 0
 }

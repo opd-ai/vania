@@ -233,6 +233,14 @@ func (gr *GameRunner) Update() error {
 		gr.combatSystem.PlayerAttack()
 	}
 
+	// Handle ranged attack (requires "ranged" ability unlock)
+	if inputState.RangedAttackPress && gr.game.Player.Abilities["ranged"] {
+		gr.combatSystem.PlayerRangedAttack(
+			gr.game.Player.X, gr.game.Player.Y,
+			gr.playerFacingDir, gr.game.Player.Damage,
+		)
+	}
+
 	// Handle jump
 	if inputState.JumpPress {
 		hasDoubleJump := gr.game.Player.Abilities["double_jump"]
@@ -475,6 +483,27 @@ func (gr *GameRunner) Update() error {
 					explosionEmitter.Burst(20)
 					gr.particleSystem.AddEmitter(explosionEmitter)
 				}
+			}
+		}
+
+		// Check projectile hits on this enemy
+		if projDmg := gr.combatSystem.CheckProjectileEnemyHit(enemy); projDmg > 0 {
+			ex, ey, _, _ := enemy.GetBounds()
+			hitEmitter := gr.particlePresets.CreateHitEffect(ex+16, ey+16, gr.playerFacingDir)
+			hitEmitter.Burst(6)
+			gr.particleSystem.AddEmitter(hitEmitter)
+			if gr.game.Achievements != nil {
+				gr.game.Achievements.RecordDamage(projDmg, 0)
+			}
+			if enemy.IsDead() {
+				enemyKey := int(enemy.X*1000 + enemy.Y)
+				gr.defeatedEnemies[enemyKey] = true
+				if gr.game.Achievements != nil {
+					gr.game.Achievements.RecordEnemyKill(gr.combatSystem.GetInvulnerableFrames() == 0)
+				}
+				explosionEmitter := gr.particlePresets.CreateExplosion(ex+16, ey+16, 1.0)
+				explosionEmitter.Burst(20)
+				gr.particleSystem.AddEmitter(explosionEmitter)
 			}
 		}
 

@@ -15,20 +15,22 @@ const (
 
 // InputState represents the current input state
 type InputState struct {
-	MoveLeft    bool
-	MoveRight   bool
-	Jump        bool
-	JumpPress   bool // True only on the frame jump was pressed
-	JumpRelease bool // True only on the frame jump was released
-	Attack      bool
-	AttackPress bool
-	Dash        bool
-	DashPress   bool
-	UseAbility  bool
-	Block       bool // Hold to block/parry
-	BlockPress  bool // True only on the frame block was pressed
-	Pause       bool
-	PausePress  bool
+	MoveLeft          bool
+	MoveRight         bool
+	Jump              bool
+	JumpPress         bool // True only on the frame jump was pressed
+	JumpRelease       bool // True only on the frame jump was released
+	Attack            bool
+	AttackPress       bool
+	RangedAttack      bool
+	RangedAttackPress bool // True only on the frame ranged attack was pressed
+	Dash              bool
+	DashPress         bool
+	UseAbility        bool
+	Block             bool // Hold to block/parry
+	BlockPress        bool // True only on the frame block was pressed
+	Pause             bool
+	PausePress        bool
 }
 
 // BufferedInput tracks buffered action inputs
@@ -46,27 +48,29 @@ type InputHandler struct {
 
 // KeyMapping defines rebindable key bindings for all actions
 type KeyMapping struct {
-	MoveLeft   []ebiten.Key
-	MoveRight  []ebiten.Key
-	Jump       []ebiten.Key
-	Attack     []ebiten.Key
-	Dash       []ebiten.Key
-	UseAbility []ebiten.Key
-	Block      []ebiten.Key
-	Pause      []ebiten.Key
+	MoveLeft     []ebiten.Key
+	MoveRight    []ebiten.Key
+	Jump         []ebiten.Key
+	Attack       []ebiten.Key
+	RangedAttack []ebiten.Key
+	Dash         []ebiten.Key
+	UseAbility   []ebiten.Key
+	Block        []ebiten.Key
+	Pause        []ebiten.Key
 }
 
 // DefaultKeyMapping returns the default key configuration
 func DefaultKeyMapping() *KeyMapping {
 	return &KeyMapping{
-		MoveLeft:   []ebiten.Key{ebiten.KeyA, ebiten.KeyArrowLeft},
-		MoveRight:  []ebiten.Key{ebiten.KeyD, ebiten.KeyArrowRight},
-		Jump:       []ebiten.Key{ebiten.KeySpace, ebiten.KeyW, ebiten.KeyArrowUp},
-		Attack:     []ebiten.Key{ebiten.KeyJ, ebiten.KeyZ},
-		Dash:       []ebiten.Key{ebiten.KeyK, ebiten.KeyX},
-		UseAbility: []ebiten.Key{ebiten.KeyL, ebiten.KeyC},
-		Block:      []ebiten.Key{ebiten.KeyS, ebiten.KeyArrowDown, ebiten.KeyShiftLeft},
-		Pause:      []ebiten.Key{ebiten.KeyEscape, ebiten.KeyP},
+		MoveLeft:     []ebiten.Key{ebiten.KeyA, ebiten.KeyArrowLeft},
+		MoveRight:    []ebiten.Key{ebiten.KeyD, ebiten.KeyArrowRight},
+		Jump:         []ebiten.Key{ebiten.KeySpace, ebiten.KeyW, ebiten.KeyArrowUp},
+		Attack:       []ebiten.Key{ebiten.KeyJ, ebiten.KeyZ},
+		RangedAttack: []ebiten.Key{ebiten.KeyR, ebiten.KeyV},
+		Dash:         []ebiten.Key{ebiten.KeyK, ebiten.KeyX},
+		UseAbility:   []ebiten.Key{ebiten.KeyL, ebiten.KeyC},
+		Block:        []ebiten.Key{ebiten.KeyS, ebiten.KeyArrowDown, ebiten.KeyShiftLeft},
+		Pause:        []ebiten.Key{ebiten.KeyEscape, ebiten.KeyP},
 	}
 }
 
@@ -139,6 +143,10 @@ func (ih *InputHandler) Update() InputState {
 	// Attack (buffered)
 	state.Attack = ih.isAnyKeyPressed(ih.keyMapping.Attack)
 	state.AttackPress = ih.isAnyKeyJustPressed(ih.keyMapping.Attack)
+
+	// Ranged attack (not buffered — fires immediately on press)
+	state.RangedAttack = ih.isAnyKeyPressed(ih.keyMapping.RangedAttack)
+	state.RangedAttackPress = ih.isAnyKeyJustPressed(ih.keyMapping.RangedAttack)
 
 	// Dash (buffered)
 	state.Dash = ih.isAnyKeyPressed(ih.keyMapping.Dash)
