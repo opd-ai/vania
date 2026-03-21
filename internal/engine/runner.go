@@ -58,6 +58,7 @@ type GameRunner struct {
 	itemMessageTimer  int
 	musicContext      *audio.MusicContext
 	showDebugInfo     bool
+	playerStatus      *StatusManager // active status effects on the player
 }
 
 // NewGameRunner creates a new game runner
@@ -135,6 +136,7 @@ func NewGameRunner(game *Game) *GameRunner {
 		itemMessageTimer:  0,
 		musicContext:      audio.NewMusicContext(),
 		showDebugInfo:     false, // Debug info starts hidden
+		playerStatus:      NewStatusManager(),
 	}
 }
 
@@ -202,18 +204,27 @@ func (gr *GameRunner) Update() error {
 	// Update combat system
 	gr.combatSystem.Update()
 
-	// Update particle system
+	// Update player status effects (1/60 s per frame at 60 fps)
+	if statusDmg := gr.playerStatus.Update(1.0 / 60.0); statusDmg > 0 {
+		gr.game.Player.Health -= statusDmg
+		if gr.game.Player.Health < 0 {
+			gr.game.Player.Health = 0
+		}
+		gr.combatSystem.AddDamageNumber(statusDmg, gr.game.Player.X, gr.game.Player.Y-10, false)
+	}
+
 	gr.particleSystem.Update()
 
 	// Track previous ground state for landing particles
 	wasOnGround := gr.playerBody.OnGround
 
-	// Handle player movement
+	// Handle player movement (speed modified by active status effects)
+	speedMult := gr.playerStatus.SpeedMultiplier()
 	if inputState.MoveLeft {
-		gr.playerBody.MoveHorizontal(-1)
+		gr.playerBody.MoveHorizontalScaled(-1, speedMult)
 		gr.playerFacingDir = -1.0
 	} else if inputState.MoveRight {
-		gr.playerBody.MoveHorizontal(1)
+		gr.playerBody.MoveHorizontalScaled(1, speedMult)
 		gr.playerFacingDir = 1.0
 	} else {
 		gr.playerBody.ApplyFriction()

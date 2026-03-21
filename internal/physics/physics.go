@@ -232,6 +232,13 @@ func (b *Body) MoveHorizontal(direction float64) {
 	b.Velocity.X = direction * PlayerSpeed
 }
 
+// MoveHorizontalScaled moves the body with a speed multiplier applied on top of
+// PlayerSpeed.  A multiplier of 1.0 is identical to MoveHorizontal; values below
+// 1.0 slow the body (e.g., status Freeze/Slow) and above 1.0 speed it up (Haste).
+func (b *Body) MoveHorizontalScaled(direction, multiplier float64) {
+	b.Velocity.X = direction * PlayerSpeed * multiplier
+}
+
 // Jump makes the body jump if on ground, in coyote-time window, or wall.
 // Returns true if jump was executed.
 func (b *Body) Jump(hasDoubleJump bool, doubleJumpUsed *bool) bool {
