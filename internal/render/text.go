@@ -174,7 +174,6 @@ func (btr *BitmapTextRenderer) drawChar(screen *ebiten.Image, char rune, x, y, w
 	screen.DrawImage(charImg, opts)
 }
 
-
 // TextRenderManager manages text rendering strategy with fallback
 type TextRenderManager struct {
 	primary  TextRenderer

@@ -42,11 +42,11 @@ type DamageNumber struct {
 // Projectile represents a ranged attack projectile in flight.
 // Damage falls off linearly with distance traveled.
 type Projectile struct {
-	X, Y        float64
-	VelX, VelY  float64
-	Damage      int
+	X, Y         float64
+	VelX, VelY   float64
+	Damage       int
 	DistTraveled float64
-	Active      bool
+	Active       bool
 }
 
 // CombatSystem manages all combat interactions
@@ -402,13 +402,13 @@ func (cs *CombatSystem) PlayerRangedAttack(playerX, playerY, facingDir float64, 
 		return false
 	}
 	cs.projectiles = append(cs.projectiles, Projectile{
-		X:           playerX + 16, // centre of player sprite
-		Y:           playerY + 12,
-		VelX:        ProjectileSpeed * facingDir,
-		VelY:        0,
-		Damage:      baseDamage,
+		X:            playerX + 16, // centre of player sprite
+		Y:            playerY + 12,
+		VelX:         ProjectileSpeed * facingDir,
+		VelY:         0,
+		Damage:       baseDamage,
 		DistTraveled: 0,
-		Active:      true,
+		Active:       true,
 	})
 	cs.rangedCooldown = ProjectileCooldownFrames
 	return true

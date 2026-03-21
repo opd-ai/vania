@@ -40,11 +40,11 @@ var genreNames = map[string][7]string{
 
 // StatusEffect represents a single active status applied to an entity.
 type StatusEffect struct {
-	Type     StatusType
-	Stacks   int     // 1–5; higher stacks increase damage/duration
-	Duration float64 // remaining seconds
-	Source   string  // e.g. "player", "enemy_poison_dart"
-	tickTimer int    // counts frames until next damage tick
+	Type      StatusType
+	Stacks    int     // 1–5; higher stacks increase damage/duration
+	Duration  float64 // remaining seconds
+	Source    string  // e.g. "player", "enemy_poison_dart"
+	tickTimer int     // counts frames until next damage tick
 }
 
 // StatusManager tracks and resolves all active status effects on a single entity.

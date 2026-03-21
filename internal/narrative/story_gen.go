@@ -120,7 +120,7 @@ func (ng *NarrativeGenerator) selectTheme() StoryTheme {
 		"fantasy":   FantasyTheme,
 		"scifi":     SciFiTheme,
 		"horror":    HorrorTheme,
-		"cyberpunk": SciFiTheme,   // cyberpunk shares scifi vocabulary
+		"cyberpunk": SciFiTheme, // cyberpunk shares scifi vocabulary
 		"postapoc":  PostApocTheme,
 	}
 	if ng.genre != "" {

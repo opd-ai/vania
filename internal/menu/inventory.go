@@ -35,14 +35,14 @@ const (
 // InventoryScreen renders and handles input for the player inventory.
 // It displays a 4×8 item grid with item tooltips and supports consumable use.
 type InventoryScreen struct {
-	items         []*entity.Item
-	abilities     []entity.Ability
-	selectedRow   int
-	selectedCol   int
-	tooltipTimer  int
-	useConfirm    bool // waiting for confirmation to use a consumable
-	renderer      *render.BitmapTextRenderer
-	genre         string
+	items        []*entity.Item
+	abilities    []entity.Ability
+	selectedRow  int
+	selectedCol  int
+	tooltipTimer int
+	useConfirm   bool // waiting for confirmation to use a consumable
+	renderer     *render.BitmapTextRenderer
+	genre        string
 }
 
 // NewInventoryScreen creates an InventoryScreen for rendering.

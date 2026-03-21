@@ -1,0 +1,24 @@
+?   	github.com/opd-ai/vania/cmd/game	[no test files]
+ok  	github.com/opd-ai/vania/internal/achievement	1.036s
+ok  	github.com/opd-ai/vania/internal/animation	1.023s
+ok  	github.com/opd-ai/vania/internal/audio	4.208s
+ok  	github.com/opd-ai/vania/internal/camera	1.062s
+ok  	github.com/opd-ai/vania/internal/engine	40.217s
+ok  	github.com/opd-ai/vania/internal/engine/ecs	1.078s
+ok  	github.com/opd-ai/vania/internal/entity	1.017s
+ok  	github.com/opd-ai/vania/internal/graphics	1.073s
+ok  	github.com/opd-ai/vania/internal/input	1.075s
+ok  	github.com/opd-ai/vania/internal/menu	1.093s
+ok  	github.com/opd-ai/vania/internal/narrative	1.022s
+--- FAIL: TestParticleSystemRemoveOneShotEmitters (0.00s)
+    particle_test.go:311: Expected one-shot emitter to be removed, got 1 emitters
+FAIL
+FAIL	github.com/opd-ai/vania/internal/particle	0.019s
+ok  	github.com/opd-ai/vania/internal/pcg	1.022s
+ok  	github.com/opd-ai/vania/internal/physics	1.019s
+ok  	github.com/opd-ai/vania/internal/render	1.063s
+ok  	github.com/opd-ai/vania/internal/save	1.572s
+ok  	github.com/opd-ai/vania/internal/settings	1.061s
+?   	github.com/opd-ai/vania/internal/testutil	[no test files]
+ok  	github.com/opd-ai/vania/internal/world	1.050s
+FAIL

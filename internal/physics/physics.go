@@ -418,82 +418,82 @@ func FindNearestAnchor(bodyPos AABB, anchors []world.AnchorPoint) (world.AnchorP
 type HazardType int
 
 const (
-// HazardNone represents no hazard.
-HazardNone HazardType = iota
-// HazardMagicBarrier (fantasy) — drains mana / deals arcane damage.
-HazardMagicBarrier
-// HazardAirlockVent (scifi) — vacuum pressure blast.
-HazardAirlockVent
-// HazardCursedGround (horror) — deals curse damage over time.
-HazardCursedGround
-// HazardNeonField (cyberpunk) — electric shock damage.
-HazardNeonField
-// HazardRadiationCloud (postapoc) — radiation damage over time.
-HazardRadiationCloud
+	// HazardNone represents no hazard.
+	HazardNone HazardType = iota
+	// HazardMagicBarrier (fantasy) — drains mana / deals arcane damage.
+	HazardMagicBarrier
+	// HazardAirlockVent (scifi) — vacuum pressure blast.
+	HazardAirlockVent
+	// HazardCursedGround (horror) — deals curse damage over time.
+	HazardCursedGround
+	// HazardNeonField (cyberpunk) — electric shock damage.
+	HazardNeonField
+	// HazardRadiationCloud (postapoc) — radiation damage over time.
+	HazardRadiationCloud
 )
 
 // GenreHazardConfig holds tunable parameters for a single genre's hazard set.
 type GenreHazardConfig struct {
-// PrimaryHazard is the dominant environmental hazard for this genre.
-PrimaryHazard HazardType
-// HazardDamagePerTick is the damage dealt each tick (60 fps) while overlapping.
-HazardDamagePerTick int
-// HazardTickFrames is the number of frames between damage ticks.
-HazardTickFrames int
-// MovementPenalty is a speed multiplier applied while in a hazard zone (0–1).
-MovementPenalty float64
+	// PrimaryHazard is the dominant environmental hazard for this genre.
+	PrimaryHazard HazardType
+	// HazardDamagePerTick is the damage dealt each tick (60 fps) while overlapping.
+	HazardDamagePerTick int
+	// HazardTickFrames is the number of frames between damage ticks.
+	HazardTickFrames int
+	// MovementPenalty is a speed multiplier applied while in a hazard zone (0–1).
+	MovementPenalty float64
 }
 
 // genreHazardConfigs stores per-genre hazard parameters.
 var genreHazardConfigs = map[string]GenreHazardConfig{
-"fantasy":   {HazardMagicBarrier, 4, 45, 0.7},
-"scifi":     {HazardAirlockVent, 6, 30, 0.8},
-"horror":    {HazardCursedGround, 3, 60, 0.6},
-"cyberpunk": {HazardNeonField, 5, 30, 0.75},
-"postapoc":  {HazardRadiationCloud, 2, 90, 0.85},
+	"fantasy":   {HazardMagicBarrier, 4, 45, 0.7},
+	"scifi":     {HazardAirlockVent, 6, 30, 0.8},
+	"horror":    {HazardCursedGround, 3, 60, 0.6},
+	"cyberpunk": {HazardNeonField, 5, 30, 0.75},
+	"postapoc":  {HazardRadiationCloud, 2, 90, 0.85},
 }
 
 // PhysicsSystem holds genre-aware physics configuration and applies hazard
 // effects to bodies entering genre-specific danger zones.
 type PhysicsSystem struct {
-genre  string
-config GenreHazardConfig
+	genre  string
+	config GenreHazardConfig
 }
 
 // NewPhysicsSystem creates a PhysicsSystem defaulting to the fantasy genre.
 func NewPhysicsSystem() *PhysicsSystem {
-cfg := genreHazardConfigs["fantasy"]
-return &PhysicsSystem{genre: "fantasy", config: cfg}
+	cfg := genreHazardConfigs["fantasy"]
+	return &PhysicsSystem{genre: "fantasy", config: cfg}
 }
 
 // SetGenre reconfigures hazard parameters for the named genre.
 // Accepted values: "fantasy", "scifi", "horror", "cyberpunk", "postapoc".
 // Unknown genres fall back to fantasy parameters.
 func (ps *PhysicsSystem) SetGenre(genreID string) {
-ps.genre = genreID
-cfg, ok := genreHazardConfigs[genreID]
-if !ok {
-cfg = genreHazardConfigs["fantasy"]
-}
-ps.config = cfg
+	ps.genre = genreID
+	cfg, ok := genreHazardConfigs[genreID]
+	if !ok {
+		cfg = genreHazardConfigs["fantasy"]
+	}
+	ps.config = cfg
 }
 
 // Genre returns the currently active genre identifier.
 func (ps *PhysicsSystem) Genre() string {
-return ps.genre
+	return ps.genre
 }
 
 // HazardConfig returns the active hazard configuration for external use
 // (e.g., by the engine when spawning hazard tiles).
 func (ps *PhysicsSystem) HazardConfig() GenreHazardConfig {
-return ps.config
+	return ps.config
 }
 
 // OverlapsHazard returns true when the given AABB overlaps the provided hazard
 // zone rectangle.  This is a pure AABB test with no side effects.
 func (ps *PhysicsSystem) OverlapsHazard(body AABB, hazardX, hazardY, hazardW, hazardH float64) bool {
-return body.X < hazardX+hazardW &&
-body.X+body.Width > hazardX &&
-body.Y < hazardY+hazardH &&
-body.Y+body.Height > hazardY
+	return body.X < hazardX+hazardW &&
+		body.X+body.Width > hazardX &&
+		body.Y < hazardY+hazardH &&
+		body.Y+body.Height > hazardY
 }

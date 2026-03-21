@@ -12,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/opd-ai/vania/internal/audio"
+	"github.com/opd-ai/vania/internal/engine/ecs"
 	"github.com/opd-ai/vania/internal/entity"
 	"github.com/opd-ai/vania/internal/graphics"
 	"github.com/opd-ai/vania/internal/input"
@@ -59,6 +60,7 @@ type GameRunner struct {
 	musicContext      *audio.MusicContext
 	showDebugInfo     bool
 	playerStatus      *StatusManager // active status effects on the player
+	systemManager     *ecs.SystemManager
 }
 
 // NewGameRunner creates a new game runner
@@ -108,16 +110,25 @@ func NewGameRunner(game *Game) *GameRunner {
 	// Create item instances for current room
 	itemInstances := createItemInstancesForRoom(game.CurrentRoom, game.Items)
 
+	// Create the renderer here so we can pass it to ECS systems
+	renderer := render.NewRenderer()
+	ps := particle.NewParticleSystem(1000) // Max 1000 particles
+
+	// Initialize ECS SystemManager and register subsystem wrappers
+	sm := ecs.NewSystemManager()
+	sm.Register(NewAudioECSSystem(game.Audio), 10)
+	sm.Register(NewParticleECSSystem(ps, renderer), 20)
+
 	return &GameRunner{
 		game:              game,
-		renderer:          render.NewRenderer(),
+		renderer:          renderer,
 		inputHandler:      input.NewInputHandler(),
 		playerBody:        physics.NewBody(playerX, playerY, physics.PlayerWidth, physics.PlayerHeight),
 		combatSystem:      NewCombatSystem(),
 		transitionHandler: transitionHandler,
 		enemyInstances:    enemyInstances,
 		itemInstances:     itemInstances,
-		particleSystem:    particle.NewParticleSystem(1000), // Max 1000 particles
+		particleSystem:    ps,
 		particlePresets:   &particle.ParticlePresets{},
 		doubleJumpUsed:    false,
 		dashCooldown:      0,
@@ -137,6 +148,7 @@ func NewGameRunner(game *Game) *GameRunner {
 		musicContext:      audio.NewMusicContext(),
 		showDebugInfo:     false, // Debug info starts hidden
 		playerStatus:      NewStatusManager(),
+		systemManager:     sm,
 	}
 }
 
@@ -164,6 +176,11 @@ func (gr *GameRunner) Update() error {
 		return nil
 	}
 
+	return gr.updatePlaying(inputState)
+}
+
+// updatePlaying runs the main game-logic update when not paused.
+func (gr *GameRunner) updatePlaying(inputState input.InputState) error {
 	// Update transition handler
 	if gr.transitionHandler.Update() {
 		// Transition completed - spawn new enemies and items
@@ -185,26 +202,51 @@ func (gr *GameRunner) Update() error {
 		gr.unlockedDoors,
 	)
 	if door != nil {
-		// Player touched a door - start transition
 		gr.transitionHandler.StartTransition(door)
 		return nil
 	}
 
-	// Check if player is near a locked door
+	// Locked-door message countdown
 	if gr.lockedDoorTimer > 0 {
 		gr.lockedDoorTimer--
 	}
 	gr.checkLockedDoorInteraction()
 
-	// Apply physics (with glide support)
+	// Apply physics gravity (glide ability modifies fall rate)
 	hasGlide := gr.game.Player.Abilities["glide"]
 	isGliding := hasGlide && inputState.UseAbility && !gr.playerBody.OnGround && gr.playerBody.Velocity.Y > 0
 	gr.playerBody.ApplyGravity(isGliding)
 
-	// Update combat system
 	gr.combatSystem.Update()
+	gr.updateStatusEffects()
 
-	// Update player status effects (1/60 s per frame at 60 fps)
+	// Delegate particle and audio updates through the ECS SystemManager
+	if err := gr.systemManager.Update(1.0 / 60.0); err != nil {
+		return err
+	}
+
+	wasOnGround := gr.playerBody.OnGround
+
+	gr.updatePlayerInput(inputState)
+	gr.updatePlayerPhysics(wasOnGround)
+	gr.updatePlayerAnimation(inputState)
+	gr.updateEnemies()
+
+	gr.updateMusicContext()
+
+	if gr.itemMessageTimer > 0 {
+		gr.itemMessageTimer--
+	}
+	gr.checkItemCollection()
+	gr.renderer.UpdateCamera(gr.game.Player.X, gr.game.Player.Y)
+	gr.CheckAutoSave()
+	gr.updateRoomTracking()
+
+	return nil
+}
+
+// updateStatusEffects ticks active player status effects and applies damage.
+func (gr *GameRunner) updateStatusEffects() {
 	if statusDmg := gr.playerStatus.Update(1.0 / 60.0); statusDmg > 0 {
 		gr.game.Player.Health -= statusDmg
 		if gr.game.Player.Health < 0 {
@@ -212,13 +254,10 @@ func (gr *GameRunner) Update() error {
 		}
 		gr.combatSystem.AddDamageNumber(statusDmg, gr.game.Player.X, gr.game.Player.Y-10, false)
 	}
+}
 
-	gr.particleSystem.Update()
-
-	// Track previous ground state for landing particles
-	wasOnGround := gr.playerBody.OnGround
-
-	// Handle player movement (speed modified by active status effects)
+// updatePlayerInput processes movement, attack, jump, dash, and grapple inputs.
+func (gr *GameRunner) updatePlayerInput(inputState input.InputState) {
 	speedMult := gr.playerStatus.SpeedMultiplier()
 	if inputState.MoveLeft {
 		gr.playerBody.MoveHorizontalScaled(-1, speedMult)
@@ -230,346 +269,325 @@ func (gr *GameRunner) Update() error {
 		gr.playerBody.ApplyFriction()
 	}
 
-	// Handle attack
+	gr.updatePlayerAttacks(inputState)
+	gr.updatePlayerJump(inputState)
+	gr.updatePlayerDash(inputState)
+	gr.updatePlayerGrapple(inputState)
+
+	gr.inputHandler.UpdateBuffers()
+}
+
+// updatePlayerAttacks handles melee and ranged attack input with buffering.
+func (gr *GameRunner) updatePlayerAttacks(inputState input.InputState) {
 	if inputState.AttackPress {
-		attacked := gr.combatSystem.PlayerAttack()
-		if !attacked {
-			// Attack conditions not met (e.g., in cooldown) - buffer the input
+		if !gr.combatSystem.PlayerAttack() {
 			gr.inputHandler.BufferAttack()
 		}
 	}
-
-	// Check for buffered attack that can now execute
 	if gr.inputHandler.GetBufferedAttack() && gr.combatSystem.CanAttack() {
 		gr.combatSystem.PlayerAttack()
 	}
-
-	// Handle ranged attack (requires "ranged" ability unlock)
 	if inputState.RangedAttackPress && gr.game.Player.Abilities["ranged"] {
 		gr.combatSystem.PlayerRangedAttack(
 			gr.game.Player.X, gr.game.Player.Y,
 			gr.playerFacingDir, gr.game.Player.Damage,
 		)
 	}
+}
 
-	// Handle jump
+// updatePlayerJump handles jump input and buffering.
+func (gr *GameRunner) updatePlayerJump(inputState input.InputState) {
 	if inputState.JumpPress {
 		hasDoubleJump := gr.game.Player.Abilities["double_jump"]
-		jumped := gr.playerBody.Jump(hasDoubleJump, &gr.doubleJumpUsed)
-		if jumped {
-			// Create jump dust particles
+		if gr.playerBody.Jump(hasDoubleJump, &gr.doubleJumpUsed) {
 			emitter := gr.particlePresets.CreateJumpDust(gr.game.Player.X+16, gr.game.Player.Y+32)
 			emitter.Burst(8)
 			gr.particleSystem.AddEmitter(emitter)
 		} else {
-			// Jump conditions not met - buffer the input
 			gr.playerBody.BufferJump()
 		}
 	}
-
-	// Handle variable-height jump (jump button release)
 	if inputState.JumpRelease {
 		gr.playerBody.ReleaseJump()
 	}
+}
 
-	// Handle dash
-	if inputState.DashPress && gr.game.Player.Abilities["dash"] {
-		if gr.dashCooldown <= 0 {
-			direction := 0.0
-			if inputState.MoveRight {
-				direction = 1.0
-			} else if inputState.MoveLeft {
-				direction = -1.0
-			}
-			gr.playerBody.Dash(direction)
-			gr.dashCooldown = 30 // 30 frames cooldown
-
-			// Create dash trail particles
-			emitter := gr.particlePresets.CreateDashTrail(gr.game.Player.X+16, gr.game.Player.Y+16)
-			emitter.Start()
-			gr.particleSystem.AddEmitter(emitter)
-
-			// Stop dash trail after dash duration (let it fade naturally)
-			// The emitter will be removed automatically as particles die
-		} else {
-			// Dash on cooldown - buffer the input
-			gr.inputHandler.BufferDash()
-		}
-	}
-
-	// Check for buffered dash that can now execute
-	if gr.inputHandler.GetBufferedDash() && gr.dashCooldown <= 0 && gr.game.Player.Abilities["dash"] {
-		direction := 0.0
-		if inputState.MoveRight {
-			direction = 1.0
-		} else if inputState.MoveLeft {
-			direction = -1.0
-		}
-		gr.playerBody.Dash(direction)
-		gr.dashCooldown = 30
-
-		// Create dash trail particles
-		emitter := gr.particlePresets.CreateDashTrail(gr.game.Player.X+16, gr.game.Player.Y+16)
-		emitter.Start()
-		gr.particleSystem.AddEmitter(emitter)
-	}
-
-	// Update input buffers
-	gr.inputHandler.UpdateBuffers()
-
+// updatePlayerDash handles dash input with cooldown and buffering.
+func (gr *GameRunner) updatePlayerDash(inputState input.InputState) {
 	if gr.dashCooldown > 0 {
 		gr.dashCooldown--
 	}
+	hasDash := gr.game.Player.Abilities["dash"]
+	if !hasDash {
+		return
+	}
 
-	// Handle grapple hook
+	dir := dashDirection(inputState)
+
+	if inputState.DashPress {
+		if gr.dashCooldown <= 0 {
+			gr.executeDash(dir)
+		} else {
+			gr.inputHandler.BufferDash()
+		}
+	}
+	if gr.inputHandler.GetBufferedDash() && gr.dashCooldown <= 0 {
+		gr.executeDash(dir)
+	}
+}
+
+// dashDirection returns the dash direction derived from the current input state.
+func dashDirection(inputState input.InputState) float64 {
+	switch {
+	case inputState.MoveRight:
+		return 1.0
+	case inputState.MoveLeft:
+		return -1.0
+	default:
+		return 0.0
+	}
+}
+
+// executeDash performs the dash and emits trail particles.
+func (gr *GameRunner) executeDash(direction float64) {
+	gr.playerBody.Dash(direction)
+	gr.dashCooldown = 30
+	emitter := gr.particlePresets.CreateDashTrail(gr.game.Player.X+16, gr.game.Player.Y+16)
+	emitter.Start()
+	gr.particleSystem.AddEmitter(emitter)
+}
+
+// updatePlayerGrapple handles grapple hook activation and release.
+func (gr *GameRunner) updatePlayerGrapple(inputState input.InputState) {
+	if gr.grappleCooldown > 0 {
+		gr.grappleCooldown--
+	}
 	if inputState.UseAbility && gr.grappleCooldown <= 0 && !gr.playerBody.Grappling {
 		if gr.game.Player.Abilities["grapple"] && gr.game.CurrentRoom != nil {
-			// Find nearest anchor point
-			anchor, found := physics.FindNearestAnchor(gr.playerBody.Position, gr.game.CurrentRoom.Anchors)
-			if found {
+			if anchor, found := physics.FindNearestAnchor(gr.playerBody.Position, gr.game.CurrentRoom.Anchors); found {
 				gr.playerBody.StartGrapple(anchor)
-				gr.grappleCooldown = 15 // 15 frames cooldown before can grapple again
+				gr.grappleCooldown = 15
 			}
 		}
 	}
-
-	// Update grapple physics if grappling
 	if gr.playerBody.Grappling {
 		gr.playerBody.UpdateGrapple()
-		// Release grapple if button released
 		if !inputState.UseAbility {
 			gr.playerBody.ReleaseGrapple()
 		}
 	}
+}
 
-	if gr.grappleCooldown > 0 {
-		gr.grappleCooldown--
-	}
-
-	// Apply knockback from damage
+// updatePlayerPhysics applies knockback, integrates velocity, resolves
+// collisions, and syncs the game-state player position.
+func (gr *GameRunner) updatePlayerPhysics(wasOnGround bool) {
 	knockbackX, knockbackY := gr.combatSystem.GetKnockback()
 	if knockbackX != 0 || knockbackY != 0 {
 		gr.playerBody.Velocity.X += knockbackX
 		gr.playerBody.Velocity.Y += knockbackY
 	}
 
-	// Update position
 	gr.playerBody.Update()
 
-	// Resolve collisions with platforms
 	if gr.game.CurrentRoom != nil {
 		gr.playerBody.ResolveCollisionWithPlatforms(gr.game.CurrentRoom.Platforms)
 	}
 
-	// Check for landing (player just touched ground)
 	if !wasOnGround && gr.playerBody.OnGround {
-		// Create landing dust particles
 		emitter := gr.particlePresets.CreateLandDust(gr.game.Player.X+16, gr.game.Player.Y+32)
 		emitter.Burst(12)
 		gr.particleSystem.AddEmitter(emitter)
 	}
 
-	// Update player position in game
 	gr.game.Player.X = gr.playerBody.Position.X
 	gr.game.Player.Y = gr.playerBody.Position.Y
 	gr.game.Player.VelX = gr.playerBody.Velocity.X
 	gr.game.Player.VelY = gr.playerBody.Velocity.Y
+}
 
-	// Update player animation based on state
-	if gr.game.Player.AnimController != nil {
-		// Update animation
-		gr.game.Player.AnimController.Update()
+// updatePlayerAnimation drives the animation state machine based on movement
+// and combat state.
+func (gr *GameRunner) updatePlayerAnimation(inputState input.InputState) {
+	if gr.game.Player.AnimController == nil {
+		return
+	}
+	gr.game.Player.AnimController.Update()
+	currentAnim := gr.game.Player.AnimController.GetCurrentAnimation()
 
-		// Determine which animation to play
-		currentAnim := gr.game.Player.AnimController.GetCurrentAnimation()
-
-		// Attack animation has priority
-		if gr.combatSystem.IsPlayerAttacking() {
-			if currentAnim != "attack" {
-				gr.game.Player.AnimController.Play("attack", true)
-			}
-		} else if !gr.playerBody.OnGround {
-			// In air - jump animation
-			if currentAnim != "jump" {
-				gr.game.Player.AnimController.Play("jump", true)
-			}
-		} else if inputState.MoveLeft || inputState.MoveRight {
-			// Moving - walk animation
-			if currentAnim != "walk" {
-				gr.game.Player.AnimController.Play("walk", false)
-			}
-		} else {
-			// Standing still - idle animation
-			if currentAnim != "idle" {
-				gr.game.Player.AnimController.Play("idle", false)
-			}
+	switch {
+	case gr.combatSystem.IsPlayerAttacking():
+		if currentAnim != "attack" {
+			gr.game.Player.AnimController.Play("attack", true)
+		}
+	case !gr.playerBody.OnGround:
+		if currentAnim != "jump" {
+			gr.game.Player.AnimController.Play("jump", true)
+		}
+	case inputState.MoveLeft || inputState.MoveRight:
+		if currentAnim != "walk" {
+			gr.game.Player.AnimController.Play("walk", false)
+		}
+	default:
+		if currentAnim != "idle" {
+			gr.game.Player.AnimController.Play("idle", false)
 		}
 	}
+}
 
-	// Update enemies
+// updateEnemies runs AI, physics, and combat interactions for all enemies.
+func (gr *GameRunner) updateEnemies() {
 	for _, enemy := range gr.enemyInstances {
 		if enemy.IsDead() {
 			continue
 		}
+		gr.updateSingleEnemy(enemy)
+	}
+}
 
-		// Update enemy AI
-		enemy.Update(gr.game.Player.X, gr.game.Player.Y)
+// updateSingleEnemy handles AI, physics, and combat for one enemy instance.
+func (gr *GameRunner) updateSingleEnemy(enemy *entity.EnemyInstance) {
+	enemy.Update(gr.game.Player.X, gr.game.Player.Y)
+	gr.applyEnemyGravity(enemy)
+	enemy.X += enemy.VelX
+	enemy.Y += enemy.VelY
+	gr.resolveEnemyPlatformCollisions(enemy)
+	gr.checkMeleeHitEnemy(enemy)
+	gr.checkProjectileHitEnemy(enemy)
+	gr.checkEnemyHitPlayer(enemy)
+}
 
-		// Apply gravity to ground-based enemies
-		if enemy.Enemy.Behavior != entity.FlyingBehavior {
-			if !enemy.OnGround {
-				enemy.VelY += 0.5
-				if enemy.VelY > 10.0 {
-					enemy.VelY = 10.0
-				}
-			}
-		}
+// applyEnemyGravity applies gravity to ground-based (non-flying) enemies.
+func (gr *GameRunner) applyEnemyGravity(enemy *entity.EnemyInstance) {
+	if enemy.Enemy.Behavior == entity.FlyingBehavior || enemy.OnGround {
+		return
+	}
+	enemy.VelY += 0.5
+	if enemy.VelY > 10.0 {
+		enemy.VelY = 10.0
+	}
+}
 
-		// Update enemy position
-		enemy.X += enemy.VelX
-		enemy.Y += enemy.VelY
-
-		// Check enemy collisions with platforms
-		if gr.game.CurrentRoom != nil {
-			enemy.OnGround = false
-			for _, platform := range gr.game.CurrentRoom.Platforms {
-				px := float64(platform.X)
-				py := float64(platform.Y)
-				pw := float64(platform.Width)
-				ph := float64(platform.Height)
-
-				ex, ey, ew, eh := enemy.GetBounds()
-
-				// Check collision with platform
-				if ex < px+pw && ex+ew > px && ey < py+ph && ey+eh > py {
-					// Resolve collision - simple top collision for now
-					if enemy.VelY > 0 && ey+eh-ph < py {
-						enemy.Y = py - eh
-						enemy.VelY = 0
-						enemy.OnGround = true
-					}
-				}
-			}
-		}
-
-		// Check player attack hitting enemy
-		if gr.combatSystem.IsPlayerAttacking() {
-			attackX, attackY, attackW, attackH := gr.combatSystem.GetAttackHitbox(
-				gr.game.Player.X, gr.game.Player.Y, gr.playerFacingDir,
-			)
-			wasAlive := !enemy.IsDead()
-			if gr.combatSystem.CheckEnemyHit(attackX, attackY, attackW, attackH, enemy) {
-				// Create hit effect particles
-				ex, ey, _, _ := enemy.GetBounds()
-				hitEmitter := gr.particlePresets.CreateHitEffect(ex+16, ey+16, gr.playerFacingDir)
-				hitEmitter.Burst(10)
-				gr.particleSystem.AddEmitter(hitEmitter)
-
-				// Create blood splatter particles
-				bloodEmitter := gr.particlePresets.CreateBloodSplatter(ex+16, ey+16, gr.playerFacingDir)
-				bloodEmitter.Burst(6)
-				gr.particleSystem.AddEmitter(bloodEmitter)
-
-				gr.combatSystem.ApplyDamageToEnemy(enemy, gr.game.Player.Damage, gr.game.Player.X)
-
-				// Track damage dealt for achievements
-				if gr.game.Achievements != nil {
-					gr.game.Achievements.RecordDamage(gr.game.Player.Damage, 0)
-				}
-
-				// Track defeated enemy (use position as ID for now)
-				if wasAlive && enemy.IsDead() {
-					enemyKey := int(enemy.X*1000 + enemy.Y)
-					gr.defeatedEnemies[enemyKey] = true
-
-					// Record enemy kill for achievements
-					if gr.game.Achievements != nil {
-						// Check if it was a perfect kill (no damage taken in this room)
-						wasPerfect := gr.combatSystem.GetInvulnerableFrames() == 0
-						gr.game.Achievements.RecordEnemyKill(wasPerfect)
-					}
-
-					// Create explosion effect on death
-					explosionEmitter := gr.particlePresets.CreateExplosion(ex+16, ey+16, 1.0)
-					explosionEmitter.Burst(20)
-					gr.particleSystem.AddEmitter(explosionEmitter)
-				}
-			}
-		}
-
-		// Check projectile hits on this enemy
-		if projDmg := gr.combatSystem.CheckProjectileEnemyHit(enemy); projDmg > 0 {
-			ex, ey, _, _ := enemy.GetBounds()
-			hitEmitter := gr.particlePresets.CreateHitEffect(ex+16, ey+16, gr.playerFacingDir)
-			hitEmitter.Burst(6)
-			gr.particleSystem.AddEmitter(hitEmitter)
-			if gr.game.Achievements != nil {
-				gr.game.Achievements.RecordDamage(projDmg, 0)
-			}
-			if enemy.IsDead() {
-				enemyKey := int(enemy.X*1000 + enemy.Y)
-				gr.defeatedEnemies[enemyKey] = true
-				if gr.game.Achievements != nil {
-					gr.game.Achievements.RecordEnemyKill(gr.combatSystem.GetInvulnerableFrames() == 0)
-				}
-				explosionEmitter := gr.particlePresets.CreateExplosion(ex+16, ey+16, 1.0)
-				explosionEmitter.Burst(20)
-				gr.particleSystem.AddEmitter(explosionEmitter)
-			}
-		}
-
-		// Check enemy collision with player
-		if gr.combatSystem.CheckPlayerEnemyCollision(
-			gr.game.Player.X, gr.game.Player.Y, physics.PlayerWidth, physics.PlayerHeight, enemy,
-		) {
-			damage := enemy.Enemy.Damage
-			if enemy.State == entity.AttackState {
-				damage = enemy.GetAttackDamage()
-			}
-
-			// Record damage taken for achievements
-			if gr.game.Achievements != nil {
-				gr.game.Achievements.RecordDamage(0, damage)
-			}
-
-			gr.combatSystem.ApplyDamageToPlayer(gr.game.Player, damage, enemy.X)
-
-			// Check if player died
-			if gr.game.Player.Health <= 0 && gr.game.Achievements != nil {
-				gr.game.Achievements.RecordDeath()
+// resolveEnemyPlatformCollisions pushes an enemy out of any overlapping platforms.
+func (gr *GameRunner) resolveEnemyPlatformCollisions(enemy *entity.EnemyInstance) {
+	if gr.game.CurrentRoom == nil {
+		return
+	}
+	enemy.OnGround = false
+	ex, ey, ew, eh := enemy.GetBounds()
+	for _, platform := range gr.game.CurrentRoom.Platforms {
+		px := float64(platform.X)
+		py := float64(platform.Y)
+		pw := float64(platform.Width)
+		ph := float64(platform.Height)
+		if ex < px+pw && ex+ew > px && ey < py+ph && ey+eh > py {
+			if enemy.VelY > 0 && ey+eh-ph < py {
+				enemy.Y = py - eh
+				enemy.VelY = 0
+				enemy.OnGround = true
 			}
 		}
 	}
+}
 
-	// Update music context based on game state
-	gr.updateMusicContext()
-
-	// Check for item collection
-	if gr.itemMessageTimer > 0 {
-		gr.itemMessageTimer--
+// checkMeleeHitEnemy tests whether the current player melee attack hits the
+// given enemy and applies damage and particle effects if so.
+func (gr *GameRunner) checkMeleeHitEnemy(enemy *entity.EnemyInstance) {
+	if !gr.combatSystem.IsPlayerAttacking() {
+		return
 	}
-	gr.checkItemCollection()
-
-	// Update camera
-	gr.renderer.UpdateCamera(gr.game.Player.X, gr.game.Player.Y)
-
-	// Check for auto-save
-	gr.CheckAutoSave()
-
-	// Track current room as visited
-	if gr.game.CurrentRoom != nil {
-		wasVisited := gr.visitedRooms[gr.game.CurrentRoom.ID]
-		gr.visitedRooms[gr.game.CurrentRoom.ID] = true
-
-		// Record room visit for achievements (only first visit)
-		if !wasVisited && gr.game.Achievements != nil {
-			// Check if this room was completed without taking damage
-			isPerfect := !gr.combatSystem.IsInvulnerable()
-			gr.game.Achievements.RecordRoomVisit(isPerfect)
-		}
+	attackX, attackY, attackW, attackH := gr.combatSystem.GetAttackHitbox(
+		gr.game.Player.X, gr.game.Player.Y, gr.playerFacingDir,
+	)
+	wasAlive := !enemy.IsDead()
+	if !gr.combatSystem.CheckEnemyHit(attackX, attackY, attackW, attackH, enemy) {
+		return
 	}
 
-	return nil
+	ex, ey, _, _ := enemy.GetBounds()
+	hitEmitter := gr.particlePresets.CreateHitEffect(ex+16, ey+16, gr.playerFacingDir)
+	hitEmitter.Burst(10)
+	gr.particleSystem.AddEmitter(hitEmitter)
+
+	bloodEmitter := gr.particlePresets.CreateBloodSplatter(ex+16, ey+16, gr.playerFacingDir)
+	bloodEmitter.Burst(6)
+	gr.particleSystem.AddEmitter(bloodEmitter)
+
+	gr.combatSystem.ApplyDamageToEnemy(enemy, gr.game.Player.Damage, gr.game.Player.X)
+
+	if gr.game.Achievements != nil {
+		gr.game.Achievements.RecordDamage(gr.game.Player.Damage, 0)
+	}
+	if wasAlive && enemy.IsDead() {
+		gr.recordEnemyDeath(enemy)
+	}
+}
+
+// checkProjectileHitEnemy tests whether any active projectile hits the given
+// enemy and applies damage and particle effects if so.
+func (gr *GameRunner) checkProjectileHitEnemy(enemy *entity.EnemyInstance) {
+	projDmg := gr.combatSystem.CheckProjectileEnemyHit(enemy)
+	if projDmg <= 0 {
+		return
+	}
+	ex, ey, _, _ := enemy.GetBounds()
+	hitEmitter := gr.particlePresets.CreateHitEffect(ex+16, ey+16, gr.playerFacingDir)
+	hitEmitter.Burst(6)
+	gr.particleSystem.AddEmitter(hitEmitter)
+	if gr.game.Achievements != nil {
+		gr.game.Achievements.RecordDamage(projDmg, 0)
+	}
+	if enemy.IsDead() {
+		gr.recordEnemyDeath(enemy)
+	}
+}
+
+// recordEnemyDeath updates tracking maps and fires the death explosion.
+func (gr *GameRunner) recordEnemyDeath(enemy *entity.EnemyInstance) {
+	ex, ey, _, _ := enemy.GetBounds()
+	enemyKey := int(enemy.X*1000 + enemy.Y)
+	gr.defeatedEnemies[enemyKey] = true
+	if gr.game.Achievements != nil {
+		wasPerfect := gr.combatSystem.GetInvulnerableFrames() == 0
+		gr.game.Achievements.RecordEnemyKill(wasPerfect)
+	}
+	explosionEmitter := gr.particlePresets.CreateExplosion(ex+16, ey+16, 1.0)
+	explosionEmitter.Burst(20)
+	gr.particleSystem.AddEmitter(explosionEmitter)
+}
+
+// checkEnemyHitPlayer tests whether the given enemy is colliding with the
+// player and applies damage if so.
+func (gr *GameRunner) checkEnemyHitPlayer(enemy *entity.EnemyInstance) {
+	if !gr.combatSystem.CheckPlayerEnemyCollision(
+		gr.game.Player.X, gr.game.Player.Y, physics.PlayerWidth, physics.PlayerHeight, enemy,
+	) {
+		return
+	}
+	damage := enemy.Enemy.Damage
+	if enemy.State == entity.AttackState {
+		damage = enemy.GetAttackDamage()
+	}
+	if gr.game.Achievements != nil {
+		gr.game.Achievements.RecordDamage(0, damage)
+	}
+	gr.combatSystem.ApplyDamageToPlayer(gr.game.Player, damage, enemy.X)
+	if gr.game.Player.Health <= 0 && gr.game.Achievements != nil {
+		gr.game.Achievements.RecordDeath()
+	}
+}
+
+// updateRoomTracking marks the current room as visited and fires the first-
+// visit achievement event.
+func (gr *GameRunner) updateRoomTracking() {
+	if gr.game.CurrentRoom == nil {
+		return
+	}
+	wasVisited := gr.visitedRooms[gr.game.CurrentRoom.ID]
+	gr.visitedRooms[gr.game.CurrentRoom.ID] = true
+	if !wasVisited && gr.game.Achievements != nil {
+		isPerfect := !gr.combatSystem.IsInvulnerable()
+		gr.game.Achievements.RecordRoomVisit(isPerfect)
+	}
 }
 
 // Draw implements ebiten.Game interface
@@ -621,9 +639,8 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		}
 	}
 
-	// Render particles (before player so they appear behind)
-	allParticles := gr.particleSystem.GetAllParticles()
-	gr.renderer.RenderParticles(screen, allParticles)
+	// Render particles and other ECS-managed visuals
+	gr.systemManager.Draw(screen)
 
 	// Render player
 	if gr.game.Player != nil {
@@ -726,6 +743,15 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 // Layout implements ebiten.Game interface
 func (gr *GameRunner) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return render.ScreenWidth, render.ScreenHeight
+}
+
+// SetGenre propagates a genre change to all ECS-registered subsystems.
+// genreID must be one of: "fantasy", "scifi", "horror", "cyberpunk", "postapoc".
+// The SystemManager broadcasts the change to all registered System implementations.
+func (gr *GameRunner) SetGenre(genreID string) {
+	gr.game.Genre = genreID
+	gr.renderer.SetGenre(genreID)
+	gr.systemManager.SetGenre(genreID)
 }
 
 // Run starts the game with rendering
