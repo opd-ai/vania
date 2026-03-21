@@ -1,111 +1,463 @@
-# Copilot Instructions for VANIA
+# Project Overview
 
-## Project Overview
+VANIA is a fully procedurally-generated retro Metroidvania game engine written in pure Go, where **ALL assets** — graphics, audio, narrative, and levels — are generated algorithmically at runtime from a single seed value. The project eliminates traditional asset creation entirely: no pre-rendered images, bundled audio files, or static narrative content exist in the repository. Instead, pixel art sprites are generated via cellular automata with symmetry transforms, sound effects and music through waveform synthesis with ADSR envelopes, and stories through procedural narrative assembly.
 
-VANIA is a procedural Metroidvania game engine written in pure Go that generates ALL game content (graphics, audio, narrative, levels) algorithmically at runtime from a single seed value. The system uses deterministic random generation, cryptographic seed derivation, and specialized algorithms (cellular automata for sprites, additive synthesis for audio, graph theory for worlds) to create infinite unique, playable experiences. The architecture is organized around a master seed that derives independent subsystem seeds through SHA-256 hashing, ensuring reproducibility across runs while maintaining subsystem independence.
+The target audience includes developers interested in procedural content generation (PCG) techniques and players seeking infinite unique Metroidvania experiences. Given the same seed, the game produces identical output across all platforms and runs — this determinism is a core architectural constraint, not merely a feature. The single-binary philosophy means the compiled executable contains everything needed to generate complete, playable games without external dependencies or asset files.
 
-## Code Organization
+The engine supports five genre themes (fantasy, scifi, horror, cyberpunk, postapoc) with a `SetGenre()` interface that propagates thematic changes through rendering, audio, menu, and eventually all systems. Current development focuses on completing v2.0 features including status effects, full inventory UI, and remaining AI enhancements.
 
-### Directory Structure
-The project follows Go's standard layout with clear separation between entry points and internal packages:
-- **cmd/game/**: CLI entry point with flag parsing and display formatting
-- **internal/pcg/**: Core PCG framework (seed management, caching, validation)
-- **internal/graphics/**: Sprite, tileset, and palette generation
-- **internal/audio/**: Waveform synthesis, sound effects, and music generation
-- **internal/narrative/**: Story, character, and faction generation
-- **internal/world/**: Graph-based level generation with biome system
-- **internal/entity/**: Enemy, boss, item, and ability generation
-- **internal/engine/**: Game state integration and orchestration
+## Sibling Repository Context
 
-### Package Naming
-- Use lowercase, single-word package names: `pcg`, `graphics`, `audio`, `world`, `entity`
-- Package names should be nouns describing functionality
-- Avoid generic names like `util`, `common`, or `helpers`
-- Package names should match directory names exactly
+VANIA is part of the **opd-ai Procedural Game Suite** — eight sibling repositories sharing architectural patterns, code conventions, and the zero-external-assets philosophy. All games are built with Go + Ebiten and generate 100% of content at runtime.
 
-### File Naming
-- Use snake_case: `sprite_gen.go`, `music_gen.go`, `enemy_gen.go`
-- Test files: `*_test.go` suffix (e.g., `seed_test.go`)
-- Generator files: `*_gen.go` suffix for procedural generators
-- Related functionality in same file (e.g., all sprite generation in `sprite_gen.go`)
+| Repo | Genre | Description |
+|------|-------|-------------|
+| `opd-ai/venture` | Co-op action-RPG | Top-down roguelike with 35 class system, guilds, trading |
+| `opd-ai/vania` | Metroidvania platformer | Side-scrolling ability-gated exploration (this repo) |
+| `opd-ai/velocity` | Galaga-like shooter | Space shooter with procedural enemy waves |
+| `opd-ai/violence` | Raycasting FPS | First-person shooter with multiplayer, libp2p networking |
+| `opd-ai/way` | Battle-cart racer | Racing game with procedural tracks |
+| `opd-ai/wyrm` | First-person survival RPG | Survival mechanics with crafting |
+| `opd-ai/where` | Wilderness survival | Open-world survival simulation |
+| `opd-ai/whack` | Arena battle game | Combat arena with procedural enemies |
 
-## Coding Standards
+Code patterns should remain compatible across all sibling repos to enable future extraction of shared libraries.
 
-### Error Handling
+## Technical Stack
 
-**Pattern**: Return errors, don't panic. Only panic for truly unrecoverable situations.
+- **Primary Language**: Go 1.24.9
+- **Game Framework**: Ebiten v2.6.3 — 2D game engine with cross-platform + WASM support
+- **Audio Backend**: ebitengine/oto v3.1.0 — Low-latency audio output
+- **Image Processing**: golang.org/x/image v0.12.0 — Extended image format support
+- **Testing**: Go standard `testing` package with table-driven tests and benchmarks
+- **Build/Deploy**: `go build -o vania ./cmd/game`, verification via `verify.sh` (includes xvfb for headless CI)
 
-We generally do **implicit error handling** - functions that generate content return values without errors unless validation fails. This is acceptable because:
-- Generation is deterministic from seeds
-- Validation happens at the system level
-- Invalid generation can be retried with different seeds
+### Key Dependency Versions (from go.mod)
+```
+github.com/hajimehoshi/ebiten/v2 v2.6.3
+github.com/ebitengine/oto/v3 v3.1.0  (indirect)
+github.com/ebitengine/purego v0.5.0  (indirect)
+golang.org/x/image v0.12.0           (indirect)
+golang.org/x/mobile v0.0.0-20230922142353-e2f452493d57 (indirect)
+```
 
-**Example - Typical generator pattern:**
+## Project Structure
+
+VANIA uses the **vania-style** layout: `cmd/game` entrypoint + `internal/` with domain-specific packages.
+
+```
+/cmd/game/              Entry point and CLI (--seed, --play, --genre flags)
+/internal/
+  ├── pcg/              Core PCG framework (seed derivation, caching, validation)
+  ├── graphics/         Sprite generation (cellular automata), tileset, palette
+  ├── audio/            Waveform synthesis, ADSR envelopes, SFX, music generation
+  ├── narrative/        Story, theme, character, faction generation
+  ├── world/            Graph-based room generation, biome system, platforms
+  ├── entity/           Enemy, boss, item, ability generation + AI behaviors
+  ├── engine/           Game orchestration, combat system, room transitions
+  │   └── ecs/          Entity-Component-System framework (not yet integrated)
+  ├── render/           Ebiten rendering, bitmap text, HUD
+  ├── input/            Keyboard/gamepad mapping with input buffering
+  ├── physics/          Gravity, collision, double-jump, dash, glide, grapple
+  ├── camera/           Smooth follow, room-lock, screen-shake
+  ├── menu/             Main menu, pause, options, settings screens
+  ├── save/             Save slots, checkpoint autosave, persistence
+  ├── settings/         Configuration persistence (resolution, volume, keys)
+  ├── animation/        Frame-based animation state machine
+  ├── particle/         Combat hit sparks, movement dust, effects
+  └── achievement/      19 achievements across 6 categories with persistence
+/docs/                  System documentation (rendering, combat, AI, etc.)
+/.github/               CI/CD workflows, this instructions file
+```
+
+---
+
+## ⚠️ CRITICAL: Complete Feature Integration (Zero Dangling Features)
+
+**This is the single most important rule for this codebase.** Every feature, system, component, generator, and integration MUST be fully wired into the runtime. Dangling features are a maintenance burden, a source of frustration, and actively degrade code quality.
+
+### The Dangling Feature Problem
+
+In procedural game codebases like VANIA, it is extremely common for features to be:
+1. **Defined but never instantiated** — A system struct exists but is never created in `main()` or game initialization
+2. **Instantiated but never integrated** — A system runs but its output is never consumed by other systems
+3. **Partially integrated** — A system works for one genre/biome but silently no-ops for others
+4. **Tested in isolation but broken in context** — Unit tests pass but the system was never wired into the game loop
+
+**VANIA has documented examples of this problem** (see GAPS.md and AUDIT.md):
+- ECS framework exists in `internal/engine/ecs/` but `runner.go` doesn't use it
+- `SetGenre()` implemented on render/audio/menu but missing on physics/narrative
+- Ranged attack mentioned in README but no projectile system exists
+- Status effects (burn, freeze, poison) appear in generation but have no gameplay effect
+
+### Mandatory Checks Before Adding or Modifying Any Feature
+
+**Before writing ANY new code, verify the full integration chain:**
+
+1. **Definition → Instantiation**: Is the struct/system created at runtime? Trace from `main()` through `NewGameApp()` → `startGame()` → `NewGameGenerator()` → `GenerateCompleteGame()`.
+2. **Instantiation → Registration**: Is the system registered with the game? Check `GameRunner`, `Game` struct fields.
+3. **Registration → Update Loop**: Does the system's `Update()` method get called? Check `GameRunner.Update()` in `runner.go`.
+4. **Update → Output**: Does the system produce outputs (components, events, state changes) that other systems consume?
+5. **Output → Consumer**: Is there at least one other system that reads this system's output?
+6. **Consumer → Player Effect**: Does the chain ultimately produce something visible, audible, or mechanically felt by the player?
+
+If ANY link in this chain is missing, the feature is dangling. **Do not submit dangling features.**
+
+### Specific Anti-Patterns to Reject
+
 ```go
-// Good - Simple return for deterministic generation
+// ❌ BAD: Generator exists but is never called in runtime code
+type StatusEffectManager struct { ... }
+func (s *StatusEffectManager) Apply(effect StatusEffect) { ... }
+// Only referenced in status_test.go, never in combat.go or runner.go
+
+// ✅ GOOD: Generator created and integrated into game loop
+statusMgr := NewStatusEffectManager()
+game.StatusManager = statusMgr
+// AND in combat.go:
+func (cs *CombatSystem) ApplyDamage(target *Entity, damage int) {
+    cs.game.StatusManager.Apply(StatusEffect{Type: "burn", Duration: 3.0})
+}
+```
+
+```go
+// ❌ BAD: SetGenre implemented on some systems, missing on others
+// render/renderer.go: func (r *Renderer) SetGenre(genreID string) ✅
+// audio/player.go:    func (ap *AudioPlayer) SetGenre(genreID string) ✅
+// physics/physics.go: NO SetGenre method ❌ — GAPS.md item
+
+// ✅ GOOD: All systems implement SetGenre per ROADMAP requirements
+// When adding any system, ALWAYS add SetGenre(genreID string) method
+```
+
+```go
+// ❌ BAD: ECS System defined but runner.go ignores it
+// engine/ecs/system.go defines System interface
+// engine/runner.go has 1224 lines of direct logic, no ECS delegation
+// AUDIT.md: "ECS framework exists but GameRunner monolith doesn't use it"
+
+// ✅ GOOD: If using ECS, actually delegate to SystemManager
+func (gr *GameRunner) Update() error {
+    return gr.systemManager.Update(dt)  // Delegate to ECS
+}
+```
+
+### Known Gaps (from GAPS.md and AUDIT.md)
+
+| Gap | Priority | Status | Location |
+|-----|----------|--------|----------|
+| Ranged Combat System | CRITICAL | Not implemented | `internal/engine/combat.go` |
+| Status Effect System | CRITICAL | Not implemented | `internal/engine/` |
+| ECS Integration | HIGH | Framework built, not used | `internal/engine/ecs/` vs `runner.go` |
+| SetGenre on Physics | HIGH | Missing | `internal/physics/physics.go` |
+| SetGenre on Narrative | HIGH | Missing | `internal/narrative/story_gen.go` |
+| Inventory Screen UI | MEDIUM | Data exists, no UI | `internal/menu/` |
+| Headless Test Env | MEDIUM | 7 packages fail without X11 | Multiple packages |
+
+**When working on these gaps, ensure the FULL integration chain is completed.**
+
+### Integration Verification Checklist (run before every PR)
+
+```bash
+# Every constructor has at least one non-test caller
+grep -rn 'func New' --include='*.go' | grep -v _test.go
+
+# All TODOs are tracked in GAPS.md or ROADMAP.md
+grep -rn 'TODO\|FIXME\|HACK\|XXX' --include='*.go'
+
+# No empty method bodies in non-test files
+grep -rn '{ *}' --include='*.go' | grep -v _test.go | grep 'func'
+
+# SetGenre implemented on all systems (should match System interface implementers)
+grep -rn 'SetGenre' --include='*.go' | grep 'func'
+
+# Verification script passes
+./verify.sh
+```
+
+---
+
+## Deterministic Procedural Generation
+
+### Core Principle: Same Seed = Same Game
+
+All content generation MUST be deterministic and seed-based. Given the same seed, the game MUST produce identical output across all platforms and runs. This is verified by `verify.sh` in CI.
+
+### Seed Derivation Pattern
+
+VANIA uses SHA-256 hash-based seed derivation to ensure subsystem independence:
+
+```go
+// internal/pcg/seed.go — THE authoritative pattern
+func HashSeed(masterSeed int64, identifier string) int64 {
+    h := sha256.New()
+    binary.Write(h, binary.LittleEndian, masterSeed)
+    h.Write([]byte(identifier))
+    sum := h.Sum(nil)
+    return int64(binary.LittleEndian.Uint64(sum[:8]))
+}
+
+func DeriveSeeds(masterSeed int64) map[string]int64 {
+    return map[string]int64{
+        "graphics":  HashSeed(masterSeed, "graphics"),
+        "audio":     HashSeed(masterSeed, "audio"),
+        "narrative": HashSeed(masterSeed, "narrative"),
+        "world":     HashSeed(masterSeed, "world"),
+        "entity":    HashSeed(masterSeed, "entity"),
+    }
+}
+```
+
+### Deterministic RNG Usage
+
+**ALWAYS create local RNG from seed — NEVER use global rand:**
+
+```go
+// ✅ GOOD: Local RNG from seed (23+ instances in codebase)
 func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
     rng := rand.New(rand.NewSource(seed))
-    // Generation logic
+    value := rng.Intn(100)
+    // ...
+}
+
+// ✅ GOOD: Using pcg helper
+rng := pcg.NewDeterministicRNG(seed)
+
+// ❌ BAD: Global rand (non-deterministic, not thread-safe)
+value := rand.Intn(100)
+
+// ❌ BAD: Time-based seeding in generation code
+rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+```
+
+### Seed Propagation Through Generators
+
+When creating sub-generators, derive seeds to maintain determinism hierarchy:
+
+```go
+// ✅ GOOD: Derived seeds for sub-generators
+func (gg *GameGenerator) GenerateCompleteGame() (*Game, error) {
+    seeds := pcg.DeriveSeeds(gg.MasterSeed)
+    
+    // Each generator gets its own derived seed
+    worldGen := world.NewWorldGenerator(15, 10, 100, 5)
+    worldGen.SetSeed(seeds["world"])
+    
+    entityGen := entity.NewEnemyGenerator(seeds["entity"])
+    // ...
+}
+
+// ❌ BAD: Shared RNG across generators (breaks independence)
+sharedRNG := rand.New(rand.NewSource(masterSeed))
+worldGen.UseRNG(sharedRNG)   // World affects entity randomness!
+entityGen.UseRNG(sharedRNG)
+```
+
+---
+
+## Generator Pattern
+
+All procedural generators in VANIA follow a consistent pattern:
+
+```go
+// 1. Define generator struct with configuration
+type SpriteGenerator struct {
+    Width       int
+    Height      int
+    Symmetry    SymmetryType
+    Constraints SpriteConstraints
+}
+
+// 2. Constructor with required params and sensible defaults
+func NewSpriteGenerator(width, height int, symmetry SymmetryType) *SpriteGenerator {
+    return &SpriteGenerator{
+        Width:    width,
+        Height:   height,
+        Symmetry: symmetry,
+        Constraints: SpriteConstraints{
+            MinDensity:     0.3,
+            MaxDensity:     0.7,
+            RequireOutline: true,
+            ColorCount:     6,
+        },
+    }
+}
+
+// 3. Generate method takes seed, returns generated content
+func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
+    rng := rand.New(rand.NewSource(seed))  // Local RNG!
+    // Generation logic...
     return sprite
 }
 
-// Good - Error when validation is needed
-func (gg *GameGenerator) GenerateCompleteGame() (*Game, error) {
-    // Generate all systems
-    if !gg.validate(worldData, entities, narrative) {
-        return nil, fmt.Errorf("failed validation: world has no start room")
-    }
-    return game, nil
+// 4. Optional: SetSeed for re-seeding (used by some generators)
+func (sg *SpriteGenerator) SetSeed(seed int64) {
+    sg.rng = rand.New(rand.NewSource(seed))
 }
 ```
 
-**Anti-pattern:**
+### Generator Registration Pattern
+
+Generators that support multiple variants should be registered in a dispatch map:
+
 ```go
-// Bad - Unnecessary error for deterministic generation
-func (sg *SpriteGenerator) Generate(seed int64) (*Sprite, error) {
-    // This always succeeds given valid inputs
-    return sprite, nil
+// ✅ GOOD: Registry pattern for genre/biome variants
+var terrainGenerators = map[string]TerrainGenerator{
+    "fantasy":   &FantasyTerrainGen{},
+    "scifi":     &ScifiTerrainGen{},
+    "horror":    &HorrorTerrainGen{},
+    "cyberpunk": &CyberpunkTerrainGen{},
+    "postapoc":  &PostapocTerrainGen{},
+}
+
+func GenerateTerrain(genre string, seed int64) *Terrain {
+    gen, ok := terrainGenerators[genre]
+    if !ok {
+        gen = terrainGenerators["fantasy"]  // Fallback
+    }
+    return gen.Generate(seed)
 }
 ```
+
+---
+
+## GenreSwitcher Interface
+
+Every system that affects player-visible presentation must implement `GenreSwitcher`:
+
+```go
+// internal/engine/ecs/system.go
+type GenreSwitcher interface {
+    SetGenre(genreID string)  // "fantasy" | "scifi" | "horror" | "cyberpunk" | "postapoc"
+}
+```
+
+### Current Implementation Status
+
+| Package | SetGenre Implemented | Notes |
+|---------|---------------------|-------|
+| `render/renderer.go` | ✅ Yes | Swaps background colors, clears icon cache |
+| `audio/player.go` | ✅ Yes | Swaps instrument packs |
+| `menu/menu.go` | ✅ Yes | Swaps UI colors |
+| `engine/ecs/system_manager.go` | ✅ Yes | Propagates to all registered systems |
+| `physics/physics.go` | ❌ **Missing** | GAPS.md item — need genre-specific hazards |
+| `narrative/story_gen.go` | ❌ **Missing** | GAPS.md item — need genre vocabulary tables |
+
+### Adding SetGenre to a New System
+
+```go
+// When creating any new system, ALWAYS add SetGenre
+type MyNewSystem struct {
+    genre           string
+    genreParameters map[string]GenreConfig
+}
+
+func (s *MyNewSystem) SetGenre(genreID string) {
+    s.genre = genreID
+    // Load genre-specific parameters
+    if config, ok := s.genreParameters[genreID]; ok {
+        s.applyConfig(config)
+    }
+}
+```
+
+---
+
+## Code Style Guidelines
 
 ### Naming Conventions
 
-**Variables**: 
-- Use camelCase for local variables: `masterSeed`, `biomeIdx`, `roomCount`
-- Short names for short scopes: `i`, `j` for loops; `x`, `y` for coordinates
-- Descriptive names for wider scopes: `currentBranch`, `criticalPathLength`
-- Acronyms in caps: `RNG`, `PCG`, `SFX`, but `rng`, `sfx` when lowercase
+- **Packages**: lowercase, single-word (`pcg`, `graphics`, `audio`, `world`, `entity`)
+- **Files**: snake_case (`sprite_gen.go`, `music_gen.go`, `enemy_gen.go`)
+- **Types**: PascalCase (`SpriteGenerator`, `WorldContext`, `EnemyInstance`)
+- **Component types**: PascalCase + "Component" suffix if using ECS
+- **System types**: PascalCase + "System" suffix (`CombatSystem`, `RenderSystem`)
+- **Interfaces**: PascalCase, often `-er` suffix (`Generator`, `GenreSwitcher`)
+- **Constants**: PascalCase for exported, use `iota` for enums
+- **Seeds**: Always `int64`, always named `seed` in function parameters
 
-**Functions**:
-- Use PascalCase for exported: `NewSpriteGenerator`, `Generate`, `DeriveSeeds`
-- Use camelCase for unexported: `generateGraph`, `selectMusicGenerator`, `applySymmetry`
-- Use verbs for actions: `Generate`, `Create`, `Apply`, `Calculate`, `Validate`
-- Constructor pattern: `New<Type>` returns initialized `*<Type>`
+### Error Handling
 
-**Constants**:
-- Use PascalCase for exported constants: `SineWave`, `JumpSFX`, `FantasyTheme`
-- Group related constants with `iota` for enums:
 ```go
-type WaveType int
+// ✅ GOOD: Return errors for validation failures
+func (gg *GameGenerator) GenerateCompleteGame() (*Game, error) {
+    if gg.MasterSeed == 0 {
+        return nil, fmt.Errorf("master seed cannot be zero")
+    }
+    // ...
+}
 
-const (
-    SineWave WaveType = iota
-    SquareWave
-    SawtoothWave
-    TriangleWave
-)
+// ✅ GOOD: Implicit error handling for deterministic generation
+// (no error return needed — generation always succeeds given valid seed)
+func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
+    rng := rand.New(rand.NewSource(seed))
+    return sprite
+}
+
+// ❌ BAD: Panic in library code
+func Generate(seed int64) *Sprite {
+    if seed == 0 {
+        panic("zero seed")  // Never panic in game logic!
+    }
+}
 ```
 
-**Interfaces**:
-- Name with `-er` suffix when possible: `Generator`, `Validator`, `Synthesizer`
-- Prefer small, focused interfaces (single method when possible)
-- We don't heavily use interfaces in this codebase - concrete types are preferred for generators
+### Documentation
 
-### Testing
+Every exported type and function must have a godoc comment:
 
-**Test file naming**: `*_test.go` in the same package directory
+```go
+// SpriteGenerator generates procedural pixel art sprites using cellular automata.
+// Sprites can have various symmetry types for visual coherence.
+type SpriteGenerator struct {
+    Width    int
+    Height   int
+    Symmetry SymmetryType
+}
 
-**Table-driven tests**: Use for testing multiple similar cases
+// Generate creates a deterministic sprite from the given seed.
+// The same seed will always produce the same sprite.
+func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
+    // ...
+}
+```
+
+---
+
+## Zero External Assets
+
+The single-binary philosophy is **non-negotiable**:
+
+- **Graphics**: Procedurally generated via cellular automata, symmetry transforms, HSV color theory
+- **Audio**: Synthesized via additive synthesis, ADSR envelopes, chord progressions
+- **Levels**: Generated via graph theory, ability-gating algorithms, biome assignment
+- **Narrative**: Assembled via procedural story generation, constraint-based selection
+- **UI**: Built from code using bitmap text rendering, not loaded from image files
+
+**Never add asset files to the repository:**
+- No `.png`, `.jpg`, `.svg`, `.gif` images
+- No `.mp3`, `.wav`, `.ogg` audio files
+- No `.json`, `.yaml` level definition files
+- No pre-written dialogue, story scripts, or text assets
+
+If you need test fixtures, generate them in test setup code.
+
+---
+
+## Testing Standards
+
+### Coverage Targets
+
+| Package | Target | Current |
+|---------|--------|---------|
+| `pcg` | ≥82% | 96.3% ✅ |
+| `graphics` | ≥82% | 99.1% ✅ |
+| `achievement` | ≥82% | 90.9% ✅ |
+| `audio` | ≥82% | 68.1% ⚠️ (GAPS.md item) |
+| Display-dependent | ≥30% | 7 packages fail without X11 |
+
+### Table-Driven Tests
+
 ```go
 func TestSymmetryTypes(t *testing.T) {
     testCases := []struct {
@@ -122,7 +474,6 @@ func TestSymmetryTypes(t *testing.T) {
         t.Run(tc.name, func(t *testing.T) {
             gen := NewSpriteGenerator(16, 16, tc.symmetry)
             sprite := gen.Generate(555)
-            
             if sprite == nil {
                 t.Errorf("Failed to generate sprite with %s", tc.name)
             }
@@ -131,7 +482,8 @@ func TestSymmetryTypes(t *testing.T) {
 }
 ```
 
-**Determinism tests**: Critical for PCG - always test that same seed produces same output
+### Determinism Tests (Critical)
+
 ```go
 func TestSpriteDeterminism(t *testing.T) {
     gen := NewSpriteGenerator(32, 32, HorizontalSymmetry)
@@ -145,810 +497,260 @@ func TestSpriteDeterminism(t *testing.T) {
         for x := 0; x < 5; x++ {
             c1 := sprite1.Image.RGBAAt(x, y)
             c2 := sprite2.Image.RGBAAt(x, y)
-            
-            if c1.R != c2.R || c1.G != c2.G || c1.B != c2.B || c1.A != c2.A {
+            if c1 != c2 {
                 t.Errorf("Sprites not deterministic at (%d,%d)", x, y)
-                return
             }
         }
     }
 }
 ```
 
-**Mocking approach**: We don't use mocking libraries. Instead:
-- Inject seeds for deterministic testing
-- Use concrete types for generators
-- Test integration at generator level, not individual functions
+### Headless Testing
 
-**Coverage expectations**: 
-- Core PCG framework: 100% coverage (seed.go, cache.go)
-- Generator packages: Test main generation path and determinism
-- Not all helper functions need tests if they're tested through generators
-- Current coverage: pcg ✅, graphics ✅, audio ✅, others have no tests yet
+7 packages require X11 display. Use `xvfb-run` for CI:
 
-### Concurrency
+```bash
+# Run tests with virtual display
+xvfb-run -a go test ./...
 
-**Thread-safe caching**: Use `sync.RWMutex` for concurrent read access
+# Or use DISPLAY= to identify headless-incompatible tests
+DISPLAY= go test ./... 2>&1 | grep -c "^ok"
+```
+
+---
+
+## Networking Best Practices (Future v5.0)
+
+VANIA does not currently have networking code, but v5.0 ROADMAP specifies multiplayer co-op. When implementing:
+
+### Interface-Only Network Types (Hard Constraint)
+
+**ALWAYS use interface types for network variables:**
+
+| ❌ Never Use | ✅ Always Use |
+|-------------|--------------|
+| `*net.UDPAddr` | `net.Addr` |
+| `*net.UDPConn` | `net.PacketConn` |
+| `*net.TCPConn` | `net.Conn` |
+| `*net.TCPListener` | `net.Listener` |
+
 ```go
-type AssetCache struct {
-    Sprites map[string]interface{}
-    mu      sync.RWMutex
+// ✅ GOOD
+var addr net.Addr
+var conn net.PacketConn
+
+// ❌ BAD
+var addr *net.UDPAddr
+var conn *net.UDPConn
+```
+
+### High-Latency Design (200–5000ms)
+
+Per ROADMAP v5.0, multiplayer must tolerate 200–5000ms latency:
+
+1. **Client-Side Prediction**: Never block game loop waiting for server
+2. **State Interpolation**: Interpolate between known server states
+3. **Jitter Buffers**: Buffer incoming updates, absorb ±500ms variance
+4. **Idempotent Messages**: Safe to process multiple times
+5. **No Synchronous RPC**: All network I/O must be async
+6. **Timeout Tolerance**: ≥10 second timeouts, ≥3 missed heartbeats for disconnect
+
+---
+
+## Cross-Repository Code Sharing
+
+### Shared Pattern Catalog
+
+When implementing features, follow these patterns for future extraction:
+
+| Pattern | VANIA Package | Sibling Convention |
+|---------|---------------|-------------------|
+| Seed derivation | `internal/pcg/seed.go` | `pkg/seed/` or inline |
+| ECS framework | `internal/engine/ecs/` | `pkg/engine/ecs/` |
+| Sprite generation | `internal/graphics/` | `pkg/rendering/` |
+| Audio synthesis | `internal/audio/` | `pkg/audio/` |
+| Camera system | `internal/camera/` | `pkg/camera/` |
+| Input handling | `internal/input/` | `pkg/input/` |
+| Particle system | `internal/particle/` | `pkg/particles/` |
+| Save/load | `internal/save/` | `pkg/saveload/` |
+| Achievement | `internal/achievement/` | `pkg/achievement/` |
+| Menu/UI | `internal/menu/` | `pkg/rendering/ui/` |
+
+### Interface Consistency Across Repos
+
+Maintain identical interfaces for future shared packages:
+
+```go
+// ECS System interface (must match across all repos)
+type System interface {
+    Update(dt float64) error
+    Draw(screen *ebiten.Image)
+    SetGenre(genreID string)
 }
 
-func (c *AssetCache) GetSprite(key string) (interface{}, bool) {
-    c.mu.RLock()
-    defer c.mu.RUnlock()
-    val, ok := c.Sprites[key]
-    return val, ok
-}
-
-func (c *AssetCache) SetSprite(key string, sprite interface{}) {
-    c.mu.Lock()
-    defer c.mu.Unlock()
-    c.Sprites[key] = sprite
+// Component identifier (must match across all repos)
+type Component interface {
+    Type() string
 }
 ```
 
-**Goroutines**: Currently not used in generation pipeline (sequential is simpler and fast enough)
-- Future work: Parallel generation of independent subsystems (graphics, audio, narrative)
-- Would require: WaitGroup, error channels, proper synchronization
+---
 
-**Context**: Not currently used but should be added for:
-- Cancellable generation
-- Timeout support
-- Request-scoped values
+## Performance Requirements
 
-### Dependencies
+- **Target**: 60 FPS on mid-range hardware
+- **Memory budget**: <500MB client
+- **Generation time**: ~300ms for complete game (currently achieved)
+- **Sprite generation**: ~1ms per sprite
+- **Music generation**: ~50ms per track
 
-**Current dependencies**: Only Go standard library
-- `math/rand`: Deterministic RNG
-- `crypto/sha256`: Seed derivation
-- `image`, `image/color`: Sprite generation
-- `sync`: Thread-safe caching
-- No external dependencies!
+### Optimization Guidelines
 
-**Adding new dependencies**:
-1. Evaluate if standard library can solve the problem
-2. For graphics/audio, consider pure Go implementations first
-3. Update `go.mod` with `go get <package>`
-4. Document why the dependency is needed
+1. **Profile first**: Use `go test -bench=. -benchmem` before optimizing
+2. **Cache expensive operations**: Use `AssetCache` in `internal/pcg/cache.go`
+3. **Object pooling**: For frequently allocated objects (particles, projectiles)
+4. **Spatial partitioning**: Use for entity queries over collections >100
+5. **Don't regenerate**: Cache generated sprites, never regenerate same sprite twice
 
-**Preferred patterns**:
-- Pure functions that take RNG as parameter
-- Builders/generators as structs with configuration
-- Avoid global state
-
-## Architecture Patterns
-
-### Seed Derivation Pattern
-
-**Purpose**: Generate independent subsystem seeds from a master seed for reproducibility
-
-**When to use**: Any time you need deterministic randomness that should be independent from other systems
-
-**Implementation**:
-```go
-// HashSeed derives a subsystem seed from master seed + identifier
-func HashSeed(masterSeed int64, identifier string) int64 {
-    h := sha256.New()
-    binary.Write(h, binary.LittleEndian, masterSeed)
-    h.Write([]byte(identifier))
-    sum := h.Sum(nil)
-    return int64(binary.LittleEndian.Uint64(sum[:8]))
-}
-
-// DeriveSeeds generates all subsystem seeds from master
-func DeriveSeeds(masterSeed int64) map[string]int64 {
-    return map[string]int64{
-        "graphics":  HashSeed(masterSeed, "graphics"),
-        "audio":     HashSeed(masterSeed, "audio"),
-        "narrative": HashSeed(masterSeed, "narrative"),
-        "world":     HashSeed(masterSeed, "world"),
-        "entity":    HashSeed(masterSeed, "entity"),
-    }
-}
-```
-
-**Why**: Ensures each subsystem's random generation is independent but reproducible. Same master seed always produces same derived seeds.
-
-### Generator Pattern
-
-**Purpose**: Encapsulate procedural generation logic with configuration
-
-**Structure**:
-```go
-// Generator struct holds configuration
-type SpriteGenerator struct {
-    Width       int
-    Height      int
-    Symmetry    SymmetryType
-    Constraints SpriteConstraints
-}
-
-// Constructor with sensible defaults
-func NewSpriteGenerator(width, height int, symmetry SymmetryType) *SpriteGenerator {
-    return &SpriteGenerator{
-        Width:    width,
-        Height:   height,
-        Symmetry: symmetry,
-        Constraints: SpriteConstraints{
-            MinDensity:     0.3,
-            MaxDensity:     0.7,
-            RequireOutline: true,
-            ColorCount:     6,
-        },
-    }
-}
-
-// Generate method takes seed, returns generated content
-func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
-    rng := rand.New(rand.NewSource(seed))
-    // Generation logic
-    return sprite
-}
-```
-
-**Key principles**:
-- Constructor (`New*`) creates generator with configuration
-- `Generate` method takes seed, returns content
-- Generator is reusable (can call Generate multiple times)
-- RNG is created per-generation for determinism
-
-### Composition Over Inheritance
-
-**Pattern**: Build complex generators by composing simpler ones
-
-**Example**:
-```go
-type GraphicsSystem struct {
-    SpriteGen  *graphics.SpriteGenerator
-    TilesetGen *graphics.TilesetGenerator
-    PaletteGen *graphics.PaletteGenerator
-    Tilesets   map[string]*graphics.Tileset
-    Sprites    map[string]*graphics.Sprite
-}
-
-func (gg *GameGenerator) generateGraphics(narrative *narrative.WorldContext) *GraphicsSystem {
-    system := &GraphicsSystem{
-        SpriteGen:  graphics.NewSpriteGenerator(32, 32, graphics.VerticalSymmetry),
-        TilesetGen: graphics.NewTilesetGenerator(16, string(narrative.Theme)),
-        PaletteGen: graphics.NewPaletteGenerator(graphics.AnalogousScheme),
-        Tilesets:   make(map[string]*graphics.Tileset),
-        Sprites:    make(map[string]*graphics.Sprite),
-    }
-    
-    // Use generators to populate maps
-    system.Sprites["player"] = system.SpriteGen.Generate(gg.GraphicsGen.Seed)
-    return system
-}
-```
-
-### Validation Pattern
-
-**Purpose**: Ensure generated content meets quality standards
-
-**Implementation**:
-```go
-type Validator struct {
-    minQualityScore float64
-}
-
-func NewValidator(minScore float64) *Validator {
-    return &Validator{minQualityScore: minScore}
-}
-
-func (v *Validator) MeetsThreshold(metrics *QualityMetrics) bool {
-    score := v.CalculateQualityScore(metrics)
-    return score >= v.minQualityScore
-}
-```
-
-**When to use**:
-- After generating complete game to ensure playability
-- Before caching assets
-- When generation quality affects gameplay
-
-## Common Patterns and Idioms
-
-### Deterministic RNG
-
-**Always create local RNG from seed**:
-```go
-// Good - deterministic
-func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
-    rng := rand.New(rand.NewSource(seed))
-    // Use rng for all random decisions
-}
-
-// Bad - uses global rand, not deterministic
-func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
-    rand.Seed(seed) // Modifies global state!
-    x := rand.Intn(10) // Uses global rand
-}
-```
-
-### Cellular Automata for Organic Shapes
-
-**Pattern used for sprite generation**:
-```go
-func (sg *SpriteGenerator) cellularAutomataStep(grid [][]bool) [][]bool {
-    newGrid := make([][]bool, len(grid))
-    for y := range newGrid {
-        newGrid[y] = make([]bool, len(grid[y]))
-        for x := range newGrid[y] {
-            neighbors := sg.countNeighbors(grid, x, y)
-            if grid[y][x] {
-                newGrid[y][x] = neighbors >= 4  // Stay alive
-            } else {
-                newGrid[y][x] = neighbors >= 5  // Birth
-            }
-        }
-    }
-    return newGrid
-}
-```
-
-### Procedural Color from HSV
-
-**Converting HSV to RGB for harmonious palettes**:
-```go
-func (sg *SpriteGenerator) generatePalette(rng *rand.Rand, count int) []color.RGBA {
-    palette := make([]color.RGBA, count)
-    baseHue := rng.Float64() * 360.0
-    
-    for i := range palette {
-        hue := baseHue + float64(i)*30.0  // Analogous colors
-        for hue >= 360.0 {
-            hue -= 360.0
-        }
-        saturation := 0.6 + rng.Float64()*0.3
-        value := 0.4 + float64(i)*0.1
-        palette[i] = hsvToRGB(hue, saturation, value)
-    }
-    return palette
-}
-```
-
-### Graph-Based World Generation
-
-**Ensuring playable, connected worlds**:
-```go
-func (wg *WorldGenerator) generateGraph(world *World) {
-    roomID := 0
-    
-    // Create critical path (guaranteed progression)
-    criticalPathLength := 15 + wg.rng.Intn(10)
-    currentNode := 0
-    
-    for i := 0; i < criticalPathLength; i++ {
-        world.Graph.Nodes[roomID] = &GraphNode{
-            RoomID:   roomID,
-            Depth:    i + 1,
-            Required: true,  // On critical path
-        }
-        
-        // Ability-gate progression every 5 rooms
-        requirement := ""
-        if i > 0 && i%5 == 0 {
-            abilities := []string{"double_jump", "dash", "wall_climb", "glide"}
-            requirement = abilities[wg.rng.Intn(len(abilities))]
-        }
-        
-        world.Graph.Edges = append(world.Graph.Edges, GraphEdge{
-            From:        currentNode,
-            To:          roomID,
-            Requirement: requirement,
-        })
-        
-        currentNode = roomID
-        roomID++
-    }
-    
-    // Add optional side branches for exploration
-    // ...
-}
-```
-
-## Common Pitfalls to Avoid
-
-### 1. Breaking Determinism
-
-**Problem**: Using global `rand` or system time during generation
-
-**Why harmful**: Same seed won't produce same game, breaking core feature
-
-**Solution**:
-```go
-// Good - local RNG from seed
-func Generate(seed int64) {
-    rng := rand.New(rand.NewSource(seed))
-    value := rng.Intn(100)
-}
-
-// Bad - global rand is not deterministic
-func Generate(seed int64) {
-    rand.Seed(seed)
-    value := rand.Intn(100)  // Uses global state
-}
-
-// Bad - using system time
-func Generate(seed int64) {
-    value := time.Now().UnixNano() % 100  // Different every time!
-}
-```
-
-### 2. Shared State Between Generators
-
-**Problem**: One generator modifying state that affects another
-
-**Why harmful**: Subsystems aren't independent, generation order matters
-
-**Solution**: Each generator gets its own derived seed and RNG
-```go
-// Good - independent generators
-seeds := pcg.DeriveSeeds(masterSeed)
-graphicsGen := NewGraphicsGenerator(seeds["graphics"])
-audioGen := NewAudioGenerator(seeds["audio"])
-
-// Bad - sharing RNG
-sharedRNG := rand.New(rand.NewSource(masterSeed))
-graphicsGen.UseRNG(sharedRNG)  // Graphics affects audio's randomness!
-audioGen.UseRNG(sharedRNG)
-```
-
-### 3. Ignoring Thread Safety
-
-**Problem**: Multiple goroutines accessing cache without synchronization
-
-**Why harmful**: Data races, cache corruption, unpredictable behavior
-
-**Solution**: Always use mutex for shared data structures
-```go
-// Good - thread-safe cache
-type AssetCache struct {
-    sprites map[string]interface{}
-    mu      sync.RWMutex
-}
-
-func (c *AssetCache) Get(key string) (interface{}, bool) {
-    c.mu.RLock()
-    defer c.mu.RUnlock()
-    val, ok := c.sprites[key]
-    return val, ok
-}
-
-// Bad - no synchronization
-type AssetCache struct {
-    sprites map[string]interface{}
-}
-
-func (c *AssetCache) Get(key string) interface{} {
-    return c.sprites[key]  // Race condition!
-}
-```
-
-### 4. Premature Optimization
-
-**Problem**: Adding complex optimization before measuring performance
-
-**Why harmful**: Code complexity increases, bugs hide, gains often minimal
-
-**Example**: Current system generates complete game in ~0.3 seconds. This is fast enough. Don't optimize until you measure a real problem.
-
-### 5. Magic Numbers
-
-**Problem**: Hardcoded values without explanation
-
-**Solution**: Use named constants with comments
-```go
-// Bad
-if temperature < -10 {
-    return "freezing"
-}
-
-// Good
-const FreezingThreshold = -10  // Temperature in Celsius below which player movement slows
-
-if temperature < FreezingThreshold {
-    return "freezing"
-}
-```
-
-### 6. Testing Without Determinism
-
-**Problem**: Tests that pass randomly due to seed variation
-
-**Solution**: Always use fixed seeds in tests
-```go
-// Good - deterministic test
-func TestGeneration(t *testing.T) {
-    seed := int64(42)  // Fixed seed
-    result := Generate(seed)
-    if result != expectedValue {
-        t.Error("Generation failed")
-    }
-}
-
-// Bad - random seed makes test flaky
-func TestGeneration(t *testing.T) {
-    seed := time.Now().UnixNano()  // Different every run!
-    result := Generate(seed)
-    // How do you know what to expect?
-}
-```
-
-## Documentation Requirements
-
-### Public APIs (Exported Functions/Types)
-
-**Requirement**: Every exported symbol must have a doc comment
-
-**Format**: Start with the symbol name, use complete sentences
-```go
-// SpriteGenerator generates procedural pixel art sprites using cellular automata.
-// Sprites can have various symmetry types for visual coherence.
-type SpriteGenerator struct {
-    Width    int
-    Height   int
-    Symmetry SymmetryType
-}
-
-// NewSpriteGenerator creates a sprite generator with the specified dimensions
-// and symmetry type. Default constraints are applied for quality.
-func NewSpriteGenerator(width, height int, symmetry SymmetryType) *SpriteGenerator {
-    return &SpriteGenerator{
-        Width:    width,
-        Height:   height,
-        Symmetry: symmetry,
-    }
-}
-
-// Generate creates a deterministic sprite from the given seed.
-// The same seed will always produce the same sprite.
-func (sg *SpriteGenerator) Generate(seed int64) *Sprite {
-    // Implementation
-}
-```
-
-### Complex Logic
-
-**When to add inline comments**:
-- Non-obvious algorithms (cellular automata rules, music theory)
-- Magic numbers that need explanation
-- Performance-critical sections
-- Workarounds or edge case handling
-
-**Example**:
-```go
-// Run cellular automata iterations to create organic shapes
-for i := 0; i < 3; i++ {
-    grid = sg.cellularAutomataStep(grid)
-}
-
-// Apply 4-way symmetry by copying top-left quadrant to other quadrants
-// This ensures visual balance for enemies and items
-for y := 0; y < midY; y++ {
-    for x := 0; x < midX; x++ {
-        val := grid[y][x]
-        grid[y][sg.Width-1-x] = val           // Mirror horizontally
-        grid[sg.Height-1-y][x] = val          // Mirror vertically
-        grid[sg.Height-1-y][sg.Width-1-x] = val // Mirror both
-    }
-}
-```
-
-### Package Documentation
-
-**Not currently used**: No `doc.go` files exist
-
-**When to add**: If package purpose isn't clear from package name
-```go
-// Package pcg provides core procedural content generation utilities.
-//
-// This package implements seed derivation, asset caching, and quality
-// validation for deterministic game content generation. All generators
-// in other packages depend on the seed management provided here.
-package pcg
-```
-
-## Project-Specific Conventions
-
-### Seed Management
-
-- Master seed: `int64` from user input or timestamp
-- Subsystem seeds: Derived via `HashSeed(masterSeed, "subsystem_name")`
-- Local RNG: Always create with `rand.New(rand.NewSource(seed))`
-- Never modify `masterSeed` - it's the reproducibility key
-
-### Generator Initialization
-
-Pattern for all generators:
-```go
-// 1. Define generator struct with config
-type Generator struct {
-    Config ConfigStruct
-}
-
-// 2. Constructor with required params, sensible defaults
-func NewGenerator(required int, params string) *Generator {
-    return &Generator{
-        Config: ConfigStruct{
-            Required: required,
-            Params:   params,
-            Defaults: defaultValue,
-        },
-    }
-}
-
-// 3. Generate method takes seed, returns result
-func (g *Generator) Generate(seed int64) *Result {
-    rng := rand.New(rand.NewSource(seed))
-    // Use g.Config for configuration
-    // Use rng for random decisions
-    return result
-}
-```
-
-### Constants for Enums
-
-Use `iota` for sequential enums:
-```go
-type RoomType int
-
-const (
-    CombatRoom RoomType = iota  // 0
-    PuzzleRoom                   // 1
-    TreasureRoom                 // 2
-    CorridorRoom                 // 3
-    BossRoom                     // 4
-    StartRoom                    // 5
-    SaveRoom                     // 6
-)
-```
-
-### Map Initialization
-
-Always initialize maps before use:
-```go
-// Good
-sprites := make(map[string]*Sprite)
-sprites["player"] = playerSprite
-
-// Bad - panic on nil map
-var sprites map[string]*Sprite
-sprites["player"] = playerSprite  // Panic!
-```
+---
 
 ## Development Workflow
 
 ### Before Submitting Code
 
-- [x] Run `go fmt ./...` - Format all code
-- [x] Run `go vet ./...` - Check for common mistakes
-- [x] Run `go test ./...` - Ensure all tests pass
-- [x] Run `go build ./cmd/game` - Verify builds successfully
-- [x] Test with multiple seeds - Verify determinism
-- [x] Check determinism - Same seed should produce same output
-- [x] Update documentation if adding public APIs
-- [x] Add tests for new generators or critical functions
+```bash
+# Format and vet
+go fmt ./...
+go vet ./...
+
+# Run all tests (with virtual display for CI)
+xvfb-run -a go test ./...
+
+# Build
+go build -o vania ./cmd/game
+
+# Verify determinism
+./vania --seed 42  # Run twice, compare output
+
+# Full verification
+./verify.sh
+```
 
 ### Running the Game
 
 ```bash
-# Build
-go build -o vania ./cmd/game
-
-# Run with random seed
+# Random seed
 ./vania
 
-# Run with specific seed
+# Specific seed
 ./vania --seed 42
 
-# Test generation time
-time ./vania --seed 12345
-```
+# Play mode (with rendering)
+./vania --seed 42 --play
 
-### Testing
-
-```bash
-# Run all tests
-go test ./...
-
-# Run with verbose output
-go test -v ./...
-
-# Run specific package
-go test ./internal/pcg
-
-# Run with coverage
-go test -cover ./...
-
-# Generate coverage report
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+# Specific genre
+./vania --seed 42 --play --genre scifi
 ```
 
 ### Adding a New Generator
 
-1. Create new file in appropriate package: `internal/<package>/<name>_gen.go`
-2. Define result struct (e.g., `Sprite`, `AudioSample`, `Biome`)
-3. Define generator struct with configuration
-4. Implement `New<Generator>` constructor
-5. Implement `Generate(seed int64)` method
-6. Add tests in `<name>_gen_test.go`
-7. Integrate into `engine/game.go` generation pipeline
-8. Test with multiple seeds for determinism
+1. Create file: `internal/<package>/<name>_gen.go`
+2. Define result struct and generator struct
+3. Implement `New<Generator>()` constructor
+4. Implement `Generate(seed int64)` method
+5. **Add `SetGenre(genreID string)` if system affects presentation**
+6. Create tests: `<name>_gen_test.go`
+7. **Integrate into `GameGenerator.GenerateCompleteGame()`**
+8. **Verify full integration chain from main() to player effect**
+9. Update ROADMAP.md if completing a milestone item
 
-### Example: Adding Particle Generator
+---
 
-```go
-// internal/graphics/particle_gen.go
-package graphics
+## GAPS.md and AUDIT.md Protocol
 
-import "math/rand"
+These files track implementation gaps and audit findings. When you identify a gap:
 
-// Particle represents a visual effect particle
-type Particle struct {
-    X, Y      float64
-    VelocityX float64
-    VelocityY float64
-    Color     color.RGBA
-    Lifetime  float64
-}
+1. Note it in your response with severity (Critical/High/Medium/Low)
+2. Include file path and line number
+3. Propose an actionable fix with validation command
+4. Suggest adding to GAPS.md if not already tracked
 
-// ParticleGenerator generates particle effects
-type ParticleGenerator struct {
-    MaxParticles int
-    EmitRate     float64
-}
+Example GAPS.md entry format:
+```markdown
+## [Feature Name]
 
-// NewParticleGenerator creates a particle generator
-func NewParticleGenerator(maxParticles int) *ParticleGenerator {
-    return &ParticleGenerator{
-        MaxParticles: maxParticles,
-        EmitRate:     10.0,
-    }
-}
-
-// Generate creates a particle system from a seed
-func (pg *ParticleGenerator) Generate(seed int64) []Particle {
-    rng := rand.New(rand.NewSource(seed))
-    
-    count := rng.Intn(pg.MaxParticles) + 1
-    particles := make([]Particle, count)
-    
-    for i := range particles {
-        particles[i] = Particle{
-            X:         rng.Float64() * 100,
-            Y:         rng.Float64() * 100,
-            VelocityX: rng.Float64()*2 - 1,
-            VelocityY: rng.Float64()*2 - 1,
-            Color:     color.RGBA{uint8(rng.Intn(256)), uint8(rng.Intn(256)), uint8(rng.Intn(256)), 255},
-            Lifetime:  rng.Float64() * 2.0,
-        }
-    }
-    
-    return particles
-}
+- **Stated Goal**: [What README/ROADMAP claims]
+- **Current State**: [What actually exists]
+- **Impact**: [Why this matters]
+- **Closing the Gap**:
+  1. [Step 1]
+  2. [Step 2]
+  3. Validation: `[command to verify]`
 ```
 
-## Performance Considerations
-
-### Current Performance
-- Complete game generation: ~300ms
-- Sprite generation: ~1ms per sprite
-- Tileset generation: ~5ms per tileset
-- Music generation: ~50ms per track
-- World graph generation: ~20ms
-
-### Optimization Guidelines
-1. **Profile first**: Use `go test -bench` and `pprof` before optimizing
-2. **Cache expensive operations**: Use `AssetCache` for reused content
-3. **Prefer simplicity**: Current performance is acceptable for most use cases
-4. **Parallel generation**: Future optimization - generate subsystems concurrently
-5. **Memory allocation**: Reuse slices when possible with `make([]T, 0, capacity)`
-
-### When to Optimize
-- Generation time exceeds 1 second
-- Memory usage exceeds 100MB for single game
-- Users report noticeable lag
-- Benchmarks show regression
-
-## Future Architecture Considerations
-
-### Planned Enhancements
-
-**Save/Load System**:
-- Serialize game state to JSON
-- Store seed with save for regeneration
-- Track player progress and state
-
-**Adaptive Music**:
-- Layer system that responds to gameplay
-- Transition between biome tracks
-- Combat intensity affects music
-
-**Advanced AI**:
-- Behavior trees for enemy AI
-- Pathfinding with A*
-- Context-aware decision making
-
-**Animation System**:
-- Sprite frame generation
-- Interpolation between frames
-- State-based animation
-
-### Architectural Principles to Maintain
-
-1. **Determinism**: Always preserve seed-based reproducibility
-2. **Independence**: Keep subsystems loosely coupled
-3. **Simplicity**: Prefer clear code over clever optimizations
-4. **Testing**: Maintain high test coverage for PCG core
-5. **Documentation**: Keep this guide updated with new patterns
+---
 
 ## Quick Reference
 
-### Common Type Patterns
+### Common Constructors
 
 ```go
-// Generator pattern
-type XGenerator struct {
-    Config ConfigStruct
-}
+// PCG
+pcg.NewPCGContext(seed)
+pcg.NewDeterministicRNG(seed)
+pcg.HashSeed(masterSeed, identifier)
+pcg.DeriveSeeds(masterSeed)
 
-func NewXGenerator(params) *XGenerator { ... }
-func (g *XGenerator) Generate(seed int64) *Result { ... }
+// Graphics
+graphics.NewSpriteGenerator(width, height, symmetry)
+graphics.NewTilesetGenerator(tileSize, biome)
+graphics.NewPaletteGenerator(scheme)
 
-// Enum pattern
-type XType int
+// Audio
+audio.NewSFXGenerator(sampleRate)
+audio.NewMusicGenerator(sampleRate, bpm, rootNote, scale)
+audio.NewAudioPlayer()
+
+// World
+world.NewWorldGenerator(width, height, roomCount, biomeCount)
+world.NewBiomeGenerator()
+world.NewPlatformGenerator()
+
+// Entity
+entity.NewEnemyGenerator(seed)
+entity.NewBossGenerator(seed)
+entity.NewItemGenerator(seed)
+entity.NewAbilityGenerator(seed)
+
+// Engine
+engine.NewGameGenerator(masterSeed)
+engine.NewGameGeneratorWithGenre(masterSeed, genre)
+engine.NewCombatSystem()
+engine.NewRoomTransitionHandler(game)
+```
+
+### CLI Flags
+
+```
+--seed <int64>   Specify generation seed (default: timestamp)
+--play           Launch full game with rendering
+--genre <string> Set genre: fantasy|scifi|horror|cyberpunk|postapoc
+```
+
+### Genre IDs
+
+```go
 const (
-    TypeA XType = iota
-    TypeB
-    TypeC
-)
-
-// Result struct pattern
-type Result struct {
-    Data    []DataType
-    Metadata MetaStruct
-}
-```
-
-### Common Function Signatures
-
-```go
-// Generators
-func (g *Generator) Generate(seed int64) *Result
-func NewGenerator(config) *Generator
-
-// Seed management
-func HashSeed(masterSeed int64, identifier string) int64
-func DeriveSeeds(masterSeed int64) map[string]int64
-
-// Caching
-func (c *Cache) Get(key string) (interface{}, bool)
-func (c *Cache) Set(key string, value interface{})
-
-// Validation
-func (v *Validator) Validate(content interface{}) bool
-```
-
-### Import Organization
-
-Standard library first, then local packages:
-```go
-import (
-    "crypto/sha256"
-    "encoding/binary"
-    "math/rand"
-    
-    "github.com/opd-ai/vania/internal/pcg"
-    "github.com/opd-ai/vania/internal/graphics"
+    GenreFantasy   = "fantasy"   // Enchanted castle, vine-covered towers
+    GenreScifi     = "scifi"     // Derelict space hulk, exposed conduits
+    GenreHorror    = "horror"    // Haunted mansion, candlelit halls
+    GenreCyberpunk = "cyberpunk" // Megastructure, neon corridors
+    GenrePostapoc  = "postapoc"  // Collapsed bunker, concrete debris
 )
 ```
 
 ---
 
-**Last Updated**: 2024-10-18  
-**Maintained by**: VANIA Project Contributors  
-**Questions**: See README.md and IMPLEMENTATION.md for more details
+**Last Updated**: 2026-03-21
+**Maintainer**: opd-ai Project Contributors
+**Related Docs**: README.md, GAPS.md, AUDIT.md, ROADMAP.md, PLAN.md
