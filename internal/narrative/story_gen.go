@@ -65,17 +65,29 @@ type StoryElement struct {
 
 // NarrativeGenerator generates procedural stories
 type NarrativeGenerator struct {
-	rng *rand.Rand
+	rng   *rand.Rand
+	genre string // pinned genre; empty string means random
 }
 
 // NewNarrativeGenerator creates a new narrative generator
 func NewNarrativeGenerator(seed int64) *NarrativeGenerator {
 	return &NarrativeGenerator{
-		rng: rand.New(rand.NewSource(seed)),
+		rng:   rand.New(rand.NewSource(seed)),
+		genre: "",
 	}
 }
 
-// Generate creates a complete narrative context
+// SetGenre pins the narrative generator to a specific genre so that subsequent
+// calls to Generate always produce content matching that genre's vocabulary.
+// Accepted genre IDs: "fantasy", "scifi", "horror", "cyberpunk", "postapoc".
+// Pass an empty string to restore random theme selection.
+func (ng *NarrativeGenerator) SetGenre(genreID string) {
+	ng.genre = genreID
+}
+
+// Generate creates a complete narrative context.
+// When SetGenre has been called the theme is locked to that genre; otherwise
+// the theme is chosen randomly from the seed.
 func (ng *NarrativeGenerator) Generate(seed int64) *WorldContext {
 	ng.rng = rand.New(rand.NewSource(seed))
 
@@ -100,8 +112,22 @@ func (ng *NarrativeGenerator) Generate(seed int64) *WorldContext {
 	return ctx
 }
 
-// selectTheme randomly chooses a story theme
+// selectTheme returns the pinned theme when SetGenre has been called, or picks
+// one at random from the full set.
 func (ng *NarrativeGenerator) selectTheme() StoryTheme {
+	// genreToTheme maps the five game genre IDs to their StoryTheme equivalents.
+	genreToTheme := map[string]StoryTheme{
+		"fantasy":   FantasyTheme,
+		"scifi":     SciFiTheme,
+		"horror":    HorrorTheme,
+		"cyberpunk": SciFiTheme,   // cyberpunk shares scifi vocabulary
+		"postapoc":  PostApocTheme,
+	}
+	if ng.genre != "" {
+		if t, ok := genreToTheme[ng.genre]; ok {
+			return t
+		}
+	}
 	themes := []StoryTheme{
 		FantasyTheme,
 		SciFiTheme,
