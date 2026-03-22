@@ -162,3 +162,102 @@ func TestItemTypes(t *testing.T) {
 		t.Errorf("Expected currency name 'Crystal Shard', got '%s'", currency.Name)
 	}
 }
+
+func TestItemRarity(t *testing.T) {
+	// Test rarity tiers
+	rarities := []struct {
+		rarity ItemRarity
+		name   string
+		mult   float64
+	}{
+		{CommonRarity, "Common", 1.0},
+		{UncommonRarity, "Uncommon", 1.25},
+		{RareRarity, "Rare", 1.5},
+		{LegendaryRarity, "Legendary", 2.0},
+	}
+
+	for _, tc := range rarities {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.rarity.RarityName() != tc.name {
+				t.Errorf("Expected name %s, got %s", tc.name, tc.rarity.RarityName())
+			}
+			if tc.rarity.Multiplier() != tc.mult {
+				t.Errorf("Expected multiplier %.2f, got %.2f", tc.mult, tc.rarity.Multiplier())
+			}
+		})
+	}
+}
+
+func TestItemRarityDistribution(t *testing.T) {
+	// Test that rarity distribution roughly matches expected weights
+	gen := NewItemGenerator(12345)
+
+	counts := map[ItemRarity]int{
+		CommonRarity:    0,
+		UncommonRarity:  0,
+		RareRarity:      0,
+		LegendaryRarity: 0,
+	}
+
+	// Generate many items to test distribution
+	for seed := int64(0); seed < 1000; seed++ {
+		item := gen.Generate(WeaponItem, seed)
+		counts[item.Rarity]++
+	}
+
+	// Expected: Common 60%, Uncommon 25%, Rare 12%, Legendary 3%
+	// Allow 10% tolerance
+	total := float64(1000)
+	if float64(counts[CommonRarity])/total < 0.50 || float64(counts[CommonRarity])/total > 0.70 {
+		t.Errorf("Common rarity distribution out of range: %.1f%%", float64(counts[CommonRarity])/total*100)
+	}
+	if float64(counts[UncommonRarity])/total < 0.15 || float64(counts[UncommonRarity])/total > 0.35 {
+		t.Errorf("Uncommon rarity distribution out of range: %.1f%%", float64(counts[UncommonRarity])/total*100)
+	}
+	if float64(counts[RareRarity])/total < 0.05 || float64(counts[RareRarity])/total > 0.20 {
+		t.Errorf("Rare rarity distribution out of range: %.1f%%", float64(counts[RareRarity])/total*100)
+	}
+	if float64(counts[LegendaryRarity])/total > 0.10 {
+		t.Errorf("Legendary rarity too common: %.1f%%", float64(counts[LegendaryRarity])/total*100)
+	}
+}
+
+func TestItemRarityValueScaling(t *testing.T) {
+	// Test that rarity multipliers affect item value
+	gen := NewItemGenerator(42)
+
+	// Generate items with specific seeds to control rarity
+	// We test the multiplier logic directly
+	baseValue := 100
+	scaledUncommon := int(float64(baseValue) * UncommonRarity.Multiplier())
+	scaledRare := int(float64(baseValue) * RareRarity.Multiplier())
+	scaledLegendary := int(float64(baseValue) * LegendaryRarity.Multiplier())
+
+	if scaledUncommon != 125 {
+		t.Errorf("Uncommon scaling wrong: expected 125, got %d", scaledUncommon)
+	}
+	if scaledRare != 150 {
+		t.Errorf("Rare scaling wrong: expected 150, got %d", scaledRare)
+	}
+	if scaledLegendary != 200 {
+		t.Errorf("Legendary scaling wrong: expected 200, got %d", scaledLegendary)
+	}
+
+	// Generate an item and verify rarity is set
+	item := gen.Generate(WeaponItem, 1)
+	if item.Rarity < CommonRarity || item.Rarity > LegendaryRarity {
+		t.Errorf("Invalid rarity: %v", item.Rarity)
+	}
+}
+
+func TestKeyItemsAlwaysCommon(t *testing.T) {
+	gen := NewItemGenerator(42)
+
+	// Key items should always be common (progression-gating shouldn't be luck-based)
+	for seed := int64(0); seed < 100; seed++ {
+		key := gen.Generate(KeyItem, seed)
+		if key.Rarity != CommonRarity {
+			t.Errorf("Key items should always be common, got %s", key.Rarity.RarityName())
+		}
+	}
+}

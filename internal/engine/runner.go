@@ -6,6 +6,7 @@ package engine
 import (
 	"fmt"
 	"image/color"
+	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -16,6 +17,7 @@ import (
 	"github.com/opd-ai/vania/internal/entity"
 	"github.com/opd-ai/vania/internal/graphics"
 	"github.com/opd-ai/vania/internal/input"
+	"github.com/opd-ai/vania/internal/narrative"
 	"github.com/opd-ai/vania/internal/particle"
 	"github.com/opd-ai/vania/internal/physics"
 	"github.com/opd-ai/vania/internal/render"
@@ -25,42 +27,46 @@ import (
 
 const (
 	// Message timing constants
-	lockedDoorMessageDuration = 120 // 2 seconds at 60 FPS
-	itemMessageDuration       = 120 // 2 seconds at 60 FPS
+	lockedDoorMessageDuration   = 120 // 2 seconds at 60 FPS
+	itemMessageDuration         = 120 // 2 seconds at 60 FPS
+	roomDescriptionDuration     = 180 // 3 seconds at 60 FPS
+	roomDescriptionFadeDuration = 30  // 0.5 seconds fade in/out
 )
 
 // GameRunner wraps the Game with Ebiten rendering
 type GameRunner struct {
-	game              *Game
-	renderer          *render.Renderer
-	inputHandler      *input.InputHandler
-	playerBody        *physics.Body
-	combatSystem      *CombatSystem
-	transitionHandler *RoomTransitionHandler
-	enemyInstances    []*entity.EnemyInstance
-	itemInstances     []*entity.ItemInstance
-	particleSystem    *particle.ParticleSystem
-	particlePresets   *particle.ParticlePresets
-	doubleJumpUsed    bool
-	dashCooldown      int
-	grappleCooldown   int
-	playerFacingDir   float64
-	paused            bool
-	saveManager       *save.SaveManager
-	checkpointManager *save.CheckpointManager
-	startTime         time.Time
-	visitedRooms      map[int]bool
-	defeatedEnemies   map[int]bool
-	collectedItems    map[int]bool
-	unlockedDoors     map[string]bool
-	lockedDoorMessage string
-	lockedDoorTimer   int
-	itemMessage       string
-	itemMessageTimer  int
-	musicContext      *audio.MusicContext
-	showDebugInfo     bool
-	playerStatus      *StatusManager // active status effects on the player
-	systemManager     *ecs.SystemManager
+	game                 *Game
+	renderer             *render.Renderer
+	inputHandler         *input.InputHandler
+	playerBody           *physics.Body
+	combatSystem         *CombatSystem
+	transitionHandler    *RoomTransitionHandler
+	enemyInstances       []*entity.EnemyInstance
+	itemInstances        []*entity.ItemInstance
+	particleSystem       *particle.ParticleSystem
+	particlePresets      *particle.ParticlePresets
+	doubleJumpUsed       bool
+	dashCooldown         int
+	grappleCooldown      int
+	playerFacingDir      float64
+	paused               bool
+	saveManager          *save.SaveManager
+	checkpointManager    *save.CheckpointManager
+	startTime            time.Time
+	visitedRooms         map[int]bool
+	defeatedEnemies      map[int]bool
+	collectedItems       map[int]bool
+	unlockedDoors        map[string]bool
+	lockedDoorMessage    string
+	lockedDoorTimer      int
+	itemMessage          string
+	itemMessageTimer     int
+	musicContext         *audio.MusicContext
+	showDebugInfo        bool
+	playerStatus         *StatusManager // active status effects on the player
+	systemManager        *ecs.SystemManager
+	roomDescription      string
+	roomDescriptionTimer int
 }
 
 // NewGameRunner creates a new game runner
@@ -236,6 +242,9 @@ func (gr *GameRunner) updatePlaying(inputState input.InputState) error {
 
 	if gr.itemMessageTimer > 0 {
 		gr.itemMessageTimer--
+	}
+	if gr.roomDescriptionTimer > 0 {
+		gr.roomDescriptionTimer--
 	}
 	gr.checkItemCollection()
 	gr.renderer.UpdateCamera(gr.game.Player.X, gr.game.Player.Y)
@@ -550,9 +559,86 @@ func (gr *GameRunner) recordEnemyDeath(enemy *entity.EnemyInstance) {
 		wasPerfect := gr.combatSystem.GetInvulnerableFrames() == 0
 		gr.game.Achievements.RecordEnemyKill(wasPerfect)
 	}
+
+	// Check if this was a boss and handle ability unlock
+	gr.handleBossDefeat(enemy)
+
 	explosionEmitter := gr.particlePresets.CreateExplosion(ex+16, ey+16, 1.0)
 	explosionEmitter.Burst(20)
 	gr.particleSystem.AddEmitter(explosionEmitter)
+}
+
+// handleBossDefeat checks if the defeated enemy was a boss and unlocks any granted ability
+func (gr *GameRunner) handleBossDefeat(enemy *entity.EnemyInstance) {
+	if enemy.Enemy.Size != entity.BossEnemy {
+		return
+	}
+
+	// Find the corresponding boss for this enemy
+	for _, boss := range gr.game.Bosses {
+		if boss.Name == enemy.Enemy.Name && boss.GrantsAbility != "" {
+			// Unlock the ability granted by this boss
+			abilityKey := gr.normalizeAbilityKey(boss.GrantsAbility)
+			if !gr.game.Player.Abilities[abilityKey] {
+				gr.game.Player.Abilities[abilityKey] = true
+
+				// Show unlock message
+				gr.itemMessage = "Ability Unlocked: " + boss.GrantsAbility
+				gr.itemMessageTimer = itemMessageDuration
+
+				// Record for achievements
+				if gr.game.Achievements != nil {
+					gr.game.Achievements.RecordAbilityUnlocked()
+				}
+
+				// Unlock any doors gated by this ability in the current room
+				gr.unlockAbilityGatedDoors(abilityKey)
+			}
+			break
+		}
+	}
+}
+
+// normalizeAbilityKey converts ability display names to internal keys
+func (gr *GameRunner) normalizeAbilityKey(abilityName string) string {
+	switch abilityName {
+	case "Double Jump":
+		return "double_jump"
+	case "Dash":
+		return "dash"
+	case "Wall Climb":
+		return "wall_climb"
+	case "Glide":
+		return "glide"
+	case "Swim":
+		return "swim"
+	case "Charge Attack":
+		return "charge_attack"
+	case "Projectile":
+		return "ranged"
+	case "Shield":
+		return "shield"
+	case "Grapple":
+		return "grapple"
+	default:
+		// Default: lowercase with underscores
+		return abilityName
+	}
+}
+
+// unlockAbilityGatedDoors unlocks any doors in the current room gated by the given ability
+func (gr *GameRunner) unlockAbilityGatedDoors(abilityKey string) {
+	if gr.game.CurrentRoom == nil {
+		return
+	}
+
+	for i := range gr.game.CurrentRoom.Doors {
+		door := &gr.game.CurrentRoom.Doors[i]
+		if door.RequiredAbility == abilityKey {
+			doorKey := gr.transitionHandler.GetDoorKey(door)
+			gr.unlockedDoors[doorKey] = true
+		}
+	}
 }
 
 // checkEnemyHitPlayer tests whether the given enemy is colliding with the
@@ -584,10 +670,122 @@ func (gr *GameRunner) updateRoomTracking() {
 	}
 	wasVisited := gr.visitedRooms[gr.game.CurrentRoom.ID]
 	gr.visitedRooms[gr.game.CurrentRoom.ID] = true
-	if !wasVisited && gr.game.Achievements != nil {
-		isPerfect := !gr.combatSystem.IsInvulnerable()
-		gr.game.Achievements.RecordRoomVisit(isPerfect)
+	if !wasVisited {
+		if gr.game.Achievements != nil {
+			isPerfect := !gr.combatSystem.IsInvulnerable()
+			gr.game.Achievements.RecordRoomVisit(isPerfect)
+		}
+		// Show room description on first visit
+		gr.showRoomDescription()
 	}
+}
+
+// showRoomDescription generates and displays a room description for the current room.
+func (gr *GameRunner) showRoomDescription() {
+	if gr.game.CurrentRoom == nil || gr.game.Narrative == nil {
+		return
+	}
+
+	// Determine room type from biome or use default
+	roomType := "corridor"
+	if gr.game.CurrentRoom.Biome != nil && gr.game.CurrentRoom.Biome.Name != "" {
+		roomType = strings.ToLower(gr.game.CurrentRoom.Biome.Name)
+	}
+
+	// Generate description using narrative generator
+	theme := gr.game.Narrative.Theme
+	desc := gr.generateRoomDescription(roomType, theme)
+
+	if desc != "" {
+		gr.roomDescription = desc
+		gr.roomDescriptionTimer = roomDescriptionDuration
+	}
+}
+
+// generateRoomDescription creates a room description based on room type and theme.
+func (gr *GameRunner) generateRoomDescription(roomType string, theme narrative.StoryTheme) string {
+	// Use the narrative generator if available in the game generator
+	// Otherwise generate a simple description based on type and theme
+	descriptions := getRoomDescriptions(theme)
+	if desc, ok := descriptions[roomType]; ok {
+		return desc
+	}
+	// Fallback: generate generic description
+	return getGenericRoomDescription(roomType, theme)
+}
+
+// getRoomDescriptions returns theme-specific room descriptions.
+func getRoomDescriptions(theme narrative.StoryTheme) map[string]string {
+	switch theme {
+	case narrative.FantasyTheme:
+		return map[string]string{
+			"cave":     "Ancient stones whisper forgotten secrets...",
+			"forest":   "Twisted roots pierce through crumbling walls...",
+			"dungeon":  "The air grows heavy with untold mysteries...",
+			"castle":   "Echoes of a fallen kingdom linger here...",
+			"corridor": "Shadows dance along weathered corridors...",
+			"chamber":  "A sanctum of old power awaits...",
+		}
+	case narrative.SciFiTheme:
+		return map[string]string{
+			"cave":     "Bio-luminescent fungi illuminate the passage...",
+			"forest":   "Synthetic vines entangle abandoned machinery...",
+			"dungeon":  "Malfunctioning systems flicker in the dark...",
+			"castle":   "The command deck lies in silent ruin...",
+			"corridor": "Emergency lighting guides through debris...",
+			"chamber":  "A reactor core hums with residual power...",
+		}
+	case narrative.HorrorTheme:
+		return map[string]string{
+			"cave":     "Something unspeakable stirs in the darkness...",
+			"forest":   "The trees seem to watch with malice...",
+			"dungeon":  "Chains rattle in unseen corners...",
+			"castle":   "The walls bleed memories of suffering...",
+			"corridor": "Each step echoes like a death knell...",
+			"chamber":  "An altar of nightmares awaits the unwary...",
+		}
+	case narrative.MysticalTheme:
+		return map[string]string{
+			"cave":     "Crystal formations pulse with ethereal light...",
+			"forest":   "Spirit wisps dance between ancient oaks...",
+			"dungeon":  "Arcane symbols shimmer on every surface...",
+			"castle":   "The veil between worlds grows thin here...",
+			"corridor": "Reality bends around each corner...",
+			"chamber":  "A nexus of magical convergence beckons...",
+		}
+	case narrative.PostApocTheme:
+		return map[string]string{
+			"cave":     "Radiation warnings mark forgotten shelters...",
+			"forest":   "Mutated vegetation reclaims the ruins...",
+			"dungeon":  "Pre-war bunkers hold decaying secrets...",
+			"castle":   "A fortress against the wasteland crumbles...",
+			"corridor": "Dust settles on the bones of civilization...",
+			"chamber":  "Survival caches lie hidden in the rubble...",
+		}
+	default:
+		return map[string]string{
+			"cave":     "A passage stretches into darkness...",
+			"corridor": "The way forward lies uncertain...",
+		}
+	}
+}
+
+// getGenericRoomDescription provides a fallback description.
+func getGenericRoomDescription(roomType string, theme narrative.StoryTheme) string {
+	prefix := "You enter"
+	switch theme {
+	case narrative.FantasyTheme:
+		prefix = "Ancient magic pervades"
+	case narrative.SciFiTheme:
+		prefix = "Systems detect"
+	case narrative.HorrorTheme:
+		prefix = "Dread fills"
+	case narrative.MysticalTheme:
+		prefix = "Mystical energy surrounds"
+	case narrative.PostApocTheme:
+		prefix = "Ruins mark"
+	}
+	return fmt.Sprintf("%s this %s...", prefix, roomType)
 }
 
 // Draw implements ebiten.Game interface
@@ -682,6 +880,11 @@ func (gr *GameRunner) Draw(screen *ebiten.Image) {
 		msgY := render.AbilityIconY + render.AbilityIconSize + render.UIMargin
 		gr.renderMessageWithProgress(screen, gr.itemMessage, gr.itemMessageTimer, itemMessageDuration,
 			msgX, msgY, color.RGBA{255, 215, 0, 200})
+	}
+
+	// Show room description on entry (bottom of screen, non-intrusive)
+	if gr.roomDescriptionTimer > 0 && gr.roomDescription != "" {
+		gr.renderRoomDescription(screen)
 	}
 
 	// Show debug info if enabled (positioned below UI to avoid overlap)
@@ -1222,6 +1425,46 @@ func (gr *GameRunner) renderMessageWithProgress(screen *ebiten.Image, message st
 		gr.renderer.RenderText(screen, message, x+10, y+12, color.RGBA{255, 255, 255, 255})
 	} else {
 		ebitenutil.DebugPrintAt(screen, message, x+10, y+12)
+	}
+}
+
+// renderRoomDescription renders the room description at the bottom of the screen
+// with fade-in and fade-out effects.
+func (gr *GameRunner) renderRoomDescription(screen *ebiten.Image) {
+	// Calculate alpha based on timer (fade in at start, fade out at end)
+	alpha := uint8(255)
+	if gr.roomDescriptionTimer > roomDescriptionDuration-roomDescriptionFadeDuration {
+		// Fade in
+		fadeProgress := float64(roomDescriptionDuration-gr.roomDescriptionTimer) / float64(roomDescriptionFadeDuration)
+		alpha = uint8(255.0 * fadeProgress)
+	} else if gr.roomDescriptionTimer < roomDescriptionFadeDuration {
+		// Fade out
+		fadeProgress := float64(gr.roomDescriptionTimer) / float64(roomDescriptionFadeDuration)
+		alpha = uint8(255.0 * fadeProgress)
+	}
+
+	// Position at bottom center of screen
+	textWidth := len(gr.roomDescription) * 8 // 8px per char
+	x := (render.ScreenWidth - textWidth) / 2
+	y := render.ScreenHeight - 50
+
+	// Draw semi-transparent background
+	bgWidth := textWidth + 20
+	bgHeight := 30
+	bgX := (render.ScreenWidth - bgWidth) / 2
+	bgY := y - 5
+
+	bgImg := ebiten.NewImage(bgWidth, bgHeight)
+	bgImg.Fill(color.RGBA{0, 0, 0, alpha / 2})
+	opts := &ebiten.DrawImageOptions{}
+	opts.GeoM.Translate(float64(bgX), float64(bgY))
+	screen.DrawImage(bgImg, opts)
+
+	// Draw text with fade
+	if gr.renderer != nil {
+		gr.renderer.RenderText(screen, gr.roomDescription, x, y, color.RGBA{200, 200, 255, alpha})
+	} else {
+		ebitenutil.DebugPrintAt(screen, gr.roomDescription, x, y)
 	}
 }
 

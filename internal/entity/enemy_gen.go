@@ -60,6 +60,7 @@ type Boss struct {
 	Phases        []BossPhase
 	UniqueAttacks []string
 	ArenaLayout   interface{}
+	GrantsAbility string // Ability unlocked when this boss is defeated
 }
 
 // BossPhase represents a phase of a boss fight
@@ -70,6 +71,52 @@ type BossPhase struct {
 	SpeedModifier   float64
 }
 
+// ItemRarity defines the rarity tier of an item
+type ItemRarity int
+
+const (
+	// CommonRarity is the base tier with no stat bonus
+	CommonRarity ItemRarity = iota
+	// UncommonRarity provides a 25% stat bonus
+	UncommonRarity
+	// RareRarity provides a 50% stat bonus
+	RareRarity
+	// LegendaryRarity provides a 100% stat bonus
+	LegendaryRarity
+)
+
+// rarityMultipliers defines stat scaling per rarity tier
+var rarityMultipliers = map[ItemRarity]float64{
+	CommonRarity:    1.0,
+	UncommonRarity:  1.25,
+	RareRarity:      1.5,
+	LegendaryRarity: 2.0,
+}
+
+// rarityNames defines display names per rarity tier
+var rarityNames = map[ItemRarity]string{
+	CommonRarity:    "Common",
+	UncommonRarity:  "Uncommon",
+	RareRarity:      "Rare",
+	LegendaryRarity: "Legendary",
+}
+
+// RarityName returns the display name for a rarity tier
+func (r ItemRarity) RarityName() string {
+	if name, ok := rarityNames[r]; ok {
+		return name
+	}
+	return "Unknown"
+}
+
+// Multiplier returns the stat multiplier for this rarity tier
+func (r ItemRarity) Multiplier() float64 {
+	if mult, ok := rarityMultipliers[r]; ok {
+		return mult
+	}
+	return 1.0
+}
+
 // Item represents a collectible item
 type Item struct {
 	Name        string
@@ -77,6 +124,7 @@ type Item struct {
 	Description string
 	Effect      string
 	Value       int
+	Rarity      ItemRarity
 	SpriteData  interface{}
 }
 
@@ -236,6 +284,11 @@ func NewBossGenerator(seed int64) *BossGenerator {
 
 // Generate creates a boss enemy
 func (bg *BossGenerator) Generate(biome string, seed int64) *Boss {
+	return bg.GenerateWithAbility(biome, seed, "")
+}
+
+// GenerateWithAbility creates a boss enemy that grants a specific ability on defeat
+func (bg *BossGenerator) GenerateWithAbility(biome string, seed int64, grantsAbility string) *Boss {
 	bg.rng = rand.New(rand.NewSource(seed))
 
 	// Create base enemy with boss stats
@@ -250,8 +303,9 @@ func (bg *BossGenerator) Generate(biome string, seed int64) *Boss {
 	}
 
 	boss := &Boss{
-		Enemy:  baseEnemy,
-		Phases: make([]BossPhase, 2+bg.rng.Intn(2)),
+		Enemy:         baseEnemy,
+		Phases:        make([]BossPhase, 2+bg.rng.Intn(2)),
+		GrantsAbility: grantsAbility,
 	}
 
 	// Generate phases
@@ -387,12 +441,14 @@ func NewItemGenerator(seed int64) *ItemGenerator {
 	}
 }
 
-// Generate creates an item
+// Generate creates an item with procedurally determined rarity
 func (ig *ItemGenerator) Generate(itemType ItemType, seed int64) *Item {
 	ig.rng = rand.New(rand.NewSource(seed))
 
+	rarity := ig.rollRarity()
 	item := &Item{
-		Type: itemType,
+		Type:   itemType,
+		Rarity: rarity,
 	}
 
 	switch itemType {
@@ -400,34 +456,55 @@ func (ig *ItemGenerator) Generate(itemType ItemType, seed int64) *Item {
 		item.Name = ig.generateWeaponName()
 		item.Description = "A powerful weapon"
 		item.Effect = "increase_damage"
-		item.Value = 50 + ig.rng.Intn(100)
+		baseValue := 50 + ig.rng.Intn(100)
+		item.Value = int(float64(baseValue) * rarity.Multiplier())
 
 	case ConsumableItem:
 		item.Name = ig.generatePotionName()
 		item.Description = "Restores health"
 		item.Effect = "heal"
-		item.Value = 10 + ig.rng.Intn(20)
+		baseValue := 10 + ig.rng.Intn(20)
+		item.Value = int(float64(baseValue) * rarity.Multiplier())
 
 	case KeyItem:
 		item.Name = ig.generateKeyName()
 		item.Description = "Opens new paths"
 		item.Effect = "unlock"
 		item.Value = 0
+		item.Rarity = CommonRarity // Keys are always common
 
 	case UpgradeItem:
 		item.Name = "Upgrade Stone"
 		item.Description = "Enhances abilities"
 		item.Effect = "upgrade"
-		item.Value = 100
+		baseValue := 100
+		item.Value = int(float64(baseValue) * rarity.Multiplier())
 
 	case CurrencyItem:
 		item.Name = "Crystal Shard"
 		item.Description = "Currency"
 		item.Effect = "currency"
-		item.Value = 1 + ig.rng.Intn(10)
+		baseValue := 1 + ig.rng.Intn(10)
+		item.Value = int(float64(baseValue) * rarity.Multiplier())
 	}
 
 	return item
+}
+
+// rollRarity determines item rarity using weighted random selection.
+// Drop rates: Common 60%, Uncommon 25%, Rare 12%, Legendary 3%.
+func (ig *ItemGenerator) rollRarity() ItemRarity {
+	roll := ig.rng.Intn(100)
+	switch {
+	case roll < 60:
+		return CommonRarity
+	case roll < 85:
+		return UncommonRarity
+	case roll < 97:
+		return RareRarity
+	default:
+		return LegendaryRarity
+	}
 }
 
 func (ig *ItemGenerator) generateWeaponName() string {

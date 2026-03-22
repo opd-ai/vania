@@ -55,11 +55,12 @@ type Hazard struct {
 
 // Door represents an exit/entrance to another room
 type Door struct {
-	X, Y          int    // Position in the room
-	Width, Height int    // Size of the door
-	Direction     string // "north", "south", "east", "west"
-	LeadsTo       *Room  // Connected room
-	Locked        bool   // Whether door requires ability/key
+	X, Y            int    // Position in the room
+	Width, Height   int    // Size of the door
+	Direction       string // "north", "south", "east", "west"
+	LeadsTo         *Room  // Connected room
+	Locked          bool   // Whether door requires ability/key
+	RequiredAbility string // Ability key needed to unlock (e.g., "double_jump", "dash")
 }
 
 // AnchorPoint represents a grapple hook anchor point

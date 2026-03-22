@@ -503,6 +503,223 @@ func (ei *EnemyInstance) GetBounds() (x, y, width, height float64) {
 	return ei.X, ei.Y, width, height
 }
 
+// Platform represents a platform that enemies can interact with for AI purposes
+type Platform struct {
+	X, Y, Width, Height int
+}
+
+// PlatformContext holds platform information for platformer-aware AI
+type PlatformContext struct {
+	Platforms       []Platform
+	NearestLedgeX   float64
+	NearestLedgeDir float64 // -1 left, 1 right, 0 no ledge
+	NearestWallX    float64
+	NearestWallDir  float64 // -1 left, 1 right, 0 no wall
+	IsNearLedge     bool
+	IsNearWall      bool
+}
+
+// UpdatePlatformContext updates the enemy's awareness of nearby platforms
+func (ei *EnemyInstance) UpdatePlatformContext(platforms []Platform) *PlatformContext {
+	ctx := &PlatformContext{
+		Platforms: platforms,
+	}
+
+	_, _, ew, eh := ei.GetBounds()
+	footY := ei.Y + eh
+
+	// Ledge detection: look for edges of current platform
+	ctx.NearestLedgeX, ctx.NearestLedgeDir, ctx.IsNearLedge = ei.detectLedge(platforms, footY, ew)
+
+	// Wall detection: look for platforms blocking horizontal movement
+	ctx.NearestWallX, ctx.NearestWallDir, ctx.IsNearWall = ei.detectWall(platforms, eh)
+
+	return ctx
+}
+
+// detectLedge finds the nearest platform edge in the enemy's movement direction
+func (ei *EnemyInstance) detectLedge(platforms []Platform, footY, enemyWidth float64) (float64, float64, bool) {
+	const ledgeCheckDist = 20.0 // pixels ahead to check for ground
+	const ledgeProximity = 16.0 // how close to edge before reacting
+
+	checkLeft := ei.X - ledgeCheckDist
+	checkRight := ei.X + enemyWidth + ledgeCheckDist
+
+	// Check if there's ground ahead in movement direction
+	hasGroundLeft := false
+	hasGroundRight := false
+
+	for _, p := range platforms {
+		px := float64(p.X)
+		pw := float64(p.Width)
+		py := float64(p.Y)
+
+		// Platform is roughly at foot level
+		if math.Abs(py-footY) < 10 {
+			if checkLeft >= px && checkLeft <= px+pw {
+				hasGroundLeft = true
+			}
+			if checkRight >= px && checkRight <= px+pw {
+				hasGroundRight = true
+			}
+		}
+	}
+
+	// Return ledge info based on movement direction
+	if ei.VelX < 0 && !hasGroundLeft {
+		return ei.X - ledgeCheckDist, -1.0, true
+	}
+	if ei.VelX > 0 && !hasGroundRight {
+		return ei.X + enemyWidth + ledgeCheckDist, 1.0, true
+	}
+
+	return 0, 0, false
+}
+
+// detectWall finds the nearest vertical obstacle blocking horizontal movement
+func (ei *EnemyInstance) detectWall(platforms []Platform, enemyHeight float64) (float64, float64, bool) {
+	const wallCheckDist = 8.0 // pixels ahead to check for wall
+
+	checkLeft := ei.X - wallCheckDist
+	checkRight := ei.X + 32.0 + wallCheckDist // assume standard enemy width
+	midY := ei.Y + enemyHeight/2
+
+	for _, p := range platforms {
+		px := float64(p.X)
+		pw := float64(p.Width)
+		py := float64(p.Y)
+		ph := float64(p.Height)
+
+		// Check if platform intersects enemy height
+		if midY >= py && midY <= py+ph {
+			// Wall on left
+			if checkLeft <= px+pw && ei.X > px+pw {
+				return px + pw, -1.0, true
+			}
+			// Wall on right
+			if checkRight >= px && ei.X+32.0 < px {
+				return px, 1.0, true
+			}
+		}
+	}
+
+	return 0, 0, false
+}
+
+// ApplyPlatformAwareness modifies enemy velocity based on platform context
+func (ei *EnemyInstance) ApplyPlatformAwareness(ctx *PlatformContext) {
+	if ctx == nil {
+		return
+	}
+
+	// Flying enemies don't need platform awareness
+	if ei.Enemy.Behavior == FlyingBehavior {
+		return
+	}
+
+	// Ledge avoidance: reverse direction when approaching a ledge
+	if ctx.IsNearLedge && ei.OnGround {
+		// Only avoid ledge if not actively chasing player down
+		if ei.State != ChaseState || ctx.NearestLedgeDir == ei.normalizeDirection(ei.VelX) {
+			ei.VelX = 0
+			ei.PatrolDir = -ctx.NearestLedgeDir
+		}
+	}
+
+	// Wall avoidance: don't walk into walls
+	if ctx.IsNearWall {
+		if ctx.NearestWallDir == ei.normalizeDirection(ei.VelX) {
+			ei.VelX = 0
+			ei.PatrolDir = -ctx.NearestWallDir
+		}
+	}
+}
+
+// normalizeDirection returns -1, 0, or 1 based on velocity sign
+func (ei *EnemyInstance) normalizeDirection(vel float64) float64 {
+	if vel > 0.1 {
+		return 1.0
+	}
+	if vel < -0.1 {
+		return -1.0
+	}
+	return 0.0
+}
+
+// PreferredAttackRange returns the optimal distance for this enemy type to attack from
+func (ei *EnemyInstance) PreferredAttackRange() float64 {
+	switch ei.Enemy.AttackType {
+	case RangedAttack:
+		return ei.AttackRange * 2.0 // Ranged enemies prefer more distance
+	case AreaAttack:
+		return ei.AttackRange * 1.5 // Area attacks work at medium range
+	default:
+		return ei.AttackRange // Melee enemies close in
+	}
+}
+
+// MaintainPreferredRange adjusts velocity to stay at preferred attack distance
+func (ei *EnemyInstance) MaintainPreferredRange(playerX, playerY float64) {
+	dx := playerX - ei.X
+	dist := math.Abs(dx)
+	preferredDist := ei.PreferredAttackRange()
+
+	// Only apply for ranged enemies when in combat
+	if ei.Enemy.AttackType != RangedAttack || ei.State != ChaseState {
+		return
+	}
+
+	const tolerance = 20.0 // acceptable variance from preferred distance
+
+	if dist < preferredDist-tolerance {
+		// Too close, back away
+		if dx > 0 {
+			ei.VelX = -ei.Enemy.Speed * 0.7
+		} else {
+			ei.VelX = ei.Enemy.Speed * 0.7
+		}
+	} else if dist > preferredDist+tolerance {
+		// Too far, close in
+		if dx > 0 {
+			ei.VelX = ei.Enemy.Speed
+		} else {
+			ei.VelX = -ei.Enemy.Speed
+		}
+	} else {
+		// At good distance, strafe or stay still
+		ei.VelX *= 0.3
+	}
+}
+
+// UpdateFlyingAltitude manages flying enemy altitude relative to player
+func (ei *EnemyInstance) UpdateFlyingAltitude(playerY float64) {
+	if ei.Enemy.Behavior != FlyingBehavior {
+		return
+	}
+
+	const preferredAltitude = 80.0 // hover above player
+	const minAltitude = 40.0
+	const maxAltitude = 150.0
+
+	targetY := playerY - preferredAltitude
+
+	// Clamp to screen bounds (assuming 720 height)
+	if targetY < 50 {
+		targetY = 50
+	}
+	if targetY > 600 {
+		targetY = 600
+	}
+
+	dy := targetY - ei.Y
+	if math.Abs(dy) > 10 {
+		ei.VelY = math.Copysign(ei.Enemy.Speed*0.5, dy)
+	} else {
+		// Gentle hover bobbing
+		ei.VelY = math.Sin(ei.X*0.1) * 0.5
+	}
+}
+
 // GetEnemySizeBounds returns width and height for an enemy based on its size,
 // without requiring an instance. Useful for spawn position calculation.
 func GetEnemySizeBounds(enemy *Enemy) (x, y, width, height float64) {
